@@ -1,0 +1,127 @@
+# Copyright 2021 Google LLC.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+book_path: /decision_forests/_book.yaml
+project_path: /decision_forests/_project.yaml
+description: >
+ TensorFlow Decision Forests is a collection of state-of-the-art algorithms for the training,
+ serving and interpretation of Decision Forest for classification, regression and ranking.
+
+landing_page:
+  custom_css_path: /site-assets/css/style.css
+  rows:
+  - heading: TensorFlow Decision Forests
+    items:
+    - classname: devsite-landing-row-50
+      list:
+      - description: >
+          <!-- Please keep the content of this file in sync with README.md -->
+          <p>
+          <b>TensorFlow Decision Forests</b> (<b>TF-DF</b>) is a collection of state-of-the-art
+          algorithms for the training, serving and interpretation of <b>Decision Forest</b>
+          models. The library is a collection of <a href="https://keras.io/">Keras</a> models and
+          supports classification, regression and ranking.
+          <p>
+          <p>
+          TF-DF is a wrapper around the <a
+          href="https://github.com/google/yggdrasil-decision-forests">Yggdrasil Decision Forest</a>
+          C++ libraries. Models trained with TF-DF are compatible with Yggdrasil Decision
+          Forests' models, and vice versa.
+          </p>
+          <p>
+          <i>Keywords: Decision Forests, TensorFlow, Random Forest, Gradient Boosted Trees, CART, model interpretation.</i>
+          </p>
+          <h3>Documentation and Community</h3>
+          <p>
+          The following resources are available:
+          <ul>
+          <li><a href="tutorials/index">Tutorial</a></li>
+          <li><a href="migration">Migration guide from Neural Network to Decision Forests</a></li>
+          <li><a href="https://github.com/tensorflow/decision-forests/issues">Issue tracker</a></li>
+          <li><a href="https://github.com/tensorflow/decision-forests/blob/master/CHANGELOG">Changelog</a></li>
+          <li><a href="https://discuss.tensorflow.org">Discuss on TensorFlow.Org</a></li>
+          <li><a href="https://github.com/google/yggdrasil-decision-forests">Yggdrasil Decision Forest</a> (for advanced users)</li>
+          </ul>
+          </p>
+          <h3>Contributing</h3>
+          <p>
+          Contributions to TensorFlow Decision Forests and Yggdrasil Decision Forests are welcome.
+          If you want to contribute, make sure to review the <a href="developer_manual">developer
+          manual</a>.
+          </p>
+          <h3>Credits</h3>
+          <p>
+          TensorFlow Decision Forests was developed by:
+          <ul>
+          <li>Mathieu Guillame-Bert (gbm AT google DOT com)</li>
+          <li>Jan Pfeifer (janpf AT google DOT com)</li>
+          <li>Sebastian Bruch (sebastian AT bruch DOT io)</li>
+          <li>Arvind Srinivasan (arvnd AT google DOT com)</li>
+          </ul>
+          </p>
+
+      code_block: |
+        <pre class = "prettyprint">
+        import tensorflow_decision_forests as tfdf
+        import pandas as pd
+
+        # Load a dataset in a Pandas dataframe.
+        train_df = pd.read_csv("project/train.csv")
+        test_df = pd.read_csv("project/test.csv")
+
+        # Convert the dataset into a TensorFlow dataset.
+        train_ds = tfdf.keras.pd_dataframe_to_tf_dataset(train_df, label="my_label")
+        test_ds = tfdf.keras.pd_dataframe_to_tf_dataset(test_df, label="my_label")
+
+        # Train a Random Forest model.
+        model = tfdf.keras.RandomForestModel()
+        model.fit(train_ds)
+
+        # Summary of the model structure.
+        model.summary()
+
+        # Evaluate the model.
+        model.evaluate(test_ds)
+
+        # Export the model to a SavedModel.
+        model.save("project/model")
+        </pre>
+
+  - classname: devsite-landing-row-cards
+    items:
+    # - heading: "Introducing TensorFlow Decision Forests"
+    #   image_path: /resources/images/tf-logo-card-16x9.png
+    #   path: https://blog.tensorflow.org
+    #   buttons:
+    #   - label: "Read on TensorFlow blog"
+    #     path: https://blog.tensorflow.org
+    # - heading: "TensorFlow Decision Forests video"
+    #   youtube_id: 3d34Hkf7KXA
+    #   buttons:
+    #   - label: Watch the video
+    #     path: https://www.youtube.com/watch?v=3d34Hkf7KXA
+    - heading: "TensorFlow Decision Forests on GitHub"
+      # # Add the image back when more cards are added.
+      # image_path: /resources/images/github-card-16x9.png
+      path: https://github.com/tensorflow/decision-forests
+      buttons:
+      - label: "View on GitHub"
+        path: https://github.com/tensorflow/decision-forests
+    - heading: "Yggdrasil Decision Forests on GitHub"
+      # # Add the image back when more cards are added.
+      # image_path: /resources/images/github-card-16x9.png
+      path: https://github.com/tensorflow/decision-forests
+      buttons:
+      - label: "View on GitHub"
+        path: https://github.com/google/yggdrasil-decision-forests

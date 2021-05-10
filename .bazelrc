@@ -1,0 +1,47 @@
+# Bazel configuration for Yggdrasil Decision Forests
+#
+# OPTIONS
+#
+# Linux
+#
+#   linux: Linux build.
+#
+# Windows
+#
+#   windows: Windows build.
+#
+
+# Common flags.
+common --experimental_repo_remote_exec
+build --announce_rc
+build -c opt
+
+# Allow to use tensorflow internal methods.
+build --nocheck_visibility
+
+# Yggdrasil uses tensorflow for IO.
+build --define=use_tensorflow_io=1
+
+# TensorFlow uses an old version of Absl without StatusOr, so Yggdrasil uses
+# its own implementation.
+build --define=no_absl_statusor=1
+
+# Yggdrasil uses the tensorflow headers specialized for dynamic linking.
+build --define=tensorflow_with_header_lib=1
+
+# Nice print
+build:linux --copt=-fdiagnostics-color=always
+build --color=yes
+
+# Suppress C++ compiler warnings.
+build:linux --copt=-w
+build:linux --host_copt=-w
+build:macos --copt=-w
+build:windows --copt=/W0
+
+# Linux options that should also be used for Windows.
+build --define=framework_shared_object=true
+build --enable_platform_specific_config
+build --define=dynamic_loaded_kernels=true
+build --copt=-DAUTOLOAD_DYNAMIC_KERNELS
+build --spawn_strategy=standalone
