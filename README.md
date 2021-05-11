@@ -50,6 +50,7 @@ The following resources are available:
 -   [Colabs](documentation/tutorials)
 -   [Migration guide from Neural Network to Decision Forests](documentation/migration.md)
 -   [Issue tracker](https://github.com/tensorflow/decision-forests/issues)
+-   [Known issues](documentation/known_issues.md)
 -   [Changelog](CHANGELOG.md)
 -   [Discuss on TensorFlow.Org](https://discuss.tensorflow.org)
 -   [Yggdrasil documentation](https://github.com/google/yggdrasil-decision-forests)

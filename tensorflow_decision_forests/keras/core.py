@@ -224,7 +224,7 @@ class AdvancedArguments(NamedTuple):
   """Advanced control of the model that most users won't need to use.
 
   Attributes:
-    build_graph_after_training: Instantiate the model graph after training. This
+    infer_prediction_signature: Instantiate the model graph after training. This
       allows the model to be saved without specifying an input signature and
       without calling "predict", "evaluate". Disabling this logic can be useful
         in two situations: (1) When the exported signature is different from the
@@ -238,7 +238,7 @@ class AdvancedArguments(NamedTuple):
       quality.
   """
 
-  build_graph_after_training: Optional[bool] = True
+  infer_prediction_signature: Optional[bool] = True
   yggdrasil_training_config: Optional[YggdrasilTrainingConfig] = None
   yggdrasil_deployment_config: Optional[YggdrasilDeploymentConfig] = None
 
@@ -742,8 +742,7 @@ class CoreModel(models.Model):
     history = super(CoreModel, self).fit(
         x=x, y=y, epochs=1, callbacks=callbacks, **kwargs)
 
-    if self._advanced_arguments.build_graph_after_training:
-      self._build(x)
+    self._build(x)
 
     return history
 
@@ -822,9 +821,10 @@ class CoreModel(models.Model):
     # Force the creation of the graph.
     # If a sample cannot be extracted, the graph will be built at the first call
     # to "predict" or "evaluate".
-    sample = self._extract_sample(x)
-    if sample is not None:
-      self.predict(sample)
+    if self._advanced_arguments.infer_prediction_signature:
+      sample = self._extract_sample(x)
+      if sample is not None:
+        self.predict(sample)
 
   def _train_model(self):
     """Effectively train the model."""

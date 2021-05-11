@@ -16,16 +16,38 @@
 
 Basic usage:
 
+  # Imports
   from tensorflow_decision_forests import tfdf
+  import pandas as pd
+  from wurlitzer import sys_pipes
+
+  # Load a dataset into a Pandas Dataframe.
+  dataset_df = pd.read_csv("/tmp/penguins.csv")
+
+  # Display the first 3 examples.
+  dataset_df.head(3)
+
+  # Convert the Pandas dataframe to a tf dataset
+  tf_dataset = tfdf.keras.pd_dataframe_to_tf_dataset(dataset_df,label="species")
+
   model = tfdf.keras.RandomForestModel()
-  model.fit(...)
+  with sys_pipes():
+    model.fit(tf_dataset)
+  # Note: The `sys_pipes` part is to display logs during training.
+
+  # Evaluate model.
+  model.compile(metrics=["accuracy"])
+
+  # Save model.
+  model.save("/tmp/my_saved_model")
+
 """
 
 __version__ = "0.1.0"
 __author__ = "Mathieu Guillame-Bert"
 
+from tensorflow_decision_forests import keras
 from tensorflow_decision_forests.component import py_tree
 from tensorflow_decision_forests.component.builder import builder
 from tensorflow_decision_forests.component.inspector import inspector
 from tensorflow_decision_forests.component.model_plotter import model_plotter
-from tensorflow_decision_forests.keras import keras

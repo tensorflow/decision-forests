@@ -21,7 +21,7 @@ from absl import flags
 
 from tensorflow_docs.api_generator import generate_lib
 from tensorflow_docs.api_generator import public_api
-from google3.third_party import tensorflow_decision_forests as tfdf
+import tensorflow_decision_forests as tfdf
 
 FLAGS = flags.FLAGS
 
@@ -42,7 +42,7 @@ def main(argv):
 
   doc_generator = generate_lib.DocGenerator(
       root_title="TensorFlow Decision Forests",
-      py_modules=[("tfdf", tfdf)], # ("tfdf.keras", tfdf.keras)
+      py_modules=[("tfdf", tfdf)],  # ("tfdf.keras", tfdf.keras)
       base_dir=os.path.dirname(tfdf.__file__),
       code_url_prefix=FLAGS.code_url_prefix,
       search_hints=FLAGS.search_hints,

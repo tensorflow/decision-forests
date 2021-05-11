@@ -19,7 +19,7 @@ cc_library(
 
 py_library(
     name = "keras",
-    srcs = ["keras.py"],
+    srcs = ["__init__.py"],
     srcs_version = "PY3",
     deps = [
         ":core",

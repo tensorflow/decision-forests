@@ -49,6 +49,7 @@ landing_page:
           <li><a href="tutorials/index">Tutorial</a></li>
           <li><a href="migration">Migration guide from Neural Network to Decision Forests</a></li>
           <li><a href="https://github.com/tensorflow/decision-forests/issues">Issue tracker</a></li>
+          <li><a href="https://github.com/tensorflow/decision-forests/documentation/known_issues.md">Known issues</a></li>
           <li><a href="https://github.com/tensorflow/decision-forests/blob/master/CHANGELOG">Changelog</a></li>
           <li><a href="https://discuss.tensorflow.org">Discuss on TensorFlow.Org</a></li>
           <li><a href="https://github.com/google/yggdrasil-decision-forests">Yggdrasil Decision Forest</a> (for advanced users)</li>

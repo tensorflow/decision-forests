@@ -33,9 +33,9 @@ import tensorflow as tf
 
 from google.protobuf import text_format
 
+from tensorflow_decision_forests import keras
 from tensorflow_decision_forests.component.model_plotter import model_plotter
 from tensorflow_decision_forests.keras import core
-from tensorflow_decision_forests.keras import keras
 from tensorflow_decision_forests.tensorflow import core as tf_core
 from yggdrasil_decision_forests.dataset import synthetic_dataset_pb2
 from yggdrasil_decision_forests.learner.decision_tree import decision_tree_pb2
@@ -1116,7 +1116,7 @@ class TFDFInKerasTest(parameterized.TestCase, tf.test.TestCase):
   def test_rank1_preprocessing(self):
     """Test the limitation on rank1 preprocessing."""
 
-    def experiment(build_graph_after_training, save_model):
+    def experiment(infer_prediction_signature, save_model):
       x_train = [1.0, 2.0, 3.0, 4.0]  # Dataset with a single feature.
       y_train = [0, 1, 0, 1]
 
@@ -1128,20 +1128,23 @@ class TFDFInKerasTest(parameterized.TestCase, tf.test.TestCase):
       model = keras.RandomForestModel(
           preprocessing=processor,
           advanced_arguments=keras.AdvancedArguments(
-              build_graph_after_training=build_graph_after_training))
+              infer_prediction_signature=infer_prediction_signature))
       model.fit(x=x_train, y=y_train)
 
       if save_model:
         # Fails if the model is not build before.
         model.save(os.path.join(self.get_temp_dir(), "saved_model"))
 
-    experiment(build_graph_after_training=False, save_model=False)
+    experiment(infer_prediction_signature=False, save_model=False)
 
     with self.assertRaises(ValueError):
-      experiment(build_graph_after_training=False, save_model=True)
+      experiment(infer_prediction_signature=False, save_model=True)
 
     with self.assertRaises(ValueError):
-      experiment(build_graph_after_training=True, save_model=False)
+      experiment(infer_prediction_signature=True, save_model=False)
+
+  def test_get_all_models(self):
+    print(keras.get_all_models())
 
 
 if __name__ == "__main__":

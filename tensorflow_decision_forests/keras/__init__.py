@@ -12,3 +12,69 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Decision Forest in a Keras Model.
+
+Usage example:
+
+```python
+import tensorflow_decision_forests as tfdf
+import pandas as pd
+
+# Load the dataset in a Pandas dataframe.
+train_df = pd.read_csv("project/train.csv")
+test_df = pd.read_csv("project/test.csv")
+
+# Convert the dataset into a TensorFlow dataset.
+train_ds = tfdf.keras.pd_dataframe_to_tf_dataset(train_df, label="my_label")
+test_ds = tfdf.keras.pd_dataframe_to_tf_dataset(test_df, label="my_label")
+
+# Train the model.
+model = tfdf.keras.RandomForestModel()
+model.fit(train_ds)
+
+# Evaluate the model on another dataset.
+model.evaluate(test_ds)
+
+# Show information about the model
+model.summary()
+
+# Export the model with the TF.SavedModel format.
+model.save("/path/to/my/model")
+```
+
+"""
+
+from typing import Callable, List
+
+from tensorflow_decision_forests.keras import core
+from tensorflow_decision_forests.keras import wrappers
+
+# Utility classes
+CoreModel = core.CoreModel
+FeatureSemantic = core.FeatureSemantic
+Task = core.Task
+FeatureUsage = core.FeatureUsage
+AdvancedArguments = core.AdvancedArguments
+
+# Learning algorithm (called Models in Keras).
+
+
+class RandomForestModel(wrappers.RandomForestModel):
+  pass
+
+
+class GradientBoostedTreesModel(wrappers.GradientBoostedTreesModel):
+  pass
+
+
+class CartModel(wrappers.CartModel):
+  pass
+
+
+def get_all_models() -> List[Callable[[], CoreModel]]:
+  """Gets the lists of all the available models."""
+  return [RandomForestModel, GradientBoostedTreesModel, CartModel]
+
+
+# Utilities
+pd_dataframe_to_tf_dataset = core.pd_dataframe_to_tf_dataset

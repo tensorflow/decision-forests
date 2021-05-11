@@ -99,7 +99,7 @@ class RandomForestModel(core.CoreModel):
       In this case, the hyper-parameter can change in between releases (not
       recommended for training in production).
     advanced_arguments: Advanced control of the model that most users won't need
-      to use. See `AdvancedControl` for details.
+      to use. See `AdvancedArguments` for details.
         - better_default@v1: A configuration that is generally better than the
           default parameters without being more expensive. The parameters are:
           winner_take_all=True.
@@ -247,7 +247,7 @@ class RandomForestModel(core.CoreModel):
       temp_directory: Optional[str] = None,
       verbose: Optional[bool] = True,
       hyperparameter_template: Optional[str] = None,
-      advanced_arguments: Optional[AdvancedControl] = None,
+      advanced_arguments: Optional[AdvancedArguments] = None,
       adapt_bootstrap_size_ratio_for_maximum_training_duration: Optional[
           bool] = False,
       allow_na_conditions: Optional[bool] = False,
@@ -421,7 +421,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       In this case, the hyper-parameter can change in between releases (not
       recommended for training in production).
     advanced_arguments: Advanced control of the model that most users won't need
-      to use. See `AdvancedControl` for details.
+      to use. See `AdvancedArguments` for details.
         - better_default@v1: A configuration that is generally better than the
           default parameters without being more expensive. The parameters are:
           growing_strategy="BEST_FIRST_GLOBAL".
@@ -605,7 +605,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       temp_directory: Optional[str] = None,
       verbose: Optional[bool] = True,
       hyperparameter_template: Optional[str] = None,
-      advanced_arguments: Optional[AdvancedControl] = None,
+      advanced_arguments: Optional[AdvancedArguments] = None,
       adapt_subsample_for_maximum_training_duration: Optional[bool] = False,
       allow_na_conditions: Optional[bool] = False,
       categorical_algorithm: Optional[str] = "CART",
@@ -807,7 +807,7 @@ class CartModel(core.CoreModel):
       In this case, the hyper-parameter can change in between releases (not
       recommended for training in production).
     advanced_arguments: Advanced control of the model that most users won't need
-      to use. See `AdvancedControl` for details.
+      to use. See `AdvancedArguments` for details.
     allow_na_conditions: If true, the tree training evaluates conditions of the
       type `X is NA` i.e. `X is missing`. Default: False.
     categorical_algorithm: How to learn splits on categorical attributes.
@@ -929,7 +929,7 @@ class CartModel(core.CoreModel):
                temp_directory: Optional[str] = None,
                verbose: Optional[bool] = True,
                hyperparameter_template: Optional[str] = None,
-               advanced_arguments: Optional[AdvancedControl] = None,
+               advanced_arguments: Optional[AdvancedArguments] = None,
                allow_na_conditions: Optional[bool] = False,
                categorical_algorithm: Optional[str] = "CART",
                categorical_set_split_greedy_sampling: Optional[float] = 0.1,
