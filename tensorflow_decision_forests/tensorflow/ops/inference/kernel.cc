@@ -1189,9 +1189,12 @@ class SimpleMLCreateModelResource : public OpKernel {
  public:
   explicit SimpleMLCreateModelResource(OpKernelConstruction* ctx)
       : OpKernel(ctx), model_handle_set_(false) {
-    OP_REQUIRES_OK(ctx, ctx->allocate_persistent(tensorflow::DT_RESOURCE,
-                                                 tensorflow::TensorShape({}),
-                                                 &model_handle_, nullptr));
+    // The model_handle_ object will outlive the constructor function.
+    // It will live until the resource is freed manually or by
+    // explicit ~Tensor() destructor.
+    OP_REQUIRES_OK(
+        ctx, ctx->allocate_temp(tensorflow::DT_RESOURCE,
+                                tensorflow::TensorShape({}), &model_handle_));
   }
 
   ~SimpleMLCreateModelResource() override {
@@ -1235,18 +1238,17 @@ class SimpleMLCreateModelResource : public OpKernel {
     tf::core::ScopedUnref unref_me(model);
 
     if (!model_handle_set_) {
-      auto h = model_handle_.AccessTensor(ctx)
-                   ->template scalar<tf::ResourceHandle>();
+      auto h = model_handle_.template scalar<tf::ResourceHandle>();
       h() = tf::MakeResourceHandle<YggdrasilModelResource>(
           ctx, cinfo_.container(), cinfo_.name());
     }
-    ctx->set_output(0, *model_handle_.AccessTensor(ctx));
+    ctx->set_output(0, model_handle_);
     model_handle_set_ = true;
   }
 
  private:
   tf::mutex mu_;
-  tf::PersistentTensor model_handle_ TF_GUARDED_BY(mu_);
+  tf::Tensor model_handle_ TF_GUARDED_BY(mu_);
   bool model_handle_set_ TF_GUARDED_BY(mu_);
   tf::ContainerInfo cinfo_;
 
