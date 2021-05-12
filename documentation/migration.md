@@ -71,12 +71,12 @@ one of those reasons, it is safe to train your TF-DF on train+validation (unless
 the validation split is also used for something else, like hyperparameter
 tuning).
 
-```python {.bad}
-model.fit(train_ds, validation_data=val_ds)
+```diff {.bad}
+- model.fit(train_ds, validation_data=val_ds)
 ```
 
-```python {.good}
-model.fit(train_ds.concatenate(val_ds))
+```diff {.good}
++ model.fit(train_ds.concatenate(val_ds))
 
 # Or just don't create a validation dataset
 ```
@@ -91,17 +91,17 @@ needed, it will be extracted automatically from the training dataset.
 
 #### Train for exactly 1 epoch
 
-```python {.bad}
+```diff {.bad}
 # Number of epochs in Keras
-model.fit(train_ds, num_epochs=5)
+- model.fit(train_ds, num_epochs=5)
 
 # Number of epochs in the dataset
-train_ds = train_ds.repeat(5)
-model.fit(train_ds)
+- train_ds = train_ds.repeat(5)
+- model.fit(train_ds)
 ```
 
-```python {.good}
-model.fit(train_ds)
+```diff {.good}
++ model.fit(train_ds)
 ```
 
 **Rationale:** Users of neural networks often train a model for N steps (which
@@ -116,13 +116,13 @@ unnecessary data I/O, as well as slower training.
 Datasets do not need to be shuffled (unless the input_fn is reading only a
 sample of the dataset).
 
-```python {.bad}
-train_ds = train_ds.shuffle(5)
-model.fit(train_ds)
+```diff {.bad}
+- train_ds = train_ds.shuffle(5)
+- model.fit(train_ds)
 ```
 
-```python {.good}
-model.fit(train_ds)
+```diff {.good}
++ model.fit(train_ds)
 ```
 
 **Rationale:** TF-DF shuffles access to the data internally after reading the
@@ -136,15 +136,15 @@ However, this will make the training procedure non-deterministic.
 
 The batch size will not affect the model quality
 
-```python {.bad}
-train_ds = train_ds.batch(hyper_parameter_batch_size())
-model.fit(train_ds)
+```diff {.bad}
+- train_ds = train_ds.batch(hyper_parameter_batch_size())
+- model.fit(train_ds)
 ```
 
-```python {.good}
+```diff {.good}
 # The batch size does not matter.
-train_ds = train_ds.batch(64)
-model.fit(train_ds)
++ train_ds = train_ds.batch(64)
++ model.fit(train_ds)
 ```
 
 ***Rationale:*** Since TF-DF is always trained on the full dataset after it is
@@ -214,37 +214,37 @@ transformations. By default, all of the features in the dataset (other than the
 label) will be detected and used by the model. The feature semantics will be
 auto-detected, and can be overridden manually if needed.
 
-```python {.bad}
+```diff {.bad}
 # Estimator code
-feature_columns = [
-  tf.feature_column.numeric_column(feature_1),
-  tf.feature_column.categorical_column_with_vocabulary_list(feature_2, ['First', 'Second', 'Third'])
-  ]
-model = tf.estimator.LinearClassifier(feature_columns=feature_columnes)
+- feature_columns = [
+-   tf.feature_column.numeric_column(feature_1),
+-   tf.feature_column.categorical_column_with_vocabulary_list(feature_2, ['First', 'Second', 'Third'])
+-   ]
+- model = tf.estimator.LinearClassifier(feature_columns=feature_columnes)
 ```
 
-```python {.good}
+```diff {.good}
 # Use all the available features. Detect the type automatically.
-model = tfdf.keras.GradientBoostedTreesModel()
++ model = tfdf.keras.GradientBoostedTreesModel()
 ```
 
 You can also specify a subset of input features:
 
-```python {.good}
-features = [
-  tfdf.keras.FeatureUsage(name="feature_1"),
-  tfdf.keras.FeatureUsage(name="feature_2")
-  ]
-model = tfdf.keras.GradientBoostedTreesModel(features=features, exclude_non_specified_features=True)
+```diff {.good}
++ features = [
++   tfdf.keras.FeatureUsage(name="feature_1"),
++   tfdf.keras.FeatureUsage(name="feature_2")
++   ]
++ model = tfdf.keras.GradientBoostedTreesModel(features=features, exclude_non_specified_features=True)
 ```
 
 If necessary, you can force the semantic of a feature.
 
-```python {.good}
-forced_features = [
-  tfdf.keras.FeatureUsage(name="feature_1", semantic=tfdf.keras.FeatureSemantic.CATEGORICAL),
-  ]
-model = tfdf.keras.GradientBoostedTreesModel(features=features)
+```diff {.good}
++ forced_features = [
++   tfdf.keras.FeatureUsage(name="feature_1", semantic=tfdf.keras.FeatureSemantic.CATEGORICAL),
++   ]
++ model = tfdf.keras.GradientBoostedTreesModel(features=features)
 ```
 
 **Rationale:** While certain models (like Neural Networks) require a
@@ -262,14 +262,14 @@ remove all pre-processing that was designed to help neural network training.
 
 #### Do not normalize numerical features
 
-```python {.bad}
-def zscore(value):
-  return (value-mean) / sd
+```diff {.bad}
+- def zscore(value):
+-   return (value-mean) / sd
 
-feature_columns = [tf.feature_column.numeric_column("feature_1",normalizer_fn=zscore)]
+- feature_columns = [tf.feature_column.numeric_column("feature_1",normalizer_fn=zscore)]
 ```
 
-**Rationale:** Decision forest algorithms natively support non-normalized
+**Rational:** Decision forest algorithms natively support non-normalized
 numerical features, since the splitting algorithms do not do any numerical
 transformation of the input. Some types of normalization (e.g. zscore
 normalization) will not help numerical stability of the training procedure, and
@@ -277,14 +277,14 @@ some (e.g. outlier clipping) may hurt the expressiveness of the final model.
 
 #### Do not encode categorical features (e.g. hashing, one-hot, or embedding)
 
-```python {.bad}
-integerized_column = tf.feature_column.categorical_column_with_hash_bucket("feature_1",hash_bucket_size=100)
-feature_columns = [tf.feature_column.indicator_column(integerized_column)]
+```diff {.bad}
+- integerized_column = tf.feature_column.categorical_column_with_hash_bucket("feature_1",hash_bucket_size=100)
+- feature_columns = [tf.feature_column.indicator_column(integerized_column)]
 ```
 
-```python {.bad}
-integerized_column = tf.feature_column.categorical_column_with_vocabulary_list('feature_1', ['bob', 'george', 'wanda'])
-feature_columns = [tf.feature_column.indicator_column(integerized_column)]
+```diff {.bad}
+- integerized_column = tf.feature_column.categorical_column_with_vocabulary_list('feature_1', ['bob', 'george', 'wanda'])
+- feature_columns = [tf.feature_column.indicator_column(integerized_column)]
 ```
 
 **Rationale:** TF-DF has native support for categorical features, and will treat
@@ -315,11 +315,11 @@ networks, which may propagate NaNs to the gradients if there are NaNs in the
 input, TF-DF will train optimally if the algorithm sees the difference between
 missing and a sentinel value.
 
-```python {.bad}
-feature_columns = [
-tf.feature_column.numeric_column("feature_1", default_value=0),
-tf.feature_column.numeric_column("feature_1_is_missing"),
-]
+```diff {.bad}
+- feature_columns = [
+- tf.feature_column.numeric_column("feature_1", default_value=0),
+- tf.feature_column.numeric_column("feature_1_is_missing"),
+- ]
 ```
 
 #### Handling Images and Time series
@@ -381,22 +381,22 @@ dataset reads are deterministic as well.
 
 #### Specify a task (e.g. classification, ranking) instead of a loss (e.g. binary cross-entropy)
 
-```python {.bad}
-model = tf.keras.Sequential()
-model.add(Dense(64, activation=relu))
-model.add(Dense(1)) # One output for binary classification
+```diff {.bad}
+- model = tf.keras.Sequential()
+- model.add(Dense(64, activation=relu))
+- model.add(Dense(1)) # One output for binary classification
 
-model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
-              optimizer='adam',
-              metrics=['accuracy'])
+- model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
+-               optimizer='adam',
+-               metrics=['accuracy'])
 ```
 
-```python {.good}
+```diff {.good}
 # The loss is automatically determined from the task.
-model = tfdf.keras.GradientBoostedTreesModel(task=tf.keras.Task.CLASSIFICATION)
++ model = tfdf.keras.GradientBoostedTreesModel(task=tf.keras.Task.CLASSIFICATION)
 
 # Optional if you want to report the accuracy.
-model.compile(metrics=['accuracy'])
++ model.compile(metrics=['accuracy'])
 ```
 
 **Rationale:** Not all TF-DF learning algorithms use a loss. For those that do,
@@ -489,13 +489,13 @@ print(tree)
 TF-DF does not yet support TF distribution strategies. Multi-worker setups will
 be ignored, and the training will only happen on the manager.
 
-```python {.bad}
-with tf.distribute.MirroredStrategy():
-   model = ...
+```diff {.bad}
+- with tf.distribute.MirroredStrategy():
+-    model = ...
 ```
 
-```python {.good}
-model = ....
+```diff {.good}
++ model = ....
 ```
 
 #### Stacking Models

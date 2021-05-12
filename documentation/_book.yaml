@@ -32,11 +32,11 @@ upper_tabs:
       - heading: Tutorials
       - title: Overview
         path: /decision_forests/tutorials/index
-      - title: Beginner colab tutorial
+      - title: Beginner tutorial
         path: /decision_forests/tutorials/beginner_colab
-      - title: Intermediate colab tutorial
+      - title: Intermediate tutorial
         path: /decision_forests/tutorials/intermediate_colab
-      - title: Advanced colab tutorial
+      - title: Advanced tutorial
         path: /decision_forests/tutorials/advanced_colab
       - heading: Developer
       - title: Developer manual

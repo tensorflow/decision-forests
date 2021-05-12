@@ -23,6 +23,8 @@ Usage example (in a shell):
 
   pip3 install tensorflow_decision_forests
   python3 minimal.py
+
+More examples are available in the documentation's colabs.
 """
 
 import os
@@ -64,53 +66,31 @@ for col in dataset_df.columns:
   if dataset_df[col].dtype in [str, object]:
     dataset_df[col] = dataset_df[col].fillna("")
 
-# Name of the label column.
-label = "income"
-
-# Encode the categorical label into an integer.
-# Note: Keras expected classification labels to be integers. However, you
-# don't need to encode the features.
-classes = dataset_df[label].unique().tolist()
-print(f"Label classes: {classes}")
-
-dataset_df[label] = dataset_df[label].map(classes.index)
-print("First 3 examples with integer labels:")
-print(dataset_df.head(3))
-
 # Split the dataset into a training and a testing dataset.
 test_indices = np.random.rand(len(dataset_df)) < 0.30
 test_ds_pd = dataset_df[test_indices]
 train_ds_pd = dataset_df[~test_indices]
-print(
-    f"{len(train_ds_pd)} examples in training, {len(test_ds_pd)} examples for testing."
-)
-
+print(f"{len(train_ds_pd)} examples in training"
+      f", {len(test_ds_pd)} examples for testing.")
 
 # Converts a Pandas dataset into a tensorflow dataset
-def df_to_ds(df):
-  return tf.data.Dataset.from_tensor_slices(
-      (dict(df.drop(label, 1)), df[label].values))
+train_ds = tfdf.keras.pd_dataframe_to_tf_dataset(train_ds_pd, label="income")
+test_ds = tfdf.keras.pd_dataframe_to_tf_dataset(test_ds_pd, label="income")
 
-
-train_ds = df_to_ds(train_ds_pd).batch(64)
-test_ds = df_to_ds(test_ds_pd).batch(64)
-
-# Important:
-# - The batch size has no effect on the algorithm.
+# Important: If you build the tf.dataset manually:
+# - The batch size has no effect on the algorithm. 64 is a good default value.
 # - Don't shuffle the training dataset (unlike Neural Net, the algorithm does
 #   not benefit from shuffling). Bonus: The algorithm is deterministic (running
 #   it twice on the same dataset will give the same model).
 # - Don't use "repeats". The dataset should contain exactly one epoch.
-model = tfdf.keras.RandomForestModel()
-
-# Optionally set some evaluation metrics.
-model.compile(metrics=["accuracy"])
 
 # Trains the model.
+model = tfdf.keras.RandomForestModel()
 model.fit(x=train_ds)
 
-# Note: If running in a Colab, wrap the ".fit()" call in
-# "with googlelog.CaptureLog()" to display the training logs.
+# Note: If running in a Colab, ".fit()" will not print the training logs by
+# default. To do so, you need to encapsulate the "fit()" in a
+# "from wurlitzer import sys_pipescall" (see the colabs for some examples).
 
 # Some information about the model.
 # Different learning algorithm (and different hyper-parameters) can output
@@ -118,9 +98,19 @@ model.fit(x=train_ds)
 print(model.summary())
 
 # Evaluate the model on the validation dataset.
+model.compile(metrics=["accuracy"])
 evaluation = model.evaluate(test_ds)
 
-# The first entry is the BinaryCrossentropy loss, the second is the accuracy.
-# More metrics can be added in the "metrics" arguments of the model compilation.
+# The first entry is the BinaryCrossentropy loss. The next entries are specified
+# by compile's metrics.
 print(f"BinaryCrossentropyloss: {evaluation[0]}")
 print(f"Accuracy: {evaluation[1]}")
+
+# Export the model to the SavedModel format for later re-use e.g. TensorFlow
+# Serving.
+model.save("/tmp/my_saved_model")
+
+# Note: This model is compatible with Yggdrasil Decision Forests.
+
+# Look at the feature importances.
+model.make_inspector().variable_importances()
