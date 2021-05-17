@@ -1,5 +1,6 @@
 include LICENSE
 include README
+include tensorflow_decision_forests/component/model_plotter/plotter.js
 recursive-include * *.so
 recursive-include * *.so.[0-9]
 recursive-include * *.dylib

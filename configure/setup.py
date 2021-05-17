@@ -17,9 +17,10 @@
 This file is used by tools/build_pip_package.sh.
 """
 import setuptools
+from setuptools.command.install import install
 from setuptools.dist import Distribution
 
-_VERSION = "0.1.0"
+_VERSION = "0.1.1"
 
 with open("README.md", "r", encoding="utf-8") as fh:
   long_description = fh.read()
@@ -27,11 +28,19 @@ with open("README.md", "r", encoding="utf-8") as fh:
 REQUIRED_PACKAGES = [
     "numpy",
     "pandas",
-    "tensorflow==2.5.0rc3",
+    "tensorflow~=2.5",
     "six",
     "absl_py",
     "wheel",
 ]
+
+
+class InstallPlatlib(install):
+
+  def finalize_options(self):
+    install.finalize_options(self)
+    if self.distribution.has_ext_modules():
+      self.install_lib = self.install_platlib
 
 
 class BinaryDistribution(Distribution):
@@ -39,8 +48,12 @@ class BinaryDistribution(Distribution):
   def has_ext_modules(self):
     return True
 
+  def is_pure(self):
+    return False
+
 
 setuptools.setup(
+    cmdclass={"install": InstallPlatlib},
     name="tensorflow_decision_forests",
     version=_VERSION,
     author="Google Inc.",

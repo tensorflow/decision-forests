@@ -52,7 +52,7 @@ Download and compile TensorFlow Decision Forests as follow:
 ```shell
 # Download the source code.
 git clone https://github.com/tensorflow/decision-forests.git
-cd tensorflow_decision_forests
+cd decision-forests
 
 # Download TensorFlow's BazelRC.
 # See "tensorflow_bazelrc" for the compilation options.
@@ -62,13 +62,13 @@ TENSORFLOW_BAZELRC="tensorflow_bazelrc"
 wget https://raw.githubusercontent.com/tensorflow/tensorflow/master/.bazelrc -O ${TENSORFLOW_BAZELRC}
 
 # Compile TensorFlow Decision Forests.
-bazel-3.7.2 build //tensorflow_decision_forests/...:all --bazelrc=${TENSORFLOW_BAZELRC} --config=linux
+bazel-3.7.2 --bazelrc=${TENSORFLOW_BAZELRC} build //tensorflow_decision_forests/...:all --config=linux
 
 # Create a pip package.
-./tools/build_pip_package.sh
+./tools/build_pip_package.sh simple
 
 # Install the pip package
-pip3 install dist/tensorflow_decision_forests-0.1.0.tar.gz
+pip3 install dist/*.whl
 ```
 
 **Note:** Compiling TensorFlow Decision Forests compiles a large part of

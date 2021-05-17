@@ -18,3 +18,10 @@ py_library(
         "//tensorflow_decision_forests/keras",
     ],
 )
+
+# If set, use the pre-compiled version of the OP wrappers. This significantly
+# speed-up the compilation of the project.
+config_setting(
+    name = "use_precompiled_wrappers",
+    values = {"define": "use_precompiled_wrappers=1"},
+)

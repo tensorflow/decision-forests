@@ -27,8 +27,9 @@
 // contains a utility class able to build the input arguments of the
 // "InferenceOp*", as the signature of this OP is non trivial.
 
-#include "tensorflow/core/framework/common_shape_fns.h"
 #include "tensorflow/core/framework/op.h"
+
+#include "tensorflow/core/framework/common_shape_fns.h"
 
 namespace tensorflow {
 
@@ -53,12 +54,16 @@ path: Path to the Yggdrasil model. Note: a Yggdrasil model directory should
 Returns a type-less OP that loads the model when called.
 )");
 
-// Similar to "SimpleMLLoadModelFromPath", but takes a resource handle instead
-// of a resource name.
 REGISTER_OP("SimpleMLLoadModelFromPathWithHandle")
     .SetIsStateful()
     .Input("model_handle: resource")
-    .Input("path: string");
+    .Input("path: string")
+    .Doc(R"(
+Applies a model and returns its predictions.
+
+Similar to "SimpleMLLoadModelFromPath", but takes a resource handle instead of
+a resource name.
+)");
 
 Status SimpleMLInferenceOpSetShape(shape_inference::InferenceContext* c) {
   // Check the rank of the input features.
