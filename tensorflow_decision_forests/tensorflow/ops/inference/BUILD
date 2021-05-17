@@ -64,12 +64,37 @@ cc_library(
     alwayslink = 1,
 )
 
-# Python wrapper around the ops.
-tf_gen_op_wrapper_py(
+alias(
     name = "op_py",
+    actual = select({
+        "//tensorflow_decision_forests:use_precompiled_wrappers": ":op_py_precompile",
+        "//conditions:default": ":op_py_no_precompile",
+    }),
+)
+
+# Python wrapper around the ops.
+# This generates a python wrapper around the op.{so,dll}:
+# bazel-genfiles/third_party/tensorflow_decision_forests/tensorflow/ops/inference/op.py
+# This is the reason why tf needs to be entirely compiled in OSS setting.
+tf_gen_op_wrapper_py(
+    name = "op_py_no_precompile",
     out = "op.py",
     cc_linkopts = rpath_linkopts_to_tensorflow("op"),
     deps = [":op"],
+)
+
+# Pre-compiled version of "tf_gen_op_wrapper_py" above.
+#
+# Refresh file file with:
+# bazel build -c opt //tensorflow_decision_forests/tensorflow/ops/inference:op_py_precompile
+# cp bazel-genfiles/third_party/tensorflow_decision_forests/tensorflow/ops/inference/op.py third_party/tensorflow_decision_forests/tensorflow/ops/inference/op.py
+py_library(
+    name = "op_py_precompile",
+    srcs = ["op.py"],
+    srcs_version = "PY3",
+    deps = [
+        "@org_tensorflow//tensorflow/python",
+    ],
 )
 
 # Declaration of the ops.

@@ -43,7 +43,7 @@ Basic usage:
 
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __author__ = "Mathieu Guillame-Bert"
 
 from tensorflow_decision_forests import keras

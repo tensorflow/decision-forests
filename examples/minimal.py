@@ -27,7 +27,6 @@ Usage example (in a shell):
 More examples are available in the documentation's colabs.
 """
 
-import os
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -37,20 +36,10 @@ import tensorflow_decision_forests as tfdf
 print("Found TF-DF v" + tfdf.__version__)
 
 # Download and assemble the Adult dataset.
-print("Assemble dataset")
-dataset_without_header_path = tf.keras.utils.get_file(
-    "adult.data",
-    "https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data"
-)
-header = ("age,workclass,fnlwgt,education,education_num,marital_status,"
-          "occupation,relationship,race,sex,capital_gain,capital_loss,"
-          "hours_per_week,native_country,income")
-dataset_path = os.path.join(
-    os.path.dirname(dataset_without_header_path), "adult.csv")
-
-with open(dataset_path, "w") as f:
-  f.write(header + "\n")
-  f.write(open(dataset_without_header_path).read())
+dataset_path = tf.keras.utils.get_file(
+    "adult.csv",
+    "https://raw.githubusercontent.com/google/yggdrasil-decision-forests/"
+    "main/yggdrasil_decision_forests/test_data/dataset/adult.csv")
 
 # Load a dataset into a Pandas Dataframe.
 dataset_df = pd.read_csv(dataset_path)  # "df" for Pandas's DataFrame.
@@ -60,11 +49,6 @@ print(dataset_df.head(3))
 # Note that the dataset contains a mix of numerical and categorical features.
 # TensorFlow Decision Forests will handle them automatically! (e.g. no see for
 # one-hot encoding or normalization; except for the label).
-
-# Remove the "float(NaN)" values from the categorical/string features.
-for col in dataset_df.columns:
-  if dataset_df[col].dtype in [str, object]:
-    dataset_df[col] = dataset_df[col].fillna("")
 
 # Split the dataset into a training and a testing dataset.
 test_indices = np.random.rand(len(dataset_df)) < 0.30

@@ -22,6 +22,9 @@ build --nocheck_visibility
 # Yggdrasil uses tensorflow for IO.
 build --define=use_tensorflow_io=1
 
+# Pre-compiled wrappers.
+build --define=use_precompiled_wrappers=1
+
 # TensorFlow uses an old version of Absl without StatusOr, so Yggdrasil uses
 # its own implementation.
 build --define=no_absl_statusor=1
