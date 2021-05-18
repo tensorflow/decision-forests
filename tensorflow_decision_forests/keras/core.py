@@ -723,21 +723,23 @@ class CoreModel(models.Model):
       **kwargs: Arguments passed to the core keras model's fit.
 
     Returns:
-      A `History` object. Its `History.history` attribute is
-      a record of training loss values and metrics values
-      at successive epochs, as well as validation loss values
-      and validation metrics values (if applicable).
+      A `History` object. Its `History.history` attribute is not yet
+      implemented for decision forests algorithms, and will return empty.
+      All other fields are filled as usual for `Keras.Mode.fit()`.
     """
 
     # Call "compile" if the user forgot to do so.
     if not self._is_compiled:
       self.compile()
 
-    if "epoch" in kwargs:
-      raise ValueError("\"CoreModel.fit\" does not have an \"epoch\" argument.")
+    if "epochs" in kwargs:
+      if kwargs["epochs"] != 1:
+        raise ValueError("all decision forests algorithms train with only 1 "+
+                         "epoch, epochs={} given".format(kwargs["epochs"]))
+      del kwargs["epochs"]  # Not needed since we force it to 1 below.
 
     # This callback will trigger the training at the end of the first epoch.
-    callbacks = (callbacks if callbacks else []) + [_TrainerCallBack(self)]
+    callbacks = [_TrainerCallBack(self)] + (callbacks if callbacks else [])
 
     history = super(CoreModel, self).fit(
         x=x, y=y, epochs=1, callbacks=callbacks, **kwargs)

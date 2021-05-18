@@ -18,16 +18,20 @@ Utility to access the structure and meta-data (e.g. variable importance,
 training logs) of a model.
 
 Usage:
-  model = keras.RandomForest().
-  model.fit(...)
-  inspector = model.make_inspector()
 
-  # Or
-  inspector = make_inspector(<model directory>)
+```
+model = keras.RandomForest().
+model.fit(...)
+inspector = model.make_inspector()
 
-  print(inspector.name())
-  print(inspector.num_trees())
-  # Note: "inspector"'s accessors depends on the model type (inspector.name()).
+# Or
+inspector = make_inspector(<model directory>)
+
+print(inspector.name())
+print(inspector.num_trees())
+# Note: "inspector"'s accessors depends on the model type (inspector.name()).
+```
+
 """
 
 from __future__ import absolute_import
