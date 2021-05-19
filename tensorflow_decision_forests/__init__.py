@@ -18,7 +18,7 @@ Basic usage:
 
 ```
 # Imports
-from tensorflow_decision_forests import tfdf
+import tensorflow_decision_forests as tfdf
 import pandas as pd
 from wurlitzer import sys_pipes
 
