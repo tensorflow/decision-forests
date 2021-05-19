@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3 - 2021-05-19
+
+### Features
+
+-   Register new inference engines.
+
 ## 0.1.2 - 2021-05-18
 
 ### Features

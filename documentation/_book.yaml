@@ -27,16 +27,21 @@ upper_tabs:
     other:
     - name: Guides & Tutorials
       contents:
+      - heading: Guide
       - title: Installation
         path: /decision_forests/installation
+      - title: Migrate from neural networks
+        path: /decision_forests/migration
+      - title: Known issues
+        path: /decision_forests/known_issues
       - heading: Tutorials
       - title: Overview
         path: /decision_forests/tutorials/index
-      - title: Beginner tutorial
+      - title: Build, train and evaluate
         path: /decision_forests/tutorials/beginner_colab
-      - title: Intermediate tutorial
+      - title: Combine with other models
         path: /decision_forests/tutorials/intermediate_colab
-      - title: Advanced tutorial
+      - title: Inspect and debug
         path: /decision_forests/tutorials/advanced_colab
       - heading: Developer
       - title: Developer manual
