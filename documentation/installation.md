@@ -1,6 +1,18 @@
 # Installation
 
-[TOC]
+## Table of Contents
+
+<!--ts-->
+
+*   [Installation](#installation)
+    *   [Table of Contents](#table-of-contents)
+    *   [Installation with pip](#installation-with-pip)
+    *   [Build from source](#build-from-source)
+    *   [Troubleshooting](#troubleshooting)
+
+<!-- Added by: gbm, at: Mon 10 May 2021 03:50:43 PM CEST -->
+
+<!--te-->
 
 ## Installation with pip
 

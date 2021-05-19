@@ -12,7 +12,53 @@ pipelines to use TF-DF
 This doc assumes familiarity with the
 [beginner colab](tutorials/beginner_colab.ipynb).
 
-[TOC]
+## Table of Contents
+
+<!--ts-->
+
+*   [Migrating from Neural Networks](#migrating-from-neural-networks)
+    *   [Table of Contents](#table-of-contents)
+    *   [Dataset and Features](#dataset-and-features)
+        *   [Validation dataset](#validation-dataset)
+        *   [Dataset I/O](#dataset-io)
+            *   [Train for exactly 1 epoch](#train-for-exactly-1-epoch)
+            *   [Do not shuffle the dataset](#do-not-shuffle-the-dataset)
+            *   [Do not tune the batch size](#do-not-tune-the-batch-size)
+        *   [Large Datasets](#large-datasets)
+            *   [How many examples to use](#how-many-examples-to-use)
+        *   [Feature Normalization / Preprocessing](#feature-normalization--preprocessing)
+            *   [Do not transform data with feature columns](#do-not-transform-data-with-feature-columns)
+            *   [Do not preprocess the features](#do-not-preprocess-the-features)
+            *   [Do not normalize numerical features](#do-not-normalize-numerical-features)
+            *   [Do not encode categorical features (e.g. hashing, one-hot, or
+                embedding)](#do-not-encode-categorical-features-eg-hashing-one-hot-or-embedding)
+            *   [How to handle text features](#how-to-handle-text-features)
+            *   [Do not replace missing features by magic values](#do-not-replace-missing-features-by-magic-values)
+            *   [Handling Images and Time series](#handling-images-and-time-series)
+    *   [Training Pipeline](#training-pipeline)
+        *   [Don't use hardware accelerators e.g. GPU, TPU](#dont-use-hardware-accelerators-eg-gpu-tpu)
+        *   [Don't use checkpointing or mid-training hooks](#dont-use-checkpointing-or-mid-training-hooks)
+        *   [Model Determinism](#model-determinism)
+        *   [Training Configuration](#training-configuration)
+            *   [Specify a task (e.g. classification, ranking) instead of a loss
+                (e.g. binary
+                cross-entropy)](#specify-a-task-eg-classification-ranking-instead-of-a-loss-eg-binary-cross-entropy)
+            *   [Hyper-parameters are semantically stable](#hyper-parameters-are-semantically-stable)
+        *   [Model debugging](#model-debugging)
+            *   [Simple model summary](#simple-model-summary)
+            *   [Training Logs and Tensorboard](#training-logs-and-tensorboard)
+            *   [Feature importance](#feature-importance)
+            *   [Plotting the trees](#plotting-the-trees)
+            *   [Access the tree structure](#access-the-tree-structure)
+            *   [Do not use TensorFlow distribution strategies](#do-not-use-tensorflow-distribution-strategies)
+            *   [Stacking Models](#stacking-models)
+            *   [Migrating from tf.estimator.BoostedTrees
+                {Classifier/Regressor/Estimator}](#migrating-from-tfestimatorboostedtrees-classifierregressorestimator)
+    *   [For Yggdrasil users](#for-yggdrasil-users)
+
+<!-- Added by: gbm, at: Mon 10 May 2021 03:50:43 PM CEST -->
+
+<!--te-->
 
 ## Dataset and Features
 
