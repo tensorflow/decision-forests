@@ -41,6 +41,16 @@ landing_page:
           <p>
           <i>Keywords: Decision Forests, TensorFlow, Random Forest, Gradient Boosted Trees, CART, model interpretation.</i>
           </p>
+          <h3>Community</h3>
+          <p>
+          The following resources are available:
+          <ul>
+          <li><a href="https://discuss.tensorflow.org">Discuss on discuss.tensorflow.org</a></li>
+          <li><a href="https://github.com/tensorflow/decision-forests/issues">Issue tracker</a></li>
+          <li><a href="https://github.com/tensorflow/decision-forests">TensorFlow Decision Forest on Github</a></li>
+          <li><a href="https://github.com/google/yggdrasil-decision-forests">Yggdrasil Decision Forest on Github</a></li>
+          </ul>
+          </p>
           <h3>Contributing</h3>
           <p>
           Contributions to TensorFlow Decision Forests and Yggdrasil Decision Forests are welcome.

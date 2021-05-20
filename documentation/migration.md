@@ -508,7 +508,7 @@ composed with NN models unless the NNs are already trained.
 Despite sounding similar, The TF-DF and Estimator boosted trees are different
 algorithms. TF-DF implements the classical
 [Random Forest](https://www.stat.berkeley.edu/~breiman/randomforest2001.pdf) and
-[Gradient Boosted Machine (using Trees)](http://ecmlpkdd2017.ijs.si/papers/paperID705.pdf)
+[Gradient Boosted Machine (using Trees)](https://statweb.stanford.edu/~jhf/ftp/trebst.pdf)
 papers. The tf.estimator.BoostedTreesEstimator is an approximate Gradient
 Boosted Trees algorithm with a mini-batch training procedure described in
 [this paper](http://ecmlpkdd2017.ijs.si/papers/paperID705.pdf)
