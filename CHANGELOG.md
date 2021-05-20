@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.4 - ????
+
+### Bug fix
+
+-   Fix failure when there are not input features.
+
 ## 0.1.3 - 2021-05-19
 
 ### Features

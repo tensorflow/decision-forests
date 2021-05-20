@@ -131,9 +131,11 @@ tf::Status FeatureSet::Link(
     tf::OpKernelContext* ctx, const std::string& concat_feature_ids,
     const std::string& label_id, const std::string& weight_id,
     const dataset::proto::DataSpecification* const existing_dataspec) {
-  std::vector<std::string> feature_ids =
-      absl::StrSplit(concat_feature_ids, ',');
-  std::sort(feature_ids.begin(), feature_ids.end());
+  std::vector<std::string> feature_ids;
+  if (!concat_feature_ids.empty()) {
+    feature_ids = absl::StrSplit(concat_feature_ids, ',');
+    std::sort(feature_ids.begin(), feature_ids.end());
+  }
 
   if (!label_id.empty()) {
     feature_ids.push_back(label_id);
