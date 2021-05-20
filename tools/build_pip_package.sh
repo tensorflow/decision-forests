@@ -88,6 +88,7 @@ function test_package() {
   PYTHON="$1"; shift
   PACKAGE="$1"; shift
 
+  pip3 install --upgrade pip
   pip3 install dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-linux_x86_64.whl
   pip3 list
   pip3 show tensorflow_decision_forests -f
@@ -149,6 +150,7 @@ if [ $1 = "simple" ]; then
   build_package python3.9 39
   test_package python3.9 39
 else
+  e2e_env 3.6.8 36
   e2e_env 3.7.7 37
   e2e_env 3.8.7 38
   e2e_env 3.9.2 39
