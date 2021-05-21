@@ -938,14 +938,17 @@ class TFDFInKerasTest(parameterized.TestCase, tf.test.TestCase):
           keras.FeatureUsage("cat_int_1", keras.FeatureSemantic.CATEGORICAL)
       ])
 
+    val_keys = ["val_loss"]
     if task == keras.Task.CLASSIFICATION:
       model = keras.RandomForestModel(task=task, features=features)
       model.compile(metrics=["accuracy"])
       compare = self.assertGreaterEqual
+      val_keys += ["val_accuracy"]
     elif task == keras.Task.REGRESSION:
       model = keras.RandomForestModel(task=task, features=features)
       model.compile(metrics=["mse"])
       compare = self.assertLessEqual
+      val_keys += ["val_mse"]
     elif task == keras.Task.RANKING:
       model = keras.GradientBoostedTreesModel(
           task=task, features=features, ranking_group="GROUP", num_trees=50)
@@ -953,18 +956,34 @@ class TFDFInKerasTest(parameterized.TestCase, tf.test.TestCase):
     else:
       assert False
 
-    model.fit(train_dataset)
+    # Test that `on_epoch_end` callbacks can call `Model.evaluate` and will have
+    # the results proper for a trained model.
+    class _TestEvalCallback(tf.keras.callbacks.Callback):
+
+      def on_epoch_end(self, epoch, logs=None):
+        self.evaluation = model.evaluate(test_dataset)
+
+    callback = _TestEvalCallback()
+    history = model.fit(train_dataset, validation_data=test_dataset,
+                        callbacks=[callback])
     model.summary()
 
     train_evaluation = model.evaluate(train_dataset)
     logging.info("Train evaluation: %s", train_evaluation)
     test_evaluation = model.evaluate(test_dataset)
     logging.info("Test evaluation: %s", test_evaluation)
+    val_evaluation = [history.history[key][0] for key in val_keys]
+    logging.info("Validation evaluation in training "
+                 "(validation_data=test_dataset): %s", val_evaluation)
+    logging.info("Callback evaluation (test_dataset): %s",
+                 callback.evaluation)
 
     # The training evaluation is capped by the ratio of missing value (5%).
     if compare is not None:
       compare(train_evaluation[1], limit_eval_train)
       compare(test_evaluation[1], limit_eval_test)
+      self.assertEqual(val_evaluation[1], test_evaluation[1])
+      self.assertEqual(callback.evaluation[1], test_evaluation[1])
 
     _ = model.predict(test_dataset)
 

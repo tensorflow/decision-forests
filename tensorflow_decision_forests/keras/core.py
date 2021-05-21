@@ -351,6 +351,11 @@ class CoreModel(models.Model):
     self._temp_directory = temp_directory
     self._verbose = verbose
 
+    # Internal, indicates whether the first evaluation during training,
+    # triggered by providing validation data, should trigger the training
+    # itself.
+    self._train_on_evaluate: bool = False
+
     if advanced_arguments is None:
       advanced_arguments = AdvancedArguments()
     self._advanced_arguments = advanced_arguments
@@ -741,12 +746,44 @@ class CoreModel(models.Model):
     # This callback will trigger the training at the end of the first epoch.
     callbacks = [_TrainerCallBack(self)] + (callbacks if callbacks else [])
 
-    history = super(CoreModel, self).fit(
-        x=x, y=y, epochs=1, callbacks=callbacks, **kwargs)
+    # We want the model trained before any evaluation is done at the
+    # end of the epoch. This may fail in case any of the `on_train_batch_*`
+    # callbacks calls `evaluate()` before the end of the 1st epoch.
+    self._train_on_evaluate = True
+    try:
+      history = super(CoreModel, self).fit(
+          x=x, y=y, epochs=1, callbacks=callbacks, **kwargs)
+    finally:
+      self._train_on_evaluate = False
 
     self._build(x)
 
     return history
+
+  def evaluate(self, *args, **kwargs):
+    """Returns the loss value & metrics values for the model.
+
+    See details on `keras.Model.evaluate`.
+
+    Args:
+      *args: Passed to `keras.Model.evaluate`.
+      **kwargs: Passed to `keras.Model.evaluate`.
+
+    Scalar test loss (if the model has a single output and no metrics) or list
+    of scalars (if the model has multiple outputs and/or metrics). See details
+    in `keras.Model.evaluate`.
+    """
+    if self._train_on_evaluate:
+      if not self._is_trained.numpy():
+        self._train_model()
+      else:
+        raise ValueError(
+            "evaluate() requested training of an already trained model -- "
+            "did you call `Model.evaluate` from a `on_train_batch*` callback ?"
+            "this is not yet supported in Decision Forests models, where one "
+            "can only evaluate after the first epoch is finished and the "
+            "model trained")
+    return super(CoreModel, self).evaluate(*args, **kwargs)
 
   def summary(self, line_length=None, positions=None, print_fn=None):
     """Shows information about the model."""
@@ -928,8 +965,12 @@ class _TrainerCallBack(tf.keras.callbacks.Callback):
 
   def on_epoch_end(self, epoch, logs=None):
     del logs
-    if epoch == 0:
+    if epoch == 0 and not self._model._is_trained.numpy():  # pylint:disable=protected-access
       self._model._train_model()  # pylint:disable=protected-access
+
+    # After this the model is trained, and evaluations shouldn't attempt
+    # to retrain.
+    self._model._train_on_evaluate = False  # pylint:disable=protected-access
 
 
 def _batch_size(inputs: Union[tf.Tensor, Dict[str, tf.Tensor]]) -> tf.Tensor:
