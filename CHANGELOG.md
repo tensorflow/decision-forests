@@ -1,10 +1,11 @@
 # Changelog
 
-## 0.1.4 - ????
+## 0.1.4 - 2021-05-21
 
 ### Features
 
 -   Stop the training when interrupting a colab cell / typing ctrl-c.
+-   `model.fit` support training callbacks and a validation dataset.
 
 ### Bug fix
 

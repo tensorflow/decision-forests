@@ -51,29 +51,6 @@ numerical/categorical features would be 4 GB in memory.
 * Train a manual ensemble on slices of the dataset, i.e. train N models on N
 slices of data, and average the predictions.
 
-## No support for training callbacks.
-
-Training callbacks will not get the expected metrics passed to on_epoch_end
-since TF-DF algorithms are trained for only one epoch, and the validation
-data is evaluated before the model is trained. Evaluation callbacks are
-supported.
-
-**Workaround**
-
-By design TF-DF algorithms train for only one epoch, so callbacks that override
-on_epoch_end can be instantiated and called manually with the metrics from
-model.evaluate(). Specifically:
-
-```diff {.bad}
-- cb = tf.keras.callbacks.Callback()
-- model.fit(train_ds, validation_data=val_ds, callbacks=[cb])
-```
-
-```diff {.good}
-+ model.fit(train_ds)
-+ cb.on_epoch_end(epoch=1, logs=model.evaluate(val_ds, ...))
-```
-
 ## No support for GPU / TPU.
 
 TF-DF does not support GPU or TPU training. Compiling with AVX instructions,
