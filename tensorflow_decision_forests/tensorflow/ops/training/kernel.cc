@@ -18,6 +18,7 @@
 #include "tensorflow_decision_forests/tensorflow/ops/training/kernel.h"
 
 #include <algorithm>
+#include <csignal>
 
 #include "absl/strings/substitute.h"
 #include "tensorflow/core/framework/op_kernel.h"
@@ -633,6 +634,22 @@ int FeatureSet::NumFeatures() const {
          categorical_set_int_features_.size() + hash_features_.size();
 }
 
+#ifdef TFDF_STOP_TRAINING_ON_INTERRUPT
+namespace {
+// Should the current training learners be stoped?
+std::atomic<bool> stop_training;
+
+// The interruption signal handler to restore when all the learners are done
+// training.
+void (*previous_signal_handler)(int);
+
+// Number of learners training.
+std::atomic<int> active_learners = 0;
+
+void StopTrainingSignalHandler(int signal) { stop_training = true; }
+}  // namespace
+#endif
+
 // Trains a simpleML model.
 class SimpleMLModelTrainer : public tensorflow::OpKernel {
  public:
@@ -802,8 +819,36 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
                                 learner->training_config(), file::Defaults()));
     */
 
+#ifdef TFDF_STOP_TRAINING_ON_INTERRUPT
+    // Detect interrupt signals.
+    const bool set_signal_handler = active_learners.fetch_add(1) == 0;
+    if (set_signal_handler) {
+      stop_training = false;
+      learner->set_stop_training_trigger(&stop_training);
+      previous_signal_handler = std::signal(SIGINT, StopTrainingSignalHandler);
+      if (previous_signal_handler == SIG_ERR) {
+        OP_REQUIRES_OK(ctx,
+                       tf::Status(tf::error::INVALID_ARGUMENT,
+                                  "Cannot change the std::signal handler."));
+      }
+    }
+#endif
+
     LOG(INFO) << "Train model";
     auto model = learner->TrainWithStatus(dataset);
+
+#ifdef TFDF_STOP_TRAINING_ON_INTERRUPT
+    const bool restore_signal_handler = active_learners.fetch_sub(1) == 1;
+    if (restore_signal_handler) {
+      // Restore the previous signal handler.
+      if (std::signal(SIGINT, previous_signal_handler) == SIG_ERR) {
+        OP_REQUIRES_OK(ctx,
+                       tf::Status(tf::error::INVALID_ARGUMENT,
+                                  "Cannot restore the std::signal handler."));
+      }
+    }
+#endif
+
     OP_REQUIRES_OK(ctx, utils::FromUtilStatus(model.status()));
 
     // Export model to disk.

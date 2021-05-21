@@ -89,6 +89,10 @@ cc_library(
         "features.h",
         "kernel.h",
     ],
+    defines = select({
+        "//tensorflow_decision_forests:stop_training_on_interrupt": ["TFDF_STOP_TRAINING_ON_INTERRUPT"],
+        "//conditions:default": [],
+    }),
     deps = [
         "@com_google_absl//absl/strings",
         "@org_tensorflow//tensorflow/core:framework_headers_lib",

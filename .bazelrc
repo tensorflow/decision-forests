@@ -25,6 +25,9 @@ build --define=use_tensorflow_io=1
 # Pre-compiled wrappers.
 build --define=use_precompiled_wrappers=1
 
+# The user can stop the training with Ctrl+C.
+build --define=stop_training_on_interrupt=1
+
 # TensorFlow uses an old version of Absl without StatusOr, so Yggdrasil uses
 # its own implementation.
 build --define=no_absl_statusor=1

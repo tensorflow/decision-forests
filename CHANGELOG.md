@@ -2,6 +2,10 @@
 
 ## 0.1.4 - ????
 
+### Features
+
+-   Stop the training when interrupting a colab cell / typing ctrl-c.
+
 ### Bug fix
 
 -   Fix failure when there are not input features.

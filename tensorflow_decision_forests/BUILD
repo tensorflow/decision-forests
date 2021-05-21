@@ -25,3 +25,9 @@ config_setting(
     name = "use_precompiled_wrappers",
     values = {"define": "use_precompiled_wrappers=1"},
 )
+
+# If set, stop the training op when receiving an interrupt signal.
+config_setting(
+    name = "stop_training_on_interrupt",
+    values = {"define": "stop_training_on_interrupt=1"},
+)
