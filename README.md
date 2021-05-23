@@ -56,6 +56,7 @@ The following resources are available:
 -   [Discuss on TensorFlow.Org](https://discuss.tensorflow.org)
 -   [Yggdrasil documentation](https://github.com/google/yggdrasil-decision-forests)
     (for advanced users and C++ serving)
+-   [Tutorials](https://www.tensorflow.org/decision_forests/tutorials)
 
 ## Installation
 
