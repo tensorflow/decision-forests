@@ -12,6 +12,8 @@ pipelines to use TF-DF
 This doc assumes familiarity with the
 [beginner colab](tutorials/beginner_colab.ipynb).
 
+<!-- docs_infra:strip_begin -->
+
 ## Table of Contents
 
 <!--ts-->
@@ -59,6 +61,8 @@ This doc assumes familiarity with the
 <!-- Added by: gbm, at: Mon 10 May 2021 03:50:43 PM CEST -->
 
 <!--te-->
+
+<!-- docs_infra:strip_end -->
 
 ## Dataset and Features
 

@@ -1,5 +1,7 @@
 # Installation
 
+<!-- docs_infra:strip_begin -->
+
 ## Table of Contents
 
 <!--ts-->
@@ -13,6 +15,8 @@
 <!-- Added by: gbm, at: Mon 10 May 2021 03:50:43 PM CEST -->
 
 <!--te-->
+
+<!-- docs_infra:strip_end -->
 
 ## Installation with pip
 
