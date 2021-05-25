@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.5 - ????
+
+### Bug fix
+
+    - Fix failure when input feature contains commas.
+
+
 ## 0.1.4 - 2021-05-21
 
 ### Features

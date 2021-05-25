@@ -234,8 +234,8 @@ class AdvancedArguments(NamedTuple):
     yggdrasil_training_config: Yggdrasil Decision Forests training
       configuration. Expose a few extra hyper-parameters.
       yggdrasil_deployment_config: Configuration of the computing resources used
-      to train the model e.g. number of threads. Does not impact the model
-      quality.
+        to train the model e.g. number of threads. Does not impact the model
+        quality.
   """
 
   infer_prediction_signature: Optional[bool] = True
@@ -368,7 +368,7 @@ class CoreModel(models.Model):
 
     if self._temp_directory is None:
       self._temp_directory = tempfile.mkdtemp()
-      logging.info("Using %s are temporary training directory",
+      logging.info("Using %s as temporary training directory",
                    self._temp_directory)
 
     if (self._task == Task.RANKING) != (ranking_group is not None):
@@ -745,7 +745,7 @@ class CoreModel(models.Model):
 
     if "epochs" in kwargs:
       if kwargs["epochs"] != 1:
-        raise ValueError("all decision forests algorithms train with only 1 "+
+        raise ValueError("all decision forests algorithms train with only 1 " +
                          "epoch, epochs={} given".format(kwargs["epochs"]))
       del kwargs["epochs"]  # Not needed since we force it to 1 below.
 
@@ -774,11 +774,10 @@ class CoreModel(models.Model):
 
     Args:
       *args: Passed to `keras.Model.evaluate`.
-      **kwargs: Passed to `keras.Model.evaluate`.
-
-    Scalar test loss (if the model has a single output and no metrics) or list
-    of scalars (if the model has multiple outputs and/or metrics). See details
-    in `keras.Model.evaluate`.
+      **kwargs: Passed to `keras.Model.evaluate`.  Scalar test loss (if the
+        model has a single output and no metrics) or list of scalars (if the
+        model has multiple outputs and/or metrics). See details in
+        `keras.Model.evaluate`.
     """
     if self._train_on_evaluate:
       if not self._is_trained.numpy():

@@ -508,7 +508,15 @@ def train(input_ids: List[str],
 def _input_key_to_id(model_id: str, key: str) -> str:
   """Gets the name of the feature accumulator resource."""
 
-  return model_id + "_" + key
+  # Escape the commas that are used to separate the column resource id.
+  # Those IDs have not impact to the final model, but they should be unique and
+  # not contain commas.
+  #
+  # Turn the character '|' into an escape symbol.
+  input_id = model_id + "_" + key.replace("|", "||").replace(",", "|c")
+  if "," in input_id:
+    raise ValueError(f"Internal error: Found comma in input_id {input_id}")
+  return input_id
 
 
 def combine_tensors_and_semantics(

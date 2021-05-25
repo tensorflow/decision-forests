@@ -382,7 +382,7 @@ def build_model(signature: Signature, dataset: Dataset, **args) -> models.Model:
   return model
 
 
-class TFDFInKerasTest(parameterized.TestCase, tf.test.TestCase):
+class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
   def _check_adult_model(self,
                          model,
@@ -984,10 +984,10 @@ class TFDFInKerasTest(parameterized.TestCase, tf.test.TestCase):
     test_evaluation = model.evaluate(test_dataset)
     logging.info("Test evaluation: %s", test_evaluation)
     val_evaluation = [history.history[key][0] for key in val_keys]
-    logging.info("Validation evaluation in training "
-                 "(validation_data=test_dataset): %s", val_evaluation)
-    logging.info("Callback evaluation (test_dataset): %s",
-                 callback.evaluation)
+    logging.info(
+        "Validation evaluation in training "
+        "(validation_data=test_dataset): %s", val_evaluation)
+    logging.info("Callback evaluation (test_dataset): %s", callback.evaluation)
 
     # The training evaluation is capped by the ratio of missing value (5%).
     if compare is not None:
@@ -1192,6 +1192,11 @@ class TFDFInKerasTest(parameterized.TestCase, tf.test.TestCase):
 
   def test_get_all_models(self):
     print(keras.get_all_models())
+
+  def test_feature_with_comma(self):
+    model = keras.GradientBoostedTreesModel()
+    dataset = pd.DataFrame({"a,b": [0, 1, 2], "label": [0, 1, 2]})
+    model.fit(keras.pd_dataframe_to_tf_dataset(dataset, label="label"))
 
 
 if __name__ == "__main__":
