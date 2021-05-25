@@ -588,10 +588,6 @@ class CoreModel(models.Model):
       logging.info("Collect training examples.\nFeatures: %s\nLabel: %s",
                    train_x, train_y)
 
-    if len(train_y.shape) != 1:
-      raise ValueError(
-          "Expecting label of rank 1. Got {} instead.".format(train_y))
-
     if self._preprocessing is not None:
       train_x = self._preprocessing(train_x)
       if self._verbose:
@@ -620,6 +616,16 @@ class CoreModel(models.Model):
       raise ValueError(
           f"The training label tensor is expected to be a tensor. Got {train_y}"
           " instead.")
+
+    if len(train_y.shape) != 1:
+      if self._verbose:
+        logging.info("Squeezing labels to [batch_size] from [batch_size, 1].")
+      train_y = tf.squeeze(train_y, axis=1)
+
+    if len(train_y.shape) != 1:
+      raise ValueError(
+          "Labels can either be passed in as [batch_size, 1] or [batch_size]. "
+          "Invalid shape %s." % train_y.shape)
 
     # List the input features and their semantics.
     assert self._semantics is None, "The model is already trained"
@@ -750,6 +756,7 @@ class CoreModel(models.Model):
     # end of the epoch. This may fail in case any of the `on_train_batch_*`
     # callbacks calls `evaluate()` before the end of the 1st epoch.
     self._train_on_evaluate = True
+
     try:
       history = super(CoreModel, self).fit(
           x=x, y=y, epochs=1, callbacks=callbacks, **kwargs)

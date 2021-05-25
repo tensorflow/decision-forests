@@ -22,7 +22,7 @@ import functools
 import os
 import shutil
 import subprocess
-from typing import List, Tuple, Any, Optional
+from typing import List, Tuple, Any, Optional, Type
 
 from absl import flags
 from absl import logging
@@ -830,7 +830,9 @@ class TFDFInKerasTest(parameterized.TestCase, tf.test.TestCase):
       test_numerical: Optional[bool] = False,
       test_multidimensional_numerical: Optional[bool] = False,
       test_categorical: Optional[bool] = False,
-      test_categorical_set: Optional[bool] = False):
+      test_categorical_set: Optional[bool] = False,
+      label_shape: Optional[int] = None,
+      fit_raises: Optional[Type[Exception]] = None):
     """Trains a model on a synthetic dataset."""
 
     train_path = os.path.join(self.get_temp_dir(), "train.rio.gz")
@@ -868,12 +870,13 @@ class TFDFInKerasTest(parameterized.TestCase, tf.test.TestCase):
     popen.wait()
 
     feature_spec = {}
+    label_shape = [label_shape] if label_shape else []
     if task == keras.Task.CLASSIFICATION:
-      feature_spec["LABEL"] = tf.io.FixedLenFeature([], tf.int64)
+      feature_spec["LABEL"] = tf.io.FixedLenFeature(label_shape, tf.int64)
     elif task == keras.Task.REGRESSION:
-      feature_spec["LABEL"] = tf.io.FixedLenFeature([], tf.float32)
+      feature_spec["LABEL"] = tf.io.FixedLenFeature(label_shape, tf.float32)
     elif task == keras.Task.RANKING:
-      feature_spec["LABEL"] = tf.io.FixedLenFeature([], tf.float32)
+      feature_spec["LABEL"] = tf.io.FixedLenFeature(label_shape, tf.float32)
       feature_spec["GROUP"] = tf.io.FixedLenFeature([], tf.string)
     else:
       assert False
@@ -964,8 +967,16 @@ class TFDFInKerasTest(parameterized.TestCase, tf.test.TestCase):
         self.evaluation = model.evaluate(test_dataset)
 
     callback = _TestEvalCallback()
-    history = model.fit(train_dataset, validation_data=test_dataset,
-                        callbacks=[callback])
+    history = None
+    if fit_raises is not None:
+      with self.assertRaises(fit_raises):
+        model.fit(
+            train_dataset, validation_data=test_dataset, callbacks=[callback])
+    else:
+      history = model.fit(
+          train_dataset, validation_data=test_dataset, callbacks=[callback])
+    if history is None:
+      return
     model.summary()
 
     train_evaluation = model.evaluate(train_dataset)
@@ -990,6 +1001,23 @@ class TFDFInKerasTest(parameterized.TestCase, tf.test.TestCase):
   def test_synthetic_classification_numerical(self):
     self._synthetic_train_and_test(
         keras.Task.CLASSIFICATION, 0.8, 0.72, test_numerical=True)
+
+  def test_synthetic_classification_squeeze_label(self):
+    self._synthetic_train_and_test(
+        keras.Task.CLASSIFICATION,
+        0.8,
+        0.72,
+        test_numerical=True,
+        label_shape=1)
+
+  def test_synthetic_classification_squeeze_label_invalid_shape(self):
+    self._synthetic_train_and_test(
+        keras.Task.CLASSIFICATION,
+        0.8,
+        0.72,
+        test_numerical=True,
+        label_shape=2,
+        fit_raises=ValueError)
 
   def test_synthetic_classification_categorical(self):
     self._synthetic_train_and_test(
