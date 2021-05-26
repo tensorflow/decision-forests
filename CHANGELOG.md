@@ -2,6 +2,13 @@
 
 ## 0.1.5 - ????
 
+### Features
+
+```
+- Raise an error of the number of classes is greater than 100 (can be disabled).
+- Raise an error if the model's task does not match the `pd_dataframe_to_tf_dataset`'s task.
+```
+
 ### Bug fix
 
     - Fix failure when input feature contains commas.

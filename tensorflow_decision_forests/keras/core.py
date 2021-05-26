@@ -739,6 +739,16 @@ class CoreModel(models.Model):
       All other fields are filled as usual for `Keras.Mode.fit()`.
     """
 
+    # If the dataset was created with "pd_dataframe_to_tf_dataset", ensure that
+    # the task is correctly set.
+    if hasattr(x, "_tfdf_task"):
+      dataset_task = getattr(x, "_tfdf_task")
+      if dataset_task != self._task:
+        raise ValueError(
+            f"The model's `task` attribute ({Task.Name(self._task)}) does "
+            "not match the `task` attribute passed to "
+            f"`pd_dataframe_to_tf_dataset` ({Task.Name(dataset_task)}).")
+
     # Call "compile" if the user forgot to do so.
     if not self._is_compiled:
       self.compile()
@@ -1005,7 +1015,8 @@ def _batch_size(inputs: Union[tf.Tensor, Dict[str, tf.Tensor]]) -> tf.Tensor:
 def pd_dataframe_to_tf_dataset(
     dataframe,
     label: Optional[str] = None,
-    task: Optional[TaskType] = Task.CLASSIFICATION) -> tf.data.Dataset:
+    task: Optional[TaskType] = Task.CLASSIFICATION,
+    max_num_classes: Optional[int] = 100) -> tf.data.Dataset:
   """Converts a Panda Dataframe into a TF Dataset.
 
   Details:
@@ -1025,6 +1036,10 @@ def pd_dataframe_to_tf_dataset(
     dataframe: Pandas dataframe containing a training or evaluation dataset.
     label: Name of the label column.
     task: Target task of the dataset.
+    max_num_classes: Maximum number of classes for a classification task. A high
+      number of unique value / classes might indicate that the problem is a
+      regression or a ranking instead of a classification. Set to None to
+      disable checking the number of classes.
 
   Returns:
     A TensorFlow Dataset.
@@ -1035,6 +1050,14 @@ def pd_dataframe_to_tf_dataset(
   if task == Task.CLASSIFICATION and label is not None:
     classification_classes = dataframe[label].unique().tolist()
     classification_classes.sort()
+    if len(classification_classes) > max_num_classes:
+      raise ValueError(
+          f"The number of unique classes ({len(classification_classes)}) "
+          f"exceeds max_num_classes ({max_num_classes}). A high number of "
+          "unique value / classes might indicate that the problem is a "
+          "regression or a ranking instead of a classification. If this "
+          "problem is effectively a classification problem, increase "
+          "`max_num_classes`.")
     dataframe[label] = dataframe[label].map(classification_classes.index)
 
   # Make sure tha missing values for string columns are not represented as
@@ -1050,7 +1073,10 @@ def pd_dataframe_to_tf_dataset(
     tf_dataset = tf.data.Dataset.from_tensor_slices(dict(dataframe))
 
   # The batch size does not impact the training of TF-DF.
-  return tf_dataset.batch(64)
+  tf_dataset = tf_dataset.batch(64)
+
+  setattr(tf_dataset, "_tfdf_task", task)
+  return tf_dataset
 
 
 def yggdrasil_model_to_keras_model(src_path: str, dst_path: str):

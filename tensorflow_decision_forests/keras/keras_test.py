@@ -1198,6 +1198,20 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     dataset = pd.DataFrame({"a,b": [0, 1, 2], "label": [0, 1, 2]})
     model.fit(keras.pd_dataframe_to_tf_dataset(dataset, label="label"))
 
+  def test_error_too_much_classes(self):
+    dataframe = pd.DataFrame({"x": list(range(10)), "label": list(range(10))})
+    with self.assertRaises(ValueError):
+      keras.pd_dataframe_to_tf_dataset(
+          dataframe, label="label", max_num_classes=5)
+
+  def test_error_non_matching_task(self):
+    dataframe = pd.DataFrame({"x": list(range(10)), "label": list(range(10))})
+    dataset = keras.pd_dataframe_to_tf_dataset(
+        dataframe, label="label", task=keras.Task.CLASSIFICATION)
+    model = keras.GradientBoostedTreesModel(task=keras.Task.REGRESSION)
+    with self.assertRaises(ValueError):
+      model.fit(dataset)
+
 
 if __name__ == "__main__":
   tf.test.main()
