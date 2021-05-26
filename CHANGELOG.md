@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.5 - ????
+## 0.1.5 - 2021-05-26
 
 ### Features
 
@@ -11,8 +11,7 @@
 
 ### Bug fix
 
-    - Fix failure when input feature contains commas.
-
+- Fix failure when input feature contains commas.
 
 ## 0.1.4 - 2021-05-21
 
