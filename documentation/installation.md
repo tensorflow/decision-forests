@@ -38,23 +38,17 @@ python3 -c "import tensorflow_decision_forests as tfdf; print('Found TF-DF v' + 
 
 **Requirements**
 
--   The [requirements](https://www.tensorflow.org/install/source) of TensorFlow.
--   The [requirements](https://github.com/google/yggdrasil-decision-forests) of
-    Yggdrasil Decision Forests.
-
-**Requirements (Details)**
-
--   MSVC>=2019 (Windows) or GCC>=7.3 (Linux).
--   Bazel 3.7.2
--   Python 3.x
+-   Microsoft Visual Studio >= 2019 (Windows) or GCC>=7.3 (Linux).
+-   Bazel >= 3.7.2
+-   Python >= 3
 -   Git
 -   Python's numpy
--   msys64 (Windows only)
+-   MSYS2 (Windows only)
 
 Download and compile TensorFlow Decision Forests as follow:
 
 ```shell
-# Download the source code.
+# Download the source code of TF-DF.
 git clone https://github.com/tensorflow/decision-forests.git
 cd decision-forests
 
@@ -77,10 +71,10 @@ pip3 install dist/*.whl
 
 **Note:** Compiling TensorFlow Decision Forests compiles a large part of
 TensorFlow. This operation will take multiple hours without distributed
-building.
+building. See "tensorflow_bazelrc" for the distributed compilation instructions.
 
 ## Troubleshooting
 
 **Note:** Check also Yggdrasil's
-[Troubleshooting](https://github.com/google/yggdrasil-decision-forests/manual/installation.md#Troubleshooting)
+[Troubleshooting](https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/installation.md#troubleshooting)
 page.
