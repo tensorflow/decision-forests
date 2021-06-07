@@ -37,13 +37,20 @@ AAA AAA AAA AAA.
 AAA AAA AAA AAA.
   AAA AAA AAA AAA.)",
                                              /*leading_spaces_first_line=*/4,
-                                             /*leading_spaces_next_lines=*/6);
-  EXPECT_EQ(formatted, R"(    AAA AAA AAA AAA AAA.
-      AAA AAA AAA AAA.
-      - AAA AAA AAA AAA.
-      - AAA AAA AAA AAA.
-      AAA AAA AAA AAA.
-          AAA AAA AAA AAA.
+                                             /*leading_spaces_next_lines=*/6,
+                                             /*max_char_per_lines=*/20);
+  EXPECT_EQ(formatted, R"(    AAA AAA AAA AAA
+      AAA.
+      AAA AAA AAA
+      AAA.
+      - AAA AAA AAA
+        AAA.
+      - AAA AAA AAA
+        AAA.
+      AAA AAA AAA
+      AAA.
+          AAA AAA
+        AAA AAA.
 )");
 }
 

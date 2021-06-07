@@ -39,12 +39,13 @@ std::string LearnerKeyToClassName(absl::string_view key);
 //   - Add leading spaces (leading_spaces_first_line and
 //     leading_spaces_next_lines).
 //   - Detect and format bullet lists.
-std::string FormatDocumentation(const absl::string_view raw,
-                                const int leading_spaces_first_line,
-                                const int leading_spaces_next_lines);
+std::string FormatDocumentation(absl::string_view raw,
+                                int leading_spaces_first_line,
+                                int leading_spaces_next_lines,
+                                int max_char_per_lines = 80);
 
 // Gets the number of leading spaces of a string.
-int NumLeadingSpaces(const absl::string_view text);
+int NumLeadingSpaces(absl::string_view text);
 
 }  // namespace decision_forests
 }  // namespace tensorflow

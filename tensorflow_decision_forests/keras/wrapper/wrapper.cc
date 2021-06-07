@@ -85,13 +85,20 @@ BuildPredefinedHyperParameter(const ydf::model::AbstractLearner* learner) {
   std::string predefined_hp_doc;
   // Python list of template hyper-parameters.
   std::string predefined_hp_list = "[";
+  bool first = true;
 
   const auto predefined_hyper_parameter_sets =
       learner->PredefinedHyperParameters();
   for (const auto& predefined : predefined_hyper_parameter_sets) {
+    if (first) {
+      first = false;
+    } else {
+      absl::SubstituteAndAppend(&predefined_hp_doc, "\n");
+    }
+
     absl::SubstituteAndAppend(
         &predefined_hp_doc,
-        "        - $0@v$1: $2 The parameters are: ", predefined.name(),
+        "- $0@v$1: $2 The parameters are: ", predefined.name(),
         predefined.version(), predefined.description());
     absl::SubstituteAndAppend(
         &predefined_hp_list,
@@ -147,7 +154,7 @@ BuildPredefinedHyperParameter(const ydf::model::AbstractLearner* learner) {
           break;
       }
     }
-    absl::SubstituteAndAppend(&predefined_hp_doc, ".\n");
+    absl::SubstituteAndAppend(&predefined_hp_doc, ".");
     absl::SubstituteAndAppend(&predefined_hp_list, "}),");
   }
   absl::StrAppend(&predefined_hp_list, "]");
@@ -161,10 +168,14 @@ BuildPredefinedHyperParameter(const ydf::model::AbstractLearner* learner) {
 //   raw: Raw documentation.
 //   leading_spaces_first_line: Left margin on the first line.
 //   leading_spaces_next_lines: Left margin on the next lines.
+//   max_char_per_lines: Maximum line length for word wrapping.
 //
 std::string FormatDocumentation(const absl::string_view raw,
                                 const int leading_spaces_first_line,
-                                const int leading_spaces_next_lines) {
+                                const int leading_spaces_next_lines,
+                                const int max_char_per_lines) {
+  // Number of spaces to create an "offset".
+  const int offset = 2;
   // Sanitize documentation.
   std::string raw_sanitized = absl::StrReplaceAll(raw, {{"\\", "\\\\"}});
 
@@ -178,6 +189,12 @@ std::string FormatDocumentation(const absl::string_view raw,
     // Leading spaces of the current line.
     const int user_leading_spaces = NumLeadingSpaces(line);
 
+    // Detect a list.
+    const bool bullet_list = line.size() >= 2 && line.substr(0, 2) == "- ";
+    /*
+        const bool definition_header =
+            line_idx == 0;  // absl::StrContains(line, ":");
+    */
     const auto leading_spaces =
         (line_idx == 0) ? leading_spaces_first_line : leading_spaces_next_lines;
 
@@ -187,7 +204,15 @@ std::string FormatDocumentation(const absl::string_view raw,
     const std::vector<std::string> tokens = absl::StrSplit(line, ' ');
     for (int token_idx = 0; token_idx < tokens.size(); token_idx++) {
       const auto& token = tokens[token_idx];
-      if (token_idx > 0) {
+      if (written_length + token.size() + 1 > max_char_per_lines) {
+        // Wrap the line.
+        written_length = leading_spaces_next_lines + user_leading_spaces;
+        if (bullet_list /*|| definition_header*/) {
+          written_length += offset;
+        }
+        absl::StrAppend(&formatted, "\n");
+        absl::StrAppend(&formatted, std::string(written_length, ' '));
+      } else if (token_idx > 0) {
         absl::StrAppend(&formatted, " ");
       }
       absl::StrAppend(&formatted, token);
@@ -376,7 +401,8 @@ AdvancedArguments = core.AdvancedArguments
 
     const auto nice_learner_name = LearnerKeyToNiceLearnerName(learner_key);
 
-    absl::SubstituteAndAppend(&wrapper, R"(
+    absl::SubstituteAndAppend(
+        &wrapper, R"(
 class $0(core.CoreModel):
   r"""$6 learning algorithm.
 
@@ -430,11 +456,10 @@ class $0(core.CoreModel):
       You can omit the version (e.g. remove "@v5") to use the last version of
       the template. In this case, the hyper-parameter can change in between
       releases (not recommended for training in production).
+$7
     advanced_arguments: Advanced control of the model that most users won't need
       to use. See `AdvancedArguments` for details.
-$7
 $2
-
   """
 
   @core._list_explicit_arguments
@@ -475,13 +500,13 @@ $4
   def predefined_hyperparameters() -> List[core.HyperParameterTemplate]:
     return $8
 )",
-                              /*$0*/ class_name, /*$1*/ learner_key,
-                              /*$2*/ fields_documentation,
-                              /*$3*/ fields_constructor, /*$4*/ fields_dict,
-                              /*$5*/ free_text_documentation,
-                              /*$6*/ nice_learner_name,
-                              /*$7*/ predefined_hp_doc,
-                              /*$8*/ predefined_hp_list);
+        /*$0*/ class_name, /*$1*/ learner_key,
+        /*$2*/ fields_documentation,
+        /*$3*/ fields_constructor, /*$4*/ fields_dict,
+        /*$5*/ free_text_documentation,
+        /*$6*/ nice_learner_name,
+        /*$7*/ FormatDocumentation(predefined_hp_doc, 6, 6),
+        /*$8*/ predefined_hp_list);
   }
 
   return wrapper;

@@ -6,17 +6,20 @@
 
 -   Add hyper-parameter `sorting_strategy` to disable the computation of the
     pre-sorted index (slower to train, but consumes less memory).
+-   Format wrapper code for colab help display.
 
 ## 0.1.5 - 2021-05-26
 
 ### Features
 
-- Raise an error of the number of classes is greater than 100 (can be disabled).
-- Raise an error if the model's task does not match the `pd_dataframe_to_tf_dataset`'s task.
+-   Raise an error of the number of classes is greater than 100 (can be
+    disabled).
+-   Raise an error if the model's task does not match the
+    `pd_dataframe_to_tf_dataset`'s task.
 
 ### Bug fix
 
-- Fix failure when input feature contains commas.
+-   Fix failure when input feature contains commas.
 
 ## 0.1.4 - 2021-05-21
 
