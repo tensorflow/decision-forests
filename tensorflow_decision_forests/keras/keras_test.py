@@ -1227,6 +1227,39 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     with self.assertRaises(ValueError):
       model.fit(dataset)
 
+  def test_bad_feature_names(self):
+    # Keras model IO does not support features containing spaces. Therefore,
+    # an error will be raised if a model is trained with feature names
+    # containing spaces, tabs or being empty. This error can turned into a
+    # warning with an advanced parameter.
+    #
+    # https://github.com/tensorflow/tensorflow/issues/44984
+
+    def create_ds(feature_name):
+      return keras.pd_dataframe_to_tf_dataset(
+          pd.DataFrame({
+              feature_name: [1.0, 2.0, 3.0, 4.0],
+              "label": [0, 1, 0, 1]
+          }),
+          label="label")
+
+    model = keras.GradientBoostedTreesModel()
+    with self.assertRaises(ValueError):
+      model.fit(create_ds("x y"))
+
+    with self.assertRaises(ValueError):
+      model.fit(create_ds(""))
+
+    # Disable the error.
+    model = keras.GradientBoostedTreesModel(
+        advanced_arguments=keras.AdvancedArguments(
+            fail_on_non_keras_compatible_feature_name=False))
+    model.fit(create_ds("x y"))
+
+    # Export does not support spaces in feature names.
+    with self.assertRaises(ValueError):
+      model.save(os.path.join(self.get_temp_dir(), "model"))
+
 
 if __name__ == "__main__":
   tf.test.main()

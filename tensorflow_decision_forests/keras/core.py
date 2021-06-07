@@ -236,11 +236,15 @@ class AdvancedArguments(NamedTuple):
       yggdrasil_deployment_config: Configuration of the computing resources used
         to train the model e.g. number of threads. Does not impact the model
         quality.
+    fail_on_non_keras_compatible_feature_name: If true (default), training will
+      fail if one of the feature name is not compatible with part of the Keras
+      API. If false, a warning will be generated instead.
   """
 
   infer_prediction_signature: Optional[bool] = True
   yggdrasil_training_config: Optional[YggdrasilTrainingConfig] = None
   yggdrasil_deployment_config: Optional[YggdrasilDeploymentConfig] = None
+  fail_on_non_keras_compatible_feature_name: Optional[bool] = True
 
 
 class CoreModel(models.Model):
@@ -587,6 +591,11 @@ class CoreModel(models.Model):
     if self._verbose:
       logging.info("Collect training examples.\nFeatures: %s\nLabel: %s",
                    train_x, train_y)
+
+    if isinstance(train_x, dict):
+      _check_feature_names(
+          train_x.keys(),
+          self._advanced_arguments.fail_on_non_keras_compatible_feature_name)
 
     if self._preprocessing is not None:
       train_x = self._preprocessing(train_x)
@@ -1227,6 +1236,31 @@ def _apply_hp_template(parameters: Dict[str, Any], template_name: str,
       parameters[key] = template.parameters[key]
 
   return parameters
+
+
+def _check_feature_names(feature_names: List[str], raise_error: bool):
+  """Checks if the features names are compatible with all of the Keras API."""
+
+  def problem(reason):
+    full_reason = (
+        "One or more feature names are not compatible with the Keras API: "
+        f"{reason} This problem can be solved in one of two ways: (1; "
+        "Recommended) Update the feature name(s) to be compatible. (2) Disable "
+        "this error message "
+        "(`fail_on_non_keras_compatible_feature_name=False`) and only use part"
+        " of the compatible Keras API.")
+    if raise_error:
+      raise ValueError(full_reason)
+    else:
+      logging.warning(full_reason)
+
+  for feature_name in feature_names:
+    if not feature_name:
+      problem("One of the feature names is empty.")
+
+    if " " in feature_name or "\t" in feature_name:
+      problem(f"The feature name \"{feature_name}\" contains a space or a "
+              "tab character.")
 
 
 # The following section is a copy of internal Keras functions that are not

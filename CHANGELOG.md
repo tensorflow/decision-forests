@@ -7,6 +7,7 @@
 -   Add hyper-parameter `sorting_strategy` to disable the computation of the
     pre-sorted index (slower to train, but consumes less memory).
 -   Format wrapper code for colab help display.
+-   Raises an error when a feature name is not compatible (e.g. contains a space).
 
 ## 0.1.5 - 2021-05-26
 
