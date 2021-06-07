@@ -779,7 +779,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         dataset=dataset,
         task=keras.Task.REGRESSION)
 
-    model.compile(metrics=["mse"])  # REMOVE run_eagerly
+    model.compile(metrics=["mse"])
 
     model.fit(x=tf_train, validation_data=tf_test)
     model.summary()
@@ -789,6 +789,21 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     predictions = model.predict(tf_test)
     logging.info("Predictions: %s", predictions)
+
+  def test_model_abalone_disable_presorted_index(self):
+    dataset = abalone_dataset()
+    tf_train, tf_test = dataset_to_tf_dataset(dataset)
+
+    model = keras.GradientBoostedTreesModel(
+        sorting_strategy="IN_NODE", task=keras.Task.REGRESSION)
+
+    model.fit(x=tf_train, validation_data=tf_test)
+    model.summary()
+
+    model.compile(metrics=["mse"])
+    evaluation = model.evaluate(tf_test)
+
+    self.assertLessEqual(evaluation[1], 6.0)  # mse
 
   def test_model_abalone_advanced_config(self):
     """Test on the Abalone dataset."""
