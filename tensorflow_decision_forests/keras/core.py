@@ -1254,13 +1254,17 @@ def _check_feature_names(feature_names: List[str], raise_error: bool):
     else:
       logging.warning(full_reason)
 
+  # List of character forbidden in a serving signature name.
+  # TODO(gbm): Add commas.
+  forbidden_characters = " \t?%"
   for feature_name in feature_names:
     if not feature_name:
       problem("One of the feature names is empty.")
 
-    if " " in feature_name or "\t" in feature_name:
-      problem(f"The feature name \"{feature_name}\" contains a space or a "
-              "tab character.")
+    for character in forbidden_characters:
+      if character in feature_name:
+        problem(f"The feature name \"{feature_name}\" contains a forbidden "
+                "character ({forbidden_characters}).")
 
 
 # The following section is a copy of internal Keras functions that are not

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.7 - ????
+
+### Features
+
+- Add more of characters to the non-recommended list of feature name characters.
+
+
 ## 0.1.6 - 2021-06-07
 
 ### Features
