@@ -16,15 +16,16 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import concurrent.futures
 import os
 import tempfile
 
-import tensorflow as tf  # TensorFlow V2
+from absl import logging
+from absl.testing import parameterized
+import tensorflow as tf
 
 from tensorflow_decision_forests.tensorflow.ops.inference import api as inference
 from tensorflow_decision_forests.tensorflow.ops.inference import test_utils
-from absl.testing import parameterized
-from absl import logging
 
 
 class TfOpTest(parameterized.TestCase, tf.test.TestCase):
@@ -99,8 +100,8 @@ class TfOpTest(parameterized.TestCase, tf.test.TestCase):
     model = inference.ModelV2(model_path)
 
     @tf.function
-    def apply_non_eager(features):
-      return model.apply(features)
+    def apply_non_eager(x):
+      return model.apply(x)
 
     predictions_non_eager = apply_non_eager(features)
     predictions_eager = model.apply(features)
@@ -122,6 +123,31 @@ class TfOpTest(parameterized.TestCase, tf.test.TestCase):
 
     check_predictions(predictions_non_eager)
     check_predictions(predictions_eager)
+
+  def test_multi_thread(self):
+
+    # Create toy model with a lot of trees i.e. slow model.
+    model_path = os.path.join(
+        tempfile.mkdtemp(dir=self.get_temp_dir()), "test_multi_thread")
+    test_utils.build_toy_random_forest(
+        model_path, winner_take_all_inference=True, num_trees=100000)
+    features = test_utils.build_toy_input_feature_values(features=None)
+
+    model = inference.ModelV2(model_path)
+
+    @tf.function
+    def apply_non_eager(x):
+      return model.apply(x)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
+      predictions = executor.map(apply_non_eager, [features] * 1000)
+
+    (expected_proba,
+     expected_classes) = test_utils.expected_toy_predictions_rf_wta()
+
+    for prediction in predictions:
+      self.assertAllEqual(prediction.dense_col_representation, expected_classes)
+      self.assertAllClose(prediction.dense_predictions, expected_proba)
 
 
 if __name__ == "__main__":

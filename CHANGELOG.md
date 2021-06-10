@@ -4,8 +4,9 @@
 
 ### Features
 
-- Add more of characters to the non-recommended list of feature name characters.
-
+-   Add more of characters to the non-recommended list of feature name
+    characters.
+-   Make the inference op multi-thread compatible.
 
 ## 0.1.6 - 2021-06-07
 

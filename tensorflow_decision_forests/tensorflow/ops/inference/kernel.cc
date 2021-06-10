@@ -981,22 +981,19 @@ class SimpleMLInferenceOp : public OpKernel {
       output_tensors.dense_col_representation(rep_idx) = reps[rep_idx];
     }
 
-    // Run the model.
-    tf::mutex_lock lock_engine_mutex(engine_mutex_);
-    OP_REQUIRES_OK(ctx, model_container_->engine()->RunInference(
-                            input_tensors, model_container_->feature_index(),
-                            &output_tensors, engine_cache_.get()));
+    auto engine_cache_or_status = GetEngineCache();
+    if (!engine_cache_or_status.ok()) {
+      OP_REQUIRES_OK(ctx,
+                     utils::FromUtilStatus(engine_cache_or_status.status()));
+    }
+    OP_REQUIRES_OK(ctx,
+                   model_container_->engine()->RunInference(
+                       input_tensors, model_container_->feature_index(),
+                       &output_tensors, engine_cache_or_status.value().get()));
+    ReturnEngineCache(std::move(engine_cache_or_status).value());
   }
 
  protected:
-  // Creates a cache for the engine in model_container_.
-  tf::Status CreateEngineCache() {
-    auto cache_or_status = model_container_->engine()->CreateCache();
-    TF_RETURN_IF_ERROR(utils::FromUtilStatus(cache_or_status.status()));
-    engine_cache_ = std::move(cache_or_status).value();
-    return tf::Status::OK();
-  }
-
   // Links the model and set "model_container_" accordingly.
   virtual tf::Status LinkModelResource(OpKernelContext* ctx) {
     const auto lookup_status = ctx->resource_manager()->Lookup(
@@ -1010,7 +1007,7 @@ class SimpleMLInferenceOp : public OpKernel {
                        "the \"LoadModel*\" not having been run before."));
     }
 
-    return CreateEngineCache();
+    return tf::Status::OK();
   }
 
   // Computes the batch size from the input feature tensors. Returns an error if
@@ -1146,6 +1143,37 @@ class SimpleMLInferenceOp : public OpKernel {
             dense_output_dim_};
   }
 
+  // Get an engine cache (i.e. an block of working memory necessary for the
+  // inference). This engine cache should be returned after usage with
+  // "ReturnEngineCache".
+  StatusOr<std::unique_ptr<AbstractInferenceEngine::AbstractCache>>
+  GetEngineCache() {
+    tf::mutex_lock lock_engine_mutex(engine_cache_mutex_);
+    if (engine_caches_.empty()) {
+      // Allocate a new engine cache.
+      return model_container_->engine()->CreateCache();
+    }
+    auto cache = std::move(engine_caches_.back());
+    engine_caches_.pop_back();
+    return cache;
+  }
+
+  void ReturnEngineCache(
+      std::unique_ptr<AbstractInferenceEngine::AbstractCache>&& cache) {
+    tf::mutex_lock lock_engine_mutex(engine_cache_mutex_);
+    if (engine_caches_.size() < kMaxPreAllocatedEngineCaches) {
+      engine_caches_.push_back(std::move(cache));
+    }
+  }
+
+  // Maximum number of engine caches kept allocated in the heap to speed-up
+  // future inference engines. Note that if more than
+  // "kMaxPreAllocatedEngineCaches" calls to "Compute" are running at the same
+  // time (i.e. called from different threads), more than
+  // "kMaxPreAllocatedEngineCaches" engine caches can be allocated at one time.
+  // However, these engine cache will be deallocated after being used.
+  static constexpr int kMaxPreAllocatedEngineCaches = 32;
+
   // Identifier of the model. Copy of the "model_identifier" attribute.
   std::string model_identifier_;
 
@@ -1153,11 +1181,12 @@ class SimpleMLInferenceOp : public OpKernel {
   // call to the OP.
   YggdrasilModelResource* model_container_ = nullptr;
 
-  // Cache data to re-use in between inference calls.
-  std::unique_ptr<AbstractInferenceEngine::AbstractCache> engine_cache_;
+  // List of pre-allocated working memory to re-use in between inference calls.
+  std::vector<std::unique_ptr<AbstractInferenceEngine::AbstractCache>>
+      engine_caches_ ABSL_GUARDED_BY(engine_cache_mutex_);
 
   // Protects calls to the engine inference.
-  tensorflow::mutex engine_mutex_;
+  tensorflow::mutex engine_cache_mutex_;
 
   // Copy of the attributes of the same name.
   int dense_output_dim_;
@@ -1175,7 +1204,7 @@ class SimpleMLInferenceOpWithHandle : public SimpleMLInferenceOp {
 
   tf::Status LinkModelResource(OpKernelContext* ctx) override {
     TF_RETURN_IF_ERROR(GetModel(ctx, &model_container_));
-    return CreateEngineCache();
+    return tf::Status::OK();
   }
 };
 

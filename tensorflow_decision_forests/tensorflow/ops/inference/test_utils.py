@@ -108,7 +108,8 @@ def build_toy_data_spec(add_boolean_features=False, has_catset=False):
 def build_toy_random_forest(path,
                             winner_take_all_inference,
                             add_boolean_features=False,
-                            has_catset=False):
+                            has_catset=False,
+                            num_trees=2):
   """Creates a toy Random Forest model compatible with _build_toy_data_spec."""
 
   logging.info("Create toy model in %s", path)
@@ -134,7 +135,7 @@ def build_toy_random_forest(path,
 
   rf_header = random_forest_pb2.Header(
       num_node_shards=1,
-      num_trees=2,
+      num_trees=num_trees,
       winner_take_all_inference=winner_take_all_inference,
       node_format="BLOB_SEQUENCE")
   with tf.io.gfile.GFile(os.path.join(path, "random_forest_header.pb"),
