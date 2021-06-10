@@ -22,9 +22,21 @@ py_library(
     srcs = ["__init__.py"],
     srcs_version = "PY3",
     deps = [
+        ":yggdrasil_decision_forests_protos",
         ":core",
         ":wrappers",
         # ":wrappers_pre_generated" # Pre-generated alternative to ":wrappers".
+    ],
+)
+
+# Yggdrasil Decision Forests protos included in the package.
+py_library(
+    name = "yggdrasil_decision_forests_protos",
+    srcs_version = "PY3",
+    deps = [
+        "@ydf//yggdrasil_decision_forests/learner/decision_tree:decision_tree_py_proto",
+        "@ydf//yggdrasil_decision_forests/learner/gradient_boosted_trees:gradient_boosted_trees_py_proto",
+        "@ydf//yggdrasil_decision_forests/learner/random_forest:random_forest_py_proto",
     ],
 )
 
