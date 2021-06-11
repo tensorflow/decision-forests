@@ -1241,7 +1241,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
               feature_name: [1.0, 2.0, 3.0, 4.0],
               "label": [0, 1, 0, 1]
           }),
-          label="label")
+          label="label",
+          fix_feature_names=False)
 
     model = keras.GradientBoostedTreesModel()
     with self.assertRaises(ValueError):
@@ -1259,6 +1260,26 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     # Export does not support spaces in feature names.
     with self.assertRaises(ValueError):
       model.save(os.path.join(self.get_temp_dir(), "model"))
+
+  def test_feeding_a_pandas_dataframe(self):
+    model = keras.GradientBoostedTreesModel()
+    dataframe = pd.DataFrame({"a,b": [0, 1, 2], "label": [0, 1, 2]})
+    with self.assertRaises(ValueError):
+      model.fit(dataframe)
+
+  def test_escape_forbidden_characters(self):
+    dataframe = pd.DataFrame({
+        "a b": [0, 1, 2],
+        "c,d": [0, 1, 2],
+        "e%f": [0, 1, 2],
+        "a%b": [0, 1, 2],
+        "label": [0, 1, 2]
+    })
+    dataset = keras.pd_dataframe_to_tf_dataset(dataframe, label="label")
+
+    for features, _ in dataset:
+      for expected_name in ["a_b", "c_d", "e_f", "a_b_"]:
+        self.assertIn(expected_name, features)
 
 
 if __name__ == "__main__":

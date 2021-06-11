@@ -99,6 +99,10 @@ FeatureSemantic = tf_core.Semantic
 _LABEL = "__LABEL"
 _RANK_GROUP = "__RANK_GROUP"
 
+# This is the list of characters that should not be used as feature name as they
+# as not supported by SavedModel serving signatures.
+_FORBIDDEN_FEATURE_CHARACTERS = " \t?%,"
+
 # Advanced configuration for the underlying learning library.
 YggdrasilDeploymentConfig = abstract_learner_pb2.DeploymentConfig
 YggdrasilTrainingConfig = abstract_learner_pb2.TrainingConfig
@@ -748,6 +752,14 @@ class CoreModel(models.Model):
       All other fields are filled as usual for `Keras.Mode.fit()`.
     """
 
+    # Check for a Pandas Dataframe without injecting a dependency.
+    if str(type(x)) == "<class 'pandas.core.frame.DataFrame'>":
+      raise ValueError(
+          "`fit` cannot consume Pandas' dataframes directly. Instead, use the "
+          "`pd_dataframe_to_tf_dataset` utility function. For example: "
+          "`model.fit(tfdf.keras.pd_dataframe_to_tf_dataset(train_dataframe, "
+          "label=\"label_column\"))")
+
     # If the dataset was created with "pd_dataframe_to_tf_dataset", ensure that
     # the task is correctly set.
     if hasattr(x, "_tfdf_task"):
@@ -1025,7 +1037,9 @@ def pd_dataframe_to_tf_dataset(
     dataframe,
     label: Optional[str] = None,
     task: Optional[TaskType] = Task.CLASSIFICATION,
-    max_num_classes: Optional[int] = 100) -> tf.data.Dataset:
+    max_num_classes: Optional[int] = 100,
+    in_place: Optional[bool] = False,
+    fix_feature_names: Optional[bool] = True) -> tf.data.Dataset:
   """Converts a Panda Dataframe into a TF Dataset.
 
   Details:
@@ -1049,25 +1063,75 @@ def pd_dataframe_to_tf_dataset(
       number of unique value / classes might indicate that the problem is a
       regression or a ranking instead of a classification. Set to None to
       disable checking the number of classes.
+    in_place: If false (default), the input `dataframe` will not be modified by
+      `pd_dataframe_to_tf_dataset`. However, a copy of the dataset memory will
+      be made. If true, the dataframe will be modified in place.
+    fix_feature_names: Some feature names are not supported by the SavedModel
+      signature. If `fix_feature_names=True` (default) the feature will be
+      renamed and made compatible. If `fix_feature_names=False`, the feature
+      name will not be changed, but exporting the model might fail (i.e.
+      `model.save(...)`).
 
   Returns:
     A TensorFlow Dataset.
   """
 
-  dataframe = dataframe.copy(deep=False)
+  if not in_place:
+    dataframe = dataframe.copy(deep=True)
 
-  if task == Task.CLASSIFICATION and label is not None:
-    classification_classes = dataframe[label].unique().tolist()
-    classification_classes.sort()
-    if len(classification_classes) > max_num_classes:
+  if label is not None:
+
+    if label not in dataframe.columns:
       raise ValueError(
-          f"The number of unique classes ({len(classification_classes)}) "
-          f"exceeds max_num_classes ({max_num_classes}). A high number of "
-          "unique value / classes might indicate that the problem is a "
-          "regression or a ranking instead of a classification. If this "
-          "problem is effectively a classification problem, increase "
-          "`max_num_classes`.")
-    dataframe[label] = dataframe[label].map(classification_classes.index)
+          f"The label \"{label}\" is not a column of the dataframe.")
+
+    if task == Task.CLASSIFICATION:
+
+      classification_classes = dataframe[label].unique().tolist()
+      if len(classification_classes) > max_num_classes:
+        raise ValueError(
+            f"The number of unique classes ({len(classification_classes)}) "
+            f"exceeds max_num_classes ({max_num_classes}). A high number of "
+            "unique value / classes might indicate that the problem is a "
+            "regression or a ranking instead of a classification. If this "
+            "problem is effectively a classification problem, increase "
+            "`max_num_classes`.")
+
+      if dataframe[label].dtypes in [str, object]:
+        classification_classes.sort()
+        dataframe[label] = dataframe[label].map(classification_classes.index)
+
+      elif dataframe[label].dtypes in [int, float]:
+        if (dataframe[label] < 0).any():
+          raise ValueError(
+              "Negative integer classification label found. Make sure "
+              "you label values are positive or stored as string.")
+
+  if fix_feature_names:
+    # Rename the features so they are compatible with SaveModel serving
+    # signatures.
+    rename_mapping = {}
+    new_names = set()
+    change_any_feature_name = False
+    for column in dataframe:
+      new_name = column
+      for forbidden_character in _FORBIDDEN_FEATURE_CHARACTERS:
+        if forbidden_character in new_name:
+          change_any_feature_name = True
+          new_name = new_name.replace(forbidden_character, "_")
+      # Add a tailing "_" until there are not feature name collisions.
+      while new_name in new_names:
+        new_name += "_"
+        change_any_feature_name = True
+
+      rename_mapping[column] = new_name
+      new_names.add(new_name)
+
+    dataframe = dataframe.rename(columns=rename_mapping)
+    if change_any_feature_name:
+      logging.warning(
+          "Some of the feature names have been changed automatically to be "
+          "compatible with SavedModels because fix_feature_names=True.")
 
   # Make sure tha missing values for string columns are not represented as
   # float(NaN).
@@ -1245,8 +1309,9 @@ def _check_feature_names(feature_names: List[str], raise_error: bool):
     full_reason = (
         "One or more feature names are not compatible with the Keras API: "
         f"{reason} This problem can be solved in one of two ways: (1; "
-        "Recommended) Update the feature name(s) to be compatible. (2) Disable "
-        "this error message "
+        "Recommended) Rename the features to be compatible. You can use "
+        "the argument `fix_feature_names=True` if you are using "
+        "`pd_dataframe_to_tf_dataset`. (2) Disable this error message "
         "(`fail_on_non_keras_compatible_feature_name=False`) and only use part"
         " of the compatible Keras API.")
     if raise_error:
@@ -1255,16 +1320,14 @@ def _check_feature_names(feature_names: List[str], raise_error: bool):
       logging.warning(full_reason)
 
   # List of character forbidden in a serving signature name.
-  # TODO(gbm): Add commas.
-  forbidden_characters = " \t?%"
   for feature_name in feature_names:
     if not feature_name:
       problem("One of the feature names is empty.")
 
-    for character in forbidden_characters:
+    for character in _FORBIDDEN_FEATURE_CHARACTERS:
       if character in feature_name:
         problem(f"The feature name \"{feature_name}\" contains a forbidden "
-                "character ({forbidden_characters}).")
+                "character ({_FORBIDDEN_FEATURE_CHARACTERS}).")
 
 
 # The following section is a copy of internal Keras functions that are not

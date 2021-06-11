@@ -7,6 +7,10 @@
 -   Add more of characters to the non-recommended list of feature name
     characters.
 -   Make the inference op multi-thread compatible.
+-   Print an explicit error and some instructions when training a model with a
+    Pandas dataframe.
+-   `pd_dataframe_to_tf_dataset` can automatically rename feature to make them
+    compatible with SavedModel export signatures.
 
 ## 0.1.6 - 2021-06-07
 
@@ -15,7 +19,8 @@
 -   Add hyper-parameter `sorting_strategy` to disable the computation of the
     pre-sorted index (slower to train, but consumes less memory).
 -   Format wrapper code for colab help display.
--   Raises an error when a feature name is not compatible (e.g. contains a space).
+-   Raises an error when a feature name is not compatible (e.g. contains a
+    space).
 
 ## 0.1.5 - 2021-05-26
 
