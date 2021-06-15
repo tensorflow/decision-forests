@@ -798,6 +798,32 @@ class CoreModel(models.Model):
 
     return history
 
+  def save(self, filepath: str, overwrite: Optional[bool] = True, **kwargs):
+    """Saves the model as a TensorFlow SavedModel.
+
+    The exported SavedModel contains a standalone Yggdrasil Decision Forests
+    model in the "assets" sub-directory. The Yggdrasil model can be used
+    directly using the Yggdrasil API. However, this model does not contain the
+    "preprocessing" layer (if any).
+
+    Args:
+      filepath: Path to the output model.
+      overwrite: If true, override an already existing model. If false, raise an
+        error if a model already exist.
+      **kwargs: Arguments passed to the core keras model's save.
+    """
+
+    if tf.io.gfile.exists(os.path.join(filepath, "saved_model.pb")):
+      if overwrite:
+        tf.io.gfile.rmtree(filepath)
+      else:
+        raise ValueError(
+            f"A model already exist as {filepath}. Use an empty directory "
+            "or set overwrite=True")
+
+    super(CoreModel, self).save(
+        filepath=filepath, overwrite=overwrite, **kwargs)
+
   def evaluate(self, *args, **kwargs):
     """Returns the loss value & metrics values for the model.
 

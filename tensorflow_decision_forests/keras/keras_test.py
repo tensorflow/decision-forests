@@ -1281,6 +1281,32 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
       for expected_name in ["a_b", "c_d", "e_f", "a_b_"]:
         self.assertIn(expected_name, features)
 
+  def test_override_save(self):
+
+    model_path = os.path.join(self.get_temp_dir(), "model")
+    logging.info("model_path: %s", model_path)
+
+    model_1 = keras.GradientBoostedTreesModel()
+    dataset_1 = pd.DataFrame({
+        "f1": [0, 1, 2] * 100,
+        "f2": [3, 4, 6] * 100,
+        "label": [0, 1, 0] * 100
+    })
+    model_1.fit(keras.pd_dataframe_to_tf_dataset(dataset_1, label="label"))
+    model_1.save(model_path)
+
+    model_2 = keras.GradientBoostedTreesModel()
+    dataset_2 = pd.DataFrame({
+        "f1": ["a", "b", "c"] * 100,
+        "label": [0, 1, 0] * 100
+    })
+    model_2.fit(keras.pd_dataframe_to_tf_dataset(dataset_2, label="label"))
+    model_2.save(model_path)
+
+    model_2_restored = tf.keras.models.load_model(model_path)
+    model_2_restored.predict(
+        keras.pd_dataframe_to_tf_dataset(dataset_2, label="label"))
+
 
 if __name__ == "__main__":
   tf.test.main()

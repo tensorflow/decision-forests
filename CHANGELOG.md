@@ -11,6 +11,7 @@
     Pandas dataframe.
 -   `pd_dataframe_to_tf_dataset` can automatically rename feature to make them
     compatible with SavedModel export signatures.
+-   `model.save(...)` can override an existing model.
 
 ## 0.1.6 - 2021-06-07
 
