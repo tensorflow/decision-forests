@@ -227,7 +227,7 @@ def build_preprocessing(dataset: Dataset) -> Tuple[List[Any], List[Any]]:
 
     if semantic == keras.FeatureSemantic.NUMERICAL:
 
-      normalizer = Normalization()
+      normalizer = Normalization(axis=None)
       normalizer.adapt(raw_input_values)
 
       raw_input = layers.Input(shape=(1,), name=key)
