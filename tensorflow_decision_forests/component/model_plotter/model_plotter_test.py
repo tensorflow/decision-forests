@@ -61,7 +61,9 @@ class ModelPlotterTest(parameterized.TestCase, tf.test.TestCase):
             neg_child=node_lib.LeafNode(
                 value=value_lib.ProbabilityValue(
                     probability=[0.5, 0.4, 0.1], num_examples=10))))
-    plot = model_plotter.plot_tree(tree=tree)
+    plot = model_plotter.plot_tree(
+        tree=tree,
+        display_options=model_plotter.DisplayOptions(node_x_size=150))
     self._save_plot(plot)
 
   def test_basic_tree_with_label_classes(self):

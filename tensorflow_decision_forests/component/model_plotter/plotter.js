@@ -36,55 +36,12 @@
  */
 
 /**
- * Generate the default options object.
- * @return {!options} Default configuration options.
- */
-function build_default_options() {
-  // Display configuration.
-  // Note: Dimensions are expressed in pixels.
-  return {
-    // Margin around the entire plot.
-    margin: 10,
-
-    // Size of a tree node.
-    node_x_size: 160,
-    node_y_size: 12 * 2 + 4,
-
-    // Space between tree nodes.
-    node_x_offset: 160 + 20,
-    node_y_offset: 12 * 2 + 4 + 5,
-
-    // Text size.
-    font_size: 10,
-
-    // Rounding effect of the edges.
-    // This value is the distance (in pixel) of the Bezier control anchor from
-    // the source point.
-    edge_rounding: 20,
-
-    // Padding inside nodes.
-    node_padding: 2,
-
-    // Show a bb box around the plot. For debug only.
-    show_plot_bounding_box: false,
-  };
-}
-
-/**
  * Plots a single decision tree into a DOM element.
  * @param {!options} options Dictionary of configurations.
  * @param {!tree} raw_tree Recursive tree structure.
  * @param {string} canvas_id Id of the output dom element.
  */
 function display_tree(options, raw_tree, canvas_id) {
-  // Get default options.
-  const default_options = build_default_options();
-  Object.keys(default_options).forEach(function(key) {
-    if (!(key in options)) {
-      options[key] = default_options[key];
-    }
-  });
-
   console.log(options);
 
   // Determine the node placement.
@@ -409,7 +366,8 @@ function display_value(options, value, output) {
   if (value.type === 'REGRESSION') {
     display_node_text(
         options,
-        'value: ' + d3.format('r')(value.value) + ` (${value.num_examples})`,
+        'value: ' + d3.format('r')(value.value) + ` (` +
+            d3.format('.6')(value.num_examples) + `)`,
         output);
     return;
   }

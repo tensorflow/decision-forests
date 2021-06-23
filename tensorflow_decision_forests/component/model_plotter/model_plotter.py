@@ -33,7 +33,7 @@ Colab usage:
 
 import json
 import string
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, NamedTuple
 import uuid
 
 import tensorflow as tf
@@ -44,6 +44,38 @@ from tensorflow_decision_forests.component.py_tree import node as node_lib
 from tensorflow_decision_forests.component.py_tree import tree as tree_lib
 from tensorflow_decision_forests.component.py_tree import value as value_lib
 from tensorflow_decision_forests.keras.core import CoreModel
+
+
+class DisplayOptions(NamedTuple):
+  """Display options.
+
+  All the values are expressed in pixel.
+  """
+
+  # Margin around the entire plot.
+  margin: Optional[float] = 10
+
+  # Size of a tree node.
+  node_x_size: Optional[float] = 160
+  node_y_size: Optional[float] = 12 * 2 + 4
+
+  # Space between tree nodes.
+  node_x_offset: Optional[float] = 160 + 20
+  node_y_offset: Optional[float] = 12 * 2 + 4 + 5
+
+  # Text size.
+  font_size: Optional[float] = 10
+
+  # Rounding effect of the edges.
+  # This value is the distance (in pixel) of the Bezier control anchor from
+  # the source point.
+  edge_rounding: Optional[float] = 20
+
+  # Padding inside nodes.
+  node_padding: Optional[float] = 2
+
+  # Show a bb box around the plot. For debug only.
+  show_plot_bounding_box: Optional[bool] = False
 
 
 def plot_model_in_colab(model: CoreModel, **kwargs):
@@ -99,13 +131,16 @@ def plot_model(model: CoreModel,
   return plot_tree(tree=tree, max_depth=max_depth)
 
 
-def plot_tree(tree: tree_lib.Tree, max_depth: Optional[int] = None) -> str:
+def plot_tree(tree: tree_lib.Tree,
+              max_depth: Optional[int] = None,
+              display_options: Optional[DisplayOptions] = None) -> str:
   """Plots a decision tree.
 
   Args:
     tree: A decision tree.
     max_depth: Maximum plotting depth. Makes the plot more readable in case of
       large trees.
+    display_options: Dictionary of display options.
 
   Returns:
     The html content displaying the tree.
@@ -123,7 +158,9 @@ def plot_tree(tree: tree_lib.Tree, max_depth: Optional[int] = None) -> str:
   json_tree = _tree_to_json(tree, max_depth)
 
   # Display options.
-  options = {}
+  if display_options is None:
+    display_options = DisplayOptions()
+  options = dict(display_options._asdict())
 
   if tree.label_classes is not None:
     options["labels"] = json.dumps(tree.label_classes)
