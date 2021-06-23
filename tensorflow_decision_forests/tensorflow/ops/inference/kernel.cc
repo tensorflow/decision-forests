@@ -343,14 +343,16 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
                     outputs->output_dim);
           DCHECK_EQ(outputs->dense_predictions.dimension(1),
                     pred.distribution().counts().size() - 1);
+          const bool output_is_proba =
+              model_->classification_outputs_probabilities();
           for (int class_idx = 0; class_idx < outputs->output_dim;
                class_idx++) {
-            const float probability =
+            const float output =
                 prediction.classification().distribution().counts(class_idx +
                                                                   1) /
                 prediction.classification().distribution().sum();
             outputs->dense_predictions(example_idx, class_idx) =
-                utils::clamp(probability, 0.f, 1.f);
+                output_is_proba ? utils::clamp(output, 0.f, 1.f) : output;
           }
         } break;
 
@@ -585,8 +587,9 @@ class SemiFastGenericInferenceEngine : public AbstractInferenceEngine {
       std::unique_ptr<serving::FastEngine> engine,
       const model::AbstractModel& model)
       : engine_(std::move(engine)) {
-    decompact_probability_ = (model.task() == Task::CLASSIFICATION) &&
-                             engine_->NumPredictionDimension() == 1;
+    decompact_probability_ = model.task() == Task::CLASSIFICATION &&
+                             engine_->NumPredictionDimension() == 1 &&
+                             model.classification_outputs_probabilities();
   }
 
   absl::Status Initialize(FeatureIndex feature_index) {

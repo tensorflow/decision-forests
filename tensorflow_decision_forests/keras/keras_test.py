@@ -1307,6 +1307,23 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     model_2_restored.predict(
         keras.pd_dataframe_to_tf_dataset(dataset_2, label="label"))
 
+  def test_output_logits(self):
+    dataset = adult_dataset()
+    tf_train, tf_test = dataset_to_tf_dataset(dataset)
+
+    model = keras.GradientBoostedTreesModel(apply_link_function=False)
+    model.fit(tf_train)
+
+    predictions = model.predict(tf_test)
+    self.assertAlmostEqual(np.mean(predictions), -2.2, delta=0.2)
+    self.assertAlmostEqual(np.std(predictions), 2.8, delta=0.2)
+
+    model.compile(metrics=[tf.keras.metrics.BinaryAccuracy(threshold=0.0)])
+    evaluation = model.evaluate(tf_test, return_dict=True)
+    logging.info("Evaluation: %s", evaluation)
+
+    self.assertAlmostEqual(evaluation["binary_accuracy"], 0.8743, delta=0.01)
+
 
 if __name__ == "__main__":
   tf.test.main()

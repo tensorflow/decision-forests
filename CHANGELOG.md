@@ -12,6 +12,9 @@
 -   `pd_dataframe_to_tf_dataset` can automatically rename feature to make them
     compatible with SavedModel export signatures.
 -   `model.save(...)` can override an existing model.
+-   The link function of GBT model can be removed. For example, a binary
+    classification GBT model trained with apply_link_function=False will output
+    logits.
 
 ## 0.1.6 - 2021-06-07
 

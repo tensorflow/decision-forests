@@ -632,6 +632,10 @@ class _InferenceArgsBuilder(tracking.AutoTrackable):
 
     label_spec = self._data_spec.columns[self._header.label_col_idx]
     if self._header.task == Task.CLASSIFICATION:
+      if (label_spec.categorical.number_of_unique_values == 3 and
+          not self._header.classification_outputs_probabilities):
+        # Returns a single logit.
+        return 1
       return label_spec.categorical.number_of_unique_values - 1
     elif self._header.task == Task.REGRESSION:
       return 1
