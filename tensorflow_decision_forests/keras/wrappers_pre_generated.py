@@ -41,12 +41,12 @@ class RandomForestModel(core.CoreModel):
 
   A Random Forest (https://www.stat.berkeley.edu/~breiman/randomforest2001.pdf)
   is a collection of deep CART decision trees trained independently and without
-  pruning. Each tree is trained on a random subset of the original training
+  pruning. Each tree is trained on a random subset of the original training 
   dataset (sampled with replacement).
-
+  
   The algorithm is unique in that it is robust to overfitting, even in extreme
   cases e.g. when there is more features than training examples.
-
+  
   It is probably the most well-known of the Decision Forest training
   algorithms.
 
@@ -83,9 +83,9 @@ class RandomForestModel(core.CoreModel):
       the raw input). Can be used to prepare the features or to stack multiple
       models on top of each other. Unlike preprocessing done in the tf.dataset,
       the operation in "preprocessing" are serialized with the model.
-    ranking_group: Only for `task=Task.RANKING`. Name of a tf.string feature
-      that identifies queries in a query/document ranking task. The ranking
-      group is not added automatically for the set of features if
+    ranking_group: Only for `task=Task.RANKING`. Name of a tf.string feature that
+      identifies queries in a query/document ranking task. The ranking group
+      is not added automatically for the set of features if
       `exclude_non_specified_features=false`.
     temp_directory: Temporary directory used during the training. The space
       required depends on the learner. In many cases, only a temporary copy of a
@@ -95,24 +95,25 @@ class RandomForestModel(core.CoreModel):
       If None (default) the default parameters of the library are used. If set,
       `default_hyperparameter_template` refers to one of the following
       preconfigured hyper-parameter sets. Those sets outperforms the default
-      hyper-parameters (either generally or in specific scenarios). You can omit
-      the version (e.g. remove "@v5") to use the last version of the template.
-      In this case, the hyper-parameter can change in between releases (not
-      recommended for training in production).
+      hyper-parameters (either generally or in specific scenarios).
+      You can omit the version (e.g. remove "@v5") to use the last version of
+      the template. In this case, the hyper-parameter can change in between
+      releases (not recommended for training in production).
       - better_default@v1: A configuration that is generally better than the
         default parameters without being more expensive. The parameters are:
-          winner_take_all=True.
+        winner_take_all=True.
       - benchmark_rank1@v1: Top ranking hyper-parameters on our benchmark
         slightly modified to run in reasonable time. The parameters are:
-          winner_take_all=True, categorical_algorithm="RANDOM",
-          split_axis="SPARSE_OBLIQUE", sparse_oblique_normalization="MIN_MAX",
-          sparse_oblique_num_projections_exponent=1.0.
+        winner_take_all=True, categorical_algorithm="RANDOM",
+        split_axis="SPARSE_OBLIQUE", sparse_oblique_normalization="MIN_MAX",
+        sparse_oblique_num_projections_exponent=1.0.
+
     advanced_arguments: Advanced control of the model that most users won't need
       to use. See `AdvancedArguments` for details.
     adapt_bootstrap_size_ratio_for_maximum_training_duration: Control how the
-      maximum training duration (if set) is applied. If false, the training stop
-      when the time is used. If true, adapts the size of the sampled dataset
-      used to train each tree such that `num_trees` will train within
+      maximum training duration (if set) is applied. If false, the training
+      stop when the time is used. If true, adapts the size of the sampled
+      dataset used to train each tree such that `num_trees` will train within
       `maximum_training_duration`. Has no effect if there is no maximum
       training duration specified. Default: False.
     allow_na_conditions: If true, the tree training evaluates conditions of the
@@ -121,8 +122,9 @@ class RandomForestModel(core.CoreModel):
       - `CART`: CART algorithm. Find categorical splits of the form "value \\in
         mask". The solution is exact for binary classification, regression and
         ranking. It is approximated for multi-class classification. This is a
-        good first algorithm to use. In case of overfitting (very small dataset,
-        large dictionary), the "random" algorithm is a good alternative.
+        good first algorithm to use. In case of overfitting (very small
+        dataset, large dictionary), the "random" algorithm is a good
+        alternative.
       - `ONE_HOT`: One-hot encoding. Find the optimal categorical split of the
         form "attribute == param". This method is similar (but more efficient)
         than converting converting each possible categorical value into a
@@ -143,7 +145,7 @@ class RandomForestModel(core.CoreModel):
       available, the least frequent items are ignored. Changing this value is
       similar to change the "max_vocab_count" before loading the dataset, with
       the following exception: With `max_vocab_count`, all the remaining items
-        are grouped in a special Out-of-vocabulary item. With `max_num_items`,
+      are grouped in a special Out-of-vocabulary item. With `max_num_items`,
       this is not the case. Default: -1.
     categorical_set_split_min_item_frequency: For categorical set splits e.g.
       texts. Minimum number of occurrences of an item to be considered.
@@ -159,16 +161,16 @@ class RandomForestModel(core.CoreModel):
         words, as long as a node satisfy the splits "constraints (e.g. maximum
         depth, minimum number of observations), the node will be split. This is
         the "classical" way to grow decision trees.
-      - `BEST_FIRST_GLOBAL`: The node with the best loss reduction among all the
-        nodes of the tree is selected for splitting. This method is also called
-        "best first" or "leaf-wise growth". See "Best-first decision
+      - `BEST_FIRST_GLOBAL`: The node with the best loss reduction among all
+        the nodes of the tree is selected for splitting. This method is also
+        called "best first" or "leaf-wise growth". See "Best-first decision
         tree learning", Shi and "Additive logistic regression : A statistical
         view of boosting", Friedman for more details. Default: "LOCAL".
     in_split_min_examples_check: Whether to check the `min_examples` constraint
       in the split search (i.e. splits leading to one child having less than
-      `min_examples` examples are considered invalid) or before the split search
-      (i.e. a node can be derived only if it contains more than `min_examples`
-      examples). If false, there can be nodes with less than
+      `min_examples` examples are considered invalid) or before the split
+      search (i.e. a node can be derived only if it contains more than
+      `min_examples` examples). If false, there can be nodes with less than
       `min_examples` training examples. Default: True.
     max_depth: Maximum depth of the tree. `max_depth=1` means that all trees
       will be roots. Negative values are ignored. Default: 16.
@@ -181,9 +183,9 @@ class RandomForestModel(core.CoreModel):
       model training non-deterministic. Default: -1.0.
     min_examples: Minimum number of examples in a node. Default: 5.
     missing_value_policy: Method used to handle missing attribute values.
-      - `GLOBAL_IMPUTATION`: Missing attribute values are imputed, with the mean
-        (in case of numerical attribute) or the most-frequent-item (in case of
-        categorical attribute) computed on the entire dataset (i.e. the
+      - `GLOBAL_IMPUTATION`: Missing attribute values are imputed, with the
+        mean (in case of numerical attribute) or the most-frequent-item (in
+        case of categorical attribute) computed on the entire dataset (i.e. the
         information contained in the data spec).
       - `LOCAL_IMPUTATION`: Missing attribute values are imputed with the mean
         (numerical attribute) or most-frequent-item (in the case of categorical
@@ -197,8 +199,8 @@ class RandomForestModel(core.CoreModel):
       node. An attribute is valid if it has at least a valid split. If
       `num_candidate_attributes=0`, the value is set to the classical default
       value for Random Forest: `sqrt(number of input attributes)` in case of
-        classification and `number_of_input_attributes / 3` in case of
-        regression. If `num_candidate_attributes=-1`, all the attributes are
+      classification and `number_of_input_attributes / 3` in case of
+      regression. If `num_candidate_attributes=-1`, all the attributes are
       tested. Default: 0.
     num_candidate_attributes_ratio: Ratio of attributes tested at each node. If
       set, it is equivalent to `num_candidate_attributes =
@@ -208,16 +210,16 @@ class RandomForestModel(core.CoreModel):
     num_trees: Number of individual decision trees. Increasing the number of
       trees can increase the quality of the model at the expense of size,
       training speed, and inference latency. Default: 300.
-    sorting_strategy: How are sorted the numerical features in order to find the
-      splits
+    sorting_strategy: How are sorted the numerical features in order to find
+      the splits
       - PRESORT: The features are pre-sorted at the start of the training. This
         solution is faster but consumes much more memory than IN_NODE.
       - IN_NODE: The features are sorted just before being used in the node.
         This solution is slow but consumes little amount of memory.
       . Default: "PRESORT".
     sparse_oblique_normalization: For sparse oblique splits i.e.
-      `split_axis=SPARSE_OBLIQUE`. Normalization applied on the features, before
-      applying the sparse oblique projections.
+      `split_axis=SPARSE_OBLIQUE`. Normalization applied on the features,
+      before applying the sparse oblique projections.
       - `NONE`: No normalization.
       - `STANDARD_DEVIATION`: Normalize the feature by the estimated standard
         deviation on the entire train dataset. Also known as Z-Score
@@ -227,21 +229,22 @@ class RandomForestModel(core.CoreModel):
     sparse_oblique_num_projections_exponent: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Controls of the number of random projections
       to test at each node as `num_features^num_projections_exponent`. Default:
-        None.
+      None.
     sparse_oblique_projection_density_factor: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Controls of the number of random projections
       to test at each node as `num_features^num_projections_exponent`. Default:
-        None.
+      None.
     split_axis: What structure of split to consider for numerical features.
-      - `AXIS_ALIGNED`: Axis aligned splits (i.e. one condition at a time). This
-        is the "classical" way to train a tree. Default value.
+      - `AXIS_ALIGNED`: Axis aligned splits (i.e. one condition at a time).
+        This is the "classical" way to train a tree. Default value.
       - `SPARSE_OBLIQUE`: Sparse oblique splits (i.e. splits one a small number
         of features) from "Sparse Projection Oblique Random Forests", Tomita et
         al., 2020. Default: "AXIS_ALIGNED".
     winner_take_all: Control how classification trees vote. If true, each tree
       votes for one class. If false, each tree vote for a distribution of
       classes. winner_take_all_inference=false is often preferable. Default:
-        True.
+      True.
+
   """
 
   @core._list_explicit_arguments
@@ -415,9 +418,9 @@ class GradientBoostedTreesModel(core.CoreModel):
       the raw input). Can be used to prepare the features or to stack multiple
       models on top of each other. Unlike preprocessing done in the tf.dataset,
       the operation in "preprocessing" are serialized with the model.
-    ranking_group: Only for `task=Task.RANKING`. Name of a tf.string feature
-      that identifies queries in a query/document ranking task. The ranking
-      group is not added automatically for the set of features if
+    ranking_group: Only for `task=Task.RANKING`. Name of a tf.string feature that
+      identifies queries in a query/document ranking task. The ranking group
+      is not added automatically for the set of features if
       `exclude_non_specified_features=false`.
     temp_directory: Temporary directory used during the training. The space
       required depends on the learner. In many cases, only a temporary copy of a
@@ -427,18 +430,19 @@ class GradientBoostedTreesModel(core.CoreModel):
       If None (default) the default parameters of the library are used. If set,
       `default_hyperparameter_template` refers to one of the following
       preconfigured hyper-parameter sets. Those sets outperforms the default
-      hyper-parameters (either generally or in specific scenarios). You can omit
-      the version (e.g. remove "@v5") to use the last version of the template.
-      In this case, the hyper-parameter can change in between releases (not
-      recommended for training in production).
+      hyper-parameters (either generally or in specific scenarios).
+      You can omit the version (e.g. remove "@v5") to use the last version of
+      the template. In this case, the hyper-parameter can change in between
+      releases (not recommended for training in production).
       - better_default@v1: A configuration that is generally better than the
         default parameters without being more expensive. The parameters are:
-          growing_strategy="BEST_FIRST_GLOBAL".
+        growing_strategy="BEST_FIRST_GLOBAL".
       - benchmark_rank1@v1: Top ranking hyper-parameters on our benchmark
         slightly modified to run in reasonable time. The parameters are:
-          growing_strategy="BEST_FIRST_GLOBAL", categorical_algorithm="RANDOM",
-          split_axis="SPARSE_OBLIQUE", sparse_oblique_normalization="MIN_MAX",
-          sparse_oblique_num_projections_exponent=1.0.
+        growing_strategy="BEST_FIRST_GLOBAL", categorical_algorithm="RANDOM",
+        split_axis="SPARSE_OBLIQUE", sparse_oblique_normalization="MIN_MAX",
+        sparse_oblique_num_projections_exponent=1.0.
+
     advanced_arguments: Advanced control of the model that most users won't need
       to use. See `AdvancedArguments` for details.
     adapt_subsample_for_maximum_training_duration: Control how the maximum
@@ -448,12 +452,19 @@ class GradientBoostedTreesModel(core.CoreModel):
       trained in time. Default: False.
     allow_na_conditions: If true, the tree training evaluates conditions of the
       type `X is NA` i.e. `X is missing`. Default: False.
+    apply_link_function: If true, applies the link function (a.k.a. activation
+      function), if any, before returning the model prediction. If false,
+      returns the pre-link function model output.
+      For example, in the case of binary classification, the pre-link function
+      output is a logic while the post-link function is a probability. Default:
+      True.
     categorical_algorithm: How to learn splits on categorical attributes.
       - `CART`: CART algorithm. Find categorical splits of the form "value \\in
         mask". The solution is exact for binary classification, regression and
         ranking. It is approximated for multi-class classification. This is a
-        good first algorithm to use. In case of overfitting (very small dataset,
-        large dictionary), the "random" algorithm is a good alternative.
+        good first algorithm to use. In case of overfitting (very small
+        dataset, large dictionary), the "random" algorithm is a good
+        alternative.
       - `ONE_HOT`: One-hot encoding. Find the optimal categorical split of the
         form "attribute == param". This method is similar (but more efficient)
         than converting converting each possible categorical value into a
@@ -474,7 +485,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       available, the least frequent items are ignored. Changing this value is
       similar to change the "max_vocab_count" before loading the dataset, with
       the following exception: With `max_vocab_count`, all the remaining items
-        are grouped in a special Out-of-vocabulary item. With `max_num_items`,
+      are grouped in a special Out-of-vocabulary item. With `max_num_items`,
       this is not the case. Default: -1.
     categorical_set_split_min_item_frequency: For categorical set splits e.g.
       texts. Minimum number of occurrences of an item to be considered.
@@ -489,7 +500,7 @@ class GradientBoostedTreesModel(core.CoreModel):
         truncated to maximize the validation loss.
       - `LOSS_INCREASE`: Stop the training when the validation does not
         decrease for `early_stopping_num_trees_look_ahead` trees. Default:
-          "LOSS_INCREASE".
+        "LOSS_INCREASE".
     early_stopping_num_trees_look_ahead: Rolling number of trees used to detect
       validation loss increase and trigger early stopping. Default: 30.
     forest_extraction: How to construct the forest:
@@ -498,7 +509,7 @@ class GradientBoostedTreesModel(core.CoreModel):
         previous trees.
       - DART: For Dropout Additive Regression Trees. A modification of MART
         proposed in http://proceedings.mlr.press/v38/korlakaivinayak15.pdf.
-          Here, each tree tries to "correct" the mistakes of a random subset of
+        Here, each tree tries to "correct" the mistakes of a random subset of
         the previous trees. Default: "MART".
     goss_alpha: Alpha parameter for the GOSS (Gradient-based One-Side Sampling;
       "See LightGBM: A Highly Efficient Gradient Boosting Decision Tree")
@@ -510,16 +521,16 @@ class GradientBoostedTreesModel(core.CoreModel):
         words, as long as a node satisfy the splits "constraints (e.g. maximum
         depth, minimum number of observations), the node will be split. This is
         the "classical" way to grow decision trees.
-      - `BEST_FIRST_GLOBAL`: The node with the best loss reduction among all the
-        nodes of the tree is selected for splitting. This method is also called
-        "best first" or "leaf-wise growth". See "Best-first decision
+      - `BEST_FIRST_GLOBAL`: The node with the best loss reduction among all
+        the nodes of the tree is selected for splitting. This method is also
+        called "best first" or "leaf-wise growth". See "Best-first decision
         tree learning", Shi and "Additive logistic regression : A statistical
         view of boosting", Friedman for more details. Default: "LOCAL".
     in_split_min_examples_check: Whether to check the `min_examples` constraint
       in the split search (i.e. splits leading to one child having less than
-      `min_examples` examples are considered invalid) or before the split search
-      (i.e. a node can be derived only if it contains more than `min_examples`
-      examples). If false, there can be nodes with less than
+      `min_examples` examples are considered invalid) or before the split
+      search (i.e. a node can be derived only if it contains more than
+      `min_examples` examples). If false, there can be nodes with less than
       `min_examples` training examples. Default: True.
     l1_regularization: L1 regularization applied to the training loss. Impact
       the tree structures and lead values. Default: 0.0.
@@ -541,9 +552,9 @@ class GradientBoostedTreesModel(core.CoreModel):
       model training non-deterministic. Default: -1.0.
     min_examples: Minimum number of examples in a node. Default: 5.
     missing_value_policy: Method used to handle missing attribute values.
-      - `GLOBAL_IMPUTATION`: Missing attribute values are imputed, with the mean
-        (in case of numerical attribute) or the most-frequent-item (in case of
-        categorical attribute) computed on the entire dataset (i.e. the
+      - `GLOBAL_IMPUTATION`: Missing attribute values are imputed, with the
+        mean (in case of numerical attribute) or the most-frequent-item (in
+        case of categorical attribute) computed on the entire dataset (i.e. the
         information contained in the data spec).
       - `LOCAL_IMPUTATION`: Missing attribute values are imputed with the mean
         (numerical attribute) or most-frequent-item (in the case of categorical
@@ -557,8 +568,8 @@ class GradientBoostedTreesModel(core.CoreModel):
       node. An attribute is valid if it has at least a valid split. If
       `num_candidate_attributes=0`, the value is set to the classical default
       value for Random Forest: `sqrt(number of input attributes)` in case of
-        classification and `number_of_input_attributes / 3` in case of
-        regression. If `num_candidate_attributes=-1`, all the attributes are
+      classification and `number_of_input_attributes / 3` in case of
+      regression. If `num_candidate_attributes=-1`, all the attributes are
       tested. Default: -1.
     num_candidate_attributes_ratio: Ratio of attributes tested at each node. If
       set, it is equivalent to `num_candidate_attributes =
@@ -582,20 +593,20 @@ class GradientBoostedTreesModel(core.CoreModel):
       Boosting for Effective Learning to Rank; Lucchese et al;
       http://quickrank.isti.cnr.it/selective-data/selective-SIGIR2018.pdf)
       sampling method. Default: 0.01.
-    shrinkage: Coefficient applied to each tree prediction. A small value (0.02)
-      tends to give more accurate results (assuming enough trees are trained),
-      but results in larger models. Analogous to neural network
+    shrinkage: Coefficient applied to each tree prediction. A small value
+      (0.02) tends to give more accurate results (assuming enough trees are
+      trained), but results in larger models. Analogous to neural network
       learning rate. Default: 0.1.
-    sorting_strategy: How are sorted the numerical features in order to find the
-      splits
+    sorting_strategy: How are sorted the numerical features in order to find
+      the splits
       - PRESORT: The features are pre-sorted at the start of the training. This
         solution is faster but consumes much more memory than IN_NODE.
       - IN_NODE: The features are sorted just before being used in the node.
         This solution is slow but consumes little amount of memory.
       . Default: "PRESORT".
     sparse_oblique_normalization: For sparse oblique splits i.e.
-      `split_axis=SPARSE_OBLIQUE`. Normalization applied on the features, before
-      applying the sparse oblique projections.
+      `split_axis=SPARSE_OBLIQUE`. Normalization applied on the features,
+      before applying the sparse oblique projections.
       - `NONE`: No normalization.
       - `STANDARD_DEVIATION`: Normalize the feature by the estimated standard
         deviation on the entire train dataset. Also known as Z-Score
@@ -605,14 +616,14 @@ class GradientBoostedTreesModel(core.CoreModel):
     sparse_oblique_num_projections_exponent: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Controls of the number of random projections
       to test at each node as `num_features^num_projections_exponent`. Default:
-        None.
+      None.
     sparse_oblique_projection_density_factor: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Controls of the number of random projections
       to test at each node as `num_features^num_projections_exponent`. Default:
-        None.
+      None.
     split_axis: What structure of split to consider for numerical features.
-      - `AXIS_ALIGNED`: Axis aligned splits (i.e. one condition at a time). This
-        is the "classical" way to train a tree. Default value.
+      - `AXIS_ALIGNED`: Axis aligned splits (i.e. one condition at a time).
+        This is the "classical" way to train a tree. Default value.
       - `SPARSE_OBLIQUE`: Sparse oblique splits (i.e. splits one a small number
         of features) from "Sparse Projection Oblique Random Forests", Tomita et
         al., 2020. Default: "AXIS_ALIGNED".
@@ -623,6 +634,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       hessian. Available for all losses except regression. Default: False.
     validation_ratio: Ratio of the training dataset used to monitor the
       training. Require to be >0 if early stopping is enabled. Default: 0.1.
+
   """
 
   @core._list_explicit_arguments
@@ -639,6 +651,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       advanced_arguments: Optional[AdvancedArguments] = None,
       adapt_subsample_for_maximum_training_duration: Optional[bool] = False,
       allow_na_conditions: Optional[bool] = False,
+      apply_link_function: Optional[bool] = True,
       categorical_algorithm: Optional[str] = "CART",
       categorical_set_split_greedy_sampling: Optional[float] = 0.1,
       categorical_set_split_max_num_items: Optional[int] = -1,
@@ -681,6 +694,8 @@ class GradientBoostedTreesModel(core.CoreModel):
             adapt_subsample_for_maximum_training_duration,
         "allow_na_conditions":
             allow_na_conditions,
+        "apply_link_function":
+            apply_link_function,
         "categorical_algorithm":
             categorical_algorithm,
         "categorical_set_split_greedy_sampling":
