@@ -160,7 +160,7 @@ utils::StatusOr<Blob> TfDistributionManager::NextAsynchronousAnswer() {
   }
   auto answer_or = async_pending_answers_.Pop();
   if (!answer_or.has_value()) {
-    return absl::InvalidArgumentError("No more results available");
+    return absl::OutOfRangeError("No more results available");
   }
   if (verbose_) {
     LOG(INFO) << "Receive asynchronous request with "
