@@ -45,7 +45,7 @@ model.save("/tmp/my_saved_model")
 
 """
 
-__version__ = "0.1.6"
+__version__ = "0.1.7"
 __author__ = "Mathieu Guillame-Bert"
 
 from tensorflow_decision_forests import keras
