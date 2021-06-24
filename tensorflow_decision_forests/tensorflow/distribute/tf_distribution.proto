@@ -17,7 +17,7 @@ syntax = "proto2";
 
 package yggdrasil_decision_forests.distribute.proto;
 
-import "third_party/yggdrasil_decision_forests/utils/distribute/distribute.proto";
+import "yggdrasil_decision_forests/utils/distribute/distribute.proto";
 
 // Specialization of the configuration of a Yggdrasil Decision Forests
 // Distribute manager using TensorFlow distributed computation.

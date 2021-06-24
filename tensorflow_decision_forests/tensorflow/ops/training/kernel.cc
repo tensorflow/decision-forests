@@ -644,7 +644,7 @@ std::atomic<bool> stop_training;
 void (*previous_signal_handler)(int);
 
 // Number of learners training.
-std::atomic<int> active_learners(0);
+std::atomic<int> active_learners{0};
 
 void StopTrainingSignalHandler(int signal) { stop_training = true; }
 }  // namespace

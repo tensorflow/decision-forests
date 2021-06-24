@@ -1,6 +1,9 @@
 # Implementation of the Yggdrasil Distribute API using TensorFlow Distribution Strategies.
 #
 load("@ydf//yggdrasil_decision_forests/utils:compile.bzl", "all_proto_library")
+load("@org_tensorflow//tensorflow:tensorflow.bzl", "tf_cc_test")
+load("//tensorflow_decision_forests/tensorflow:utils.bzl", "tf_custom_op_library_external")
+load("@org_tensorflow//tensorflow:tensorflow.bzl","tf_cc_test")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -112,7 +115,7 @@ cc_library(
 # Tests
 # =====
 
-cc_test(
+tf_cc_test(
     name = "tf_distribution_test",
     srcs = ["tf_distribution_test.cc"],
     data = [

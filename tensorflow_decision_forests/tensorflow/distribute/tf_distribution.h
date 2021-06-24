@@ -134,7 +134,7 @@ class TfDistributionManager : public AbstractManager {
 
   // Idx of the next worker to receive a job if the worker idx is not specified
   // by the user.
-  std::atomic<int> next_auto_worker_idx_ = 0;
+  std::atomic<int> next_auto_worker_idx_ = {0};
 
   // Check if "Done" was called. "Done" will be called as the object destruction
   // if it was not called manually before.

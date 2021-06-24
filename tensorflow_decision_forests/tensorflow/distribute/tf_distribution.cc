@@ -38,6 +38,8 @@ namespace yggdrasil_decision_forests {
 namespace distribute {
 namespace tf = ::tensorflow;
 
+constexpr char TfDistributionManager::kKey[];
+
 absl::Status TfDistributionManager::InitializeWorkers(
     const proto::Config& config, const absl::string_view worker_name,
     Blob welcome_blob) {
@@ -164,9 +166,9 @@ utils::StatusOr<Blob> TfDistributionManager::NextAsynchronousAnswer() {
   }
   if (verbose_) {
     LOG(INFO) << "Receive asynchronous request with "
-              << answer_or.value()->size() << " bytes";
+              << answer_or.value().value().size() << " bytes";
   }
-  return std::move(*answer_or.value());
+  return std::move(answer_or.value());
 }
 
 int TfDistributionManager::NumWorkers() { return workers_.size(); }
@@ -196,7 +198,7 @@ absl::Status TfDistributionManager::Done(
         worker->connection->StopWorker(kill_worker_manager.value_or(false));
     if (!worker_shutdown.ok()) {
       // It is not a big deal if the worker crashes during shutdown.
-      LOG(WARNING) << worker_shutdown.error_message();
+      LOG(WARNING) << worker_shutdown.message();
     }
   }
 
