@@ -341,18 +341,34 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
           // and ".. + 1" in the next part of the code).
           DCHECK_EQ(outputs->dense_predictions.dimension(1),
                     outputs->output_dim);
-          DCHECK_EQ(outputs->dense_predictions.dimension(1),
-                    pred.distribution().counts().size() - 1);
           const bool output_is_proba =
               model_->classification_outputs_probabilities();
-          for (int class_idx = 0; class_idx < outputs->output_dim;
-               class_idx++) {
-            const float output =
-                prediction.classification().distribution().counts(class_idx +
-                                                                  1) /
+          if (outputs->output_dim == 1 && !output_is_proba) {
+            // Output the logit of the positive class.
+            if (pred.distribution().counts().size() != 3) {
+              return tf::Status(tf::error::INTERNAL,
+                                "Wrong \"distribution\" shape.");
+            }
+            const float logit =
+                prediction.classification().distribution().counts(2) /
                 prediction.classification().distribution().sum();
-            outputs->dense_predictions(example_idx, class_idx) =
-                output_is_proba ? utils::clamp(output, 0.f, 1.f) : output;
+            outputs->dense_predictions(example_idx, 1) = logit;
+          } else {
+            // Output the logit or probabilities.
+            if (outputs->dense_predictions.dimension(1) !=
+                pred.distribution().counts().size() - 1) {
+              return tf::Status(tf::error::INTERNAL,
+                                "Wrong \"distribution\" shape.");
+            }
+            for (int class_idx = 0; class_idx < outputs->output_dim;
+                 class_idx++) {
+              const float output =
+                  prediction.classification().distribution().counts(class_idx +
+                                                                    1) /
+                  prediction.classification().distribution().sum();
+              outputs->dense_predictions(example_idx, class_idx) =
+                  output_is_proba ? utils::clamp(output, 0.f, 1.f) : output;
+            }
           }
         } break;
 
@@ -558,7 +574,9 @@ class SemiFastGenericInferenceEngine : public AbstractInferenceEngine {
     // Export the predictions.
     if (decompact_probability_) {
       DCHECK_EQ(outputs->output_dim, 2);
-      DCHECK_EQ(engine_->NumPredictionDimension(), 1);
+      if (engine_->NumPredictionDimension() != 1) {
+        return tf::Status(tf::error::INTERNAL, "Wrong NumPredictionDimension");
+      }
       for (int example_idx = 0; example_idx < inputs.batch_size;
            example_idx++) {
         const float proba =
@@ -568,7 +586,9 @@ class SemiFastGenericInferenceEngine : public AbstractInferenceEngine {
       }
 
     } else {
-      DCHECK_EQ(outputs->output_dim, engine_->NumPredictionDimension());
+      if (engine_->NumPredictionDimension() != outputs->output_dim) {
+        return tf::Status(tf::error::INTERNAL, "Wrong NumPredictionDimension");
+      }
       for (int example_idx = 0; example_idx < inputs.batch_size;
            example_idx++) {
         for (int class_idx = 0; class_idx < outputs->output_dim; class_idx++) {
@@ -818,10 +838,18 @@ class YggdrasilModelResource : public tf::ResourceBase {
       // Note: We don't report the "OOV" class value.
       const int num_classes =
           label_spec.categorical().number_of_unique_values() - 1;
-      dense_col_representation_.resize(num_classes);
-      for (int class_idx = 0; class_idx < num_classes; class_idx++) {
-        dense_col_representation_[class_idx] =
-            dataset::CategoricalIdxToRepresentation(label_spec, class_idx + 1);
+
+      if (num_classes == 2 && !model->classification_outputs_probabilities()) {
+        // Output the logit of the positive class.
+        dense_col_representation_.assign(1, "logit");
+      } else {
+        // Output the logit or probabilities.
+        dense_col_representation_.resize(num_classes);
+        for (int class_idx = 0; class_idx < num_classes; class_idx++) {
+          dense_col_representation_[class_idx] =
+              dataset::CategoricalIdxToRepresentation(label_spec,
+                                                      class_idx + 1);
+        }
       }
     } else {
       dense_col_representation_.resize(1);
@@ -980,6 +1008,15 @@ class SimpleMLInferenceOp : public OpKernel {
 
     // Set the output representation.
     const auto& reps = model_container_->dense_col_representation();
+    if (reps.size() != dense_output_dim_) {
+      OP_REQUIRES_OK(
+          ctx, tf::Status(
+                   tf::error::INVALID_ARGUMENT,
+                   absl::StrCat(
+                       "The \"dense_output_dim\"=", dense_output_dim_,
+                       " attribute does not match the model output dimension=",
+                       reps.size())));
+    }
     for (int rep_idx = 0; rep_idx < reps.size(); rep_idx++) {
       output_tensors.dense_col_representation(rep_idx) = reps[rep_idx];
     }
