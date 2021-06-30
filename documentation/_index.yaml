@@ -38,6 +38,12 @@ landing_page:
         Forests' models, and vice versa.
         </p>
         <p>
+        Unfortunately TF-DF is not yet available for
+        <a href="https://github.com/tensorflow/decision-forests/issues/16">Mac (#16)</a> or
+        <a href="https://github.com/tensorflow/decision-forests/issues/3">Windows (#3)</a>,
+        we are working on it.
+        </p>
+        <p>
         <i>Keywords: Decision Forests, TensorFlow, Random Forest, Gradient Boosted Trees, CART, model interpretation.</i>
         </p>
         <h3>Community</h3>
