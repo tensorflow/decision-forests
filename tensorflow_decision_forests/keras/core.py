@@ -1014,6 +1014,8 @@ class CoreModel(models.Model):
         else:
           examples[feature.name] = tf.ragged.constant([["a", "b"], ["c"]],
                                                       dtype=tf.string)
+      elif feature.type == data_spec_pb2.ColumnType.BOOLEAN:
+        examples[feature.name] = tf.constant([0.0, 1.0])
       else:
         raise ValueError("Non supported feature type")
 

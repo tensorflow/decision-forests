@@ -572,7 +572,11 @@ class _InferenceArgsBuilder(tracking.AutoTrackable):
                       for key, item in feature_spec.categorical.items.items()
                       if item.index != 0]
         # Missing value.
-        vocabulary.append(("", -1))
+
+        # "" (the empty string) is a missing value if it is not a valid value.
+        if "" not in feature_spec.categorical.items:
+          vocabulary.append(("", -1))
+
         vocabulary.append(
             (str(MISSING_NON_INTEGERIZED_CATEGORICAL_STORED_AS_INT), -1))
         vocabulary.sort(key=lambda x: x[1])

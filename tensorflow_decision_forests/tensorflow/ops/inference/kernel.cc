@@ -664,8 +664,18 @@ class SemiFastGenericInferenceEngine : public AbstractInferenceEngine {
            /*.example_set_id =*/feature_id.value()});
     }
 
-    if (!feature_index.boolean_features().empty()) {
-      return absl::InvalidArgumentError("Boolean features not supported.");
+    for (int tensor_col = 0;
+         tensor_col < feature_index.boolean_features().size(); tensor_col++) {
+      const auto dataspec_idx = feature_index.boolean_features()[tensor_col];
+      const auto feature_id =
+          engine_->features().GetBooleanFeatureId(dataspec_idx);
+      if (!feature_id.ok()) {
+        // The feature is not used by the model.
+        continue;
+      }
+      boolean_features_.push_back({/*.tensor_col =*/tensor_col,
+                                   /*.dataspec_idx = */ dataspec_idx,
+                                   /*.example_set_id =*/feature_id.value()});
     }
 
     return absl::OkStatus();
@@ -746,6 +756,22 @@ class SemiFastGenericInferenceEngine : public AbstractInferenceEngine {
       }
     }
 
+    // Boolean features.
+    for (const auto& feature : boolean_features_) {
+      for (int example_idx = 0; example_idx < inputs.batch_size;
+           example_idx++) {
+        const float value =
+            inputs.boolean_features(example_idx, feature.tensor_col);
+        if (!std::isnan(value)) {
+          examples->SetBoolean(example_idx, feature.example_set_id, value,
+                               features);
+        } else {
+          examples->SetMissingBoolean(example_idx, feature.example_set_id,
+                                      features);
+        }
+      }
+    }
+
     return tf::Status::OK();
   }
 
@@ -771,6 +797,8 @@ class SemiFastGenericInferenceEngine : public AbstractInferenceEngine {
       categorical_int_features_;
   std::vector<FeatureId<serving::FeaturesDefinition::CategoricalSetFeatureId>>
       categorical_set_int_features_;
+  std::vector<FeatureId<serving::FeaturesDefinition::BooleanFeatureId>>
+      boolean_features_;
 };
 
 // TF resource containing the Yggdrasil model in memory.

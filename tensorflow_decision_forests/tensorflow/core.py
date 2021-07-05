@@ -75,12 +75,19 @@ class Semantic(enum.Enum):
       (recommended). Unlike CATEGORICAL, the number of items in a
       CATEGORICAL_SET can change and the order/index of each item doesn't
       matter.
+    BOOLEAN: Boolean value. WARNING: Boolean values are not yet supported for
+      training. Can be a float or an integer. Missing values are represented by
+      math.nan or with an empty sparse tensor.  If a numerical tensor contains
+      multiple values, its size should be constant, and each dimension is
+      threaded independently (and each dimension should always have the same
+      "meaning").
   """
 
   NUMERICAL = 1
   CATEGORICAL = 2
   HASH = 3
   CATEGORICAL_SET = 4
+  BOOLEAN = 5
 
 
 # Any tensorflow tensor.
@@ -100,6 +107,7 @@ FlexibleCategoricalStringTypes = [tf.string]
 FlexibleCategoricalSetIntTypes = FlexibleCategoricalIntTypes
 FlexibleCategoricalSetStringTypes = FlexibleCategoricalStringTypes
 FlexibleHashTypes = [tf.string]
+FlexibleBooleanTypes = FlexibleNumericalTypes
 
 # The "normalized" dtype for each semantic.
 # Those are the dtypes expected by the tf ops.
@@ -111,6 +119,7 @@ NormalizedCategoricalStringType = tf.string
 NormalizedCategoricalSetIntType = NormalizedCategoricalIntType
 NormalizedCategoricalSetStringType = NormalizedCategoricalStringType
 NormalizedHashType = tf.string
+NormalizedBooleanType = NormalizedNumericalType
 
 # Magic offset to add to categorical feature stored as integer.
 # Yggdrasil reserves the integer value "0" of CATEGORICAL features for the
@@ -198,6 +207,10 @@ def collect_training_examples(inputs: Dict[str, SemanticTensor],
       else:
         raise_non_supported()
 
+    elif semantic_tensor.semantic == Semantic.BOOLEAN:
+      # Boolean features are not yet supported for training in TF-DF.
+      raise_non_supported()
+
     else:
       raise_non_supported()
 
@@ -280,6 +293,17 @@ def normalize_inputs(
         _unroll_and_normalize(
             tf.cast(semantic_tensor.tensor, tf.string),
             semantic_tensor.semantic, key, "", normalized_inputs)
+      else:
+        raise ValueError(
+            "Non supported tensor dtype {} for semantic {} of feature {}"
+            .format(semantic_tensor.tensor.dtype, semantic_tensor.semantic,
+                    key))
+
+    elif semantic_tensor.semantic == Semantic.BOOLEAN:
+      if semantic_tensor.tensor.dtype in FlexibleBooleanTypes:
+        _unroll_and_normalize(
+            tf.cast(semantic_tensor.tensor, tf.float32),
+            semantic_tensor.semantic, key, math.nan, normalized_inputs)
       else:
         raise ValueError(
             "Non supported tensor dtype {} for semantic {} of feature {}"
@@ -709,5 +733,8 @@ def column_type_to_semantic(col_type: data_spec_pb2.ColumnType) -> Semantic:
 
   if col_type == data_spec_pb2.ColumnType.CATEGORICAL_SET:
     return Semantic.CATEGORICAL_SET
+
+  if col_type == data_spec_pb2.ColumnType.BOOLEAN:
+    return Semantic.BOOLEAN
 
   raise ValueError(f"Non conversion available for {col_type}")
