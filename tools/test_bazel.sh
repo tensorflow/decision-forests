@@ -40,7 +40,7 @@ FLAGS="--config=linux --config=rbe_linux_py3 --config=tensorflow_testing_rbe_lin
 # Uncomment the following line to generate a sharable pip package.
 # You will also need to install the dockers described in:
 # https://github.com/tensorflow/custom-op
-# FLAGS="${FLAGS} --crosstool_top=//third_party/toolchains/preconfig/ubuntu16.04/gcc7_manylinux2010-nvcc-cuda10.1:toolchain"
+# FLAGS="${FLAGS} --crosstool_top=@ubuntu18.04-gcc7_manylinux2010-cuda11.2-cudnn8.1-tensorrt7.2_config_cuda//crosstool:toolchain"
 
 ${BAZEL} --bazelrc=${TENSORFLOW_BAZELRC} build \
   //tensorflow_decision_forests/...:all \
