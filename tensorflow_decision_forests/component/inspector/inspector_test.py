@@ -124,8 +124,11 @@ class InspectorTest(parameterized.TestCase, tf.test.TestCase):
       num_nodes += 1
     self.assertEqual(num_nodes, 125578)
 
-    second_tree = inspector.extract_tree(tree_idx=10)
-    logging.info("Tree:\n%s", second_tree)
+    tree = inspector.extract_tree(tree_idx=1)  # Second tree
+    logging.info("Tree:\n%s", tree)
+
+    # Checked with :show_model --full_definition
+    self.assertEqual(tree.root.condition.feature.name, "capital_gain")
 
     tensorboard_logs = os.path.join(tmp_path(), "tensorboard_logs")
     inspector.export_to_tensorboard(tensorboard_logs)
@@ -149,8 +152,8 @@ class InspectorTest(parameterized.TestCase, tf.test.TestCase):
       num_nodes += 1
     self.assertEqual(num_nodes, 88494)
 
-    second_tree = inspector.extract_tree(tree_idx=10)
-    logging.info("Tree:\n%s", second_tree)
+    tree = inspector.extract_tree(tree_idx=10)
+    logging.info("Tree:\n%s", tree)
 
   @parameterized.parameters(
       {
@@ -186,7 +189,6 @@ class InspectorTest(parameterized.TestCase, tf.test.TestCase):
   )
   def test_generic(self, model, dataset, model_name, task):
     model_path = os.path.join(test_model_directory(), model)
-    # dataset_path = os.path.join(test_dataset_directory(), dataset)
     inspector = insp.make_inspector(model_path)
 
     self.assertEqual(inspector.model_type(), model_name)
@@ -202,8 +204,8 @@ class InspectorTest(parameterized.TestCase, tf.test.TestCase):
       if num_nodes > 1000:
         break
 
-    second_tree = inspector.extract_tree(tree_idx=2)
-    logging.info("Tree:\n%s", second_tree)
+    tree = inspector.extract_tree(tree_idx=2)
+    logging.info("Tree:\n%s", tree)
 
     tensorboard_logs = os.path.join(tmp_path(), "tensorboard_logs")
     inspector.export_to_tensorboard(tensorboard_logs)

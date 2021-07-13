@@ -435,7 +435,7 @@ class _AbstractDecisionForestInspector(AbstractInspector):
     """
 
     node_generator = self.iterate_on_nodes()
-    for _ in range(tree_idx - 1):
+    for _ in range(tree_idx):
       _extract_branch(node_generator)
 
     return py_tree.tree.Tree(
