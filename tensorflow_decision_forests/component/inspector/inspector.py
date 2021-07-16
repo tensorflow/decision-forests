@@ -366,18 +366,21 @@ class _AbstractDecisionForestInspector(AbstractInspector):
       Variable importances.
     """
 
-    num_as_root = collections.defaultdict(lambda: 0.0)
-
-    for node_iter in self.iterate_on_nodes():
-      if node_iter.depth == 0 and isinstance(node_iter.node,
-                                             py_tree.node.NonLeafNode):
-        # This is a root node with a condition.
-        for attribute in node_iter.node.condition.features():
-          num_as_root[attribute] += 1
-
     core_vs = super(_AbstractDecisionForestInspector,
                     self).variable_importances()
-    core_vs["NUM_AS_ROOT"] = _variable_importance_dict_to_list(num_as_root)
+
+    if "NUM_AS_ROOT" not in core_vs:
+      num_as_root = collections.defaultdict(lambda: 0.0)
+
+      for node_iter in self.iterate_on_nodes():
+        if node_iter.depth == 0 and isinstance(node_iter.node,
+                                               py_tree.node.NonLeafNode):
+          # This is a root node with a condition.
+          for attribute in node_iter.node.condition.features():
+            num_as_root[attribute] += 1
+
+      core_vs["NUM_AS_ROOT"] = _variable_importance_dict_to_list(num_as_root)
+
     return core_vs
 
   def iterate_on_nodes(self) -> Generator[IterNodeResult, None, None]:

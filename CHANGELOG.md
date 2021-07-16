@@ -5,6 +5,8 @@
 ### Features
 
 -   Model can be composed with the functional Keras API before being trained.
+-   Makes all the Yggdrasil structural variable importances available.
+-   Makes getting the variable importance instantanious.
 
 ## 0.1.7 - 2021-06-23
 
