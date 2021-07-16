@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.8 - ???
+
+### Features
+
+-   Model can be composed with the functional Keras API before being trained.
+
 ## 0.1.7 - 2021-06-23
 
 ### Features

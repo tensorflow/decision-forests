@@ -1324,6 +1324,51 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     self.assertAlmostEqual(evaluation["binary_accuracy"], 0.8743, delta=0.01)
 
+  def test_pre_training_composition(self):
+    """Compose a model with the Keras functional API before being trained."""
+
+    num_features = 4
+    num_examples = 1000
+
+    def make_dataset():
+      # Make a multi-class synthetic classification dataset.
+      features = np.random.uniform(size=(num_examples, num_features))
+      hidden = features[:, 0] + 0.05 * np.random.uniform(size=num_examples)
+      labels = (hidden >= features[:, 1]).astype(int) + (
+          hidden >= features[:, 2]).astype(int)
+      return tf.data.Dataset.from_tensor_slices((features, labels)).batch(5)
+
+    train_dataset = make_dataset()
+    test_dataset = make_dataset()
+
+    model = keras.GradientBoostedTreesModel()
+
+    inputs = tf.keras.layers.Input(shape=(num_features,))
+    outputs = model(inputs)
+    functional_model = tf.keras.Model(inputs=inputs, outputs=outputs)
+
+    # Generate predictions before training.
+    for features, _ in test_dataset.take(1):
+      predictions = functional_model(features)
+      logging.info("Pre-training prediction: %s", predictions)
+      # Assumed one dimension output.
+      self.assertEqual(predictions.shape[1], 1)
+
+    logging.info("Pre-training call signature: %s",
+                 model.call.pretty_printed_concrete_signatures())
+
+    # The model is trained after the composition.
+    model.fit(train_dataset)
+
+    logging.info("Post-training call signature: %s",
+                 model.call.pretty_printed_concrete_signatures())
+
+    for features, _ in test_dataset.take(1):
+      predictions = functional_model(features)
+      logging.info("Post-training prediction: %s", predictions)
+      # 3 classes
+      self.assertEqual(predictions.shape[1], 3)
+
 
 if __name__ == "__main__":
   tf.test.main()

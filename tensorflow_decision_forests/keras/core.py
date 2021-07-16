@@ -540,6 +540,14 @@ class CoreModel(models.Model):
 
     del training
 
+    if self._semantics is None:
+      logging.warning(
+          "The model was called directly (i.e. using `model(data)` instead of "
+          "using `model.predict(data)`) before being trained. The model will "
+          "only return zeros until trained. The output shape might change "
+          "after training %s", inputs)
+      return tf.zeros([_batch_size(inputs), 1])
+
     assert self._semantics is not None
     assert self._model is not None
 
@@ -751,6 +759,14 @@ class CoreModel(models.Model):
       implemented for decision forests algorithms, and will return empty.
       All other fields are filled as usual for `Keras.Mode.fit()`.
     """
+
+    # Clear the @tf.function cache and force re-tracing the next time "call" is
+    # called.
+    # TODO(gbm): Use a solution that rely on the public API when available.
+    # pylint: disable=protected-access
+    if self.call._stateful_fn:
+      self.call._stateful_fn._function_cache.primary.clear()
+    # pylint: enable=protected-access
 
     # Check for a Pandas Dataframe without injecting a dependency.
     if str(type(x)) == "<class 'pandas.core.frame.DataFrame'>":
