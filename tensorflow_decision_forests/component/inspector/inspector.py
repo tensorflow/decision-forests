@@ -517,8 +517,8 @@ class _GradientBoostedTreeInspector(_AbstractDecisionForestInspector):
     # Find the training log that correspond to the final model.
     logs = self._specialized_header.training_logs
     final_log_idxs = [
-        logs.number_of_trees_in_final_model == log.number_of_trees
-        for log in logs.entries
+        entry_idx for entry_idx, entry in enumerate(logs.entries)
+        if logs.number_of_trees_in_final_model == entry.number_of_trees
     ]
     if not final_log_idxs:
       return None

@@ -22,11 +22,14 @@ from absl import flags
 from absl import logging
 from absl.testing import parameterized
 import tensorflow as tf
+import numpy as np
+import pandas as pd
 
 from tensorflow_decision_forests.component.inspector import inspector as insp
 from tensorflow_decision_forests.component import py_tree
 from yggdrasil_decision_forests.metric import metric_pb2
 from yggdrasil_decision_forests.model.gradient_boosted_trees import gradient_boosted_trees_pb2
+from tensorflow_decision_forests import keras
 
 ColumnType = insp.ColumnType
 SimpleColumnSpec = insp.SimpleColumnSpec
@@ -154,6 +157,33 @@ class InspectorTest(parameterized.TestCase, tf.test.TestCase):
 
     tree = inspector.extract_tree(tree_idx=10)
     logging.info("Tree:\n%s", tree)
+
+  def test_classification_gradient_boosted_tree(self):
+
+    n = 1000
+    features = np.random.normal(size=[n, 3])
+    labels = features[:, 0] + features[:, 1] + np.random.normal(size=n) >= 0
+
+    # Early stopping will trigger before all the trees are trained.
+    model = keras.GradientBoostedTreesModel(num_trees=10000)
+    model.fit(x=features, y=labels)
+
+    inspector = model.make_inspector()
+
+    # Because of early stopping, the training logs contains the evaluation of
+    # more trees than what is in the final model.
+    self.assertGreater(inspector.training_logs()[-1].num_trees,
+                       inspector.num_trees())
+
+    # It is very unlikely that the model contains less than 10 trees.
+    self.assertGreater(inspector.num_trees(), 10)
+
+    matching_log = [
+        log for log in inspector.training_logs()
+        if log.num_trees == inspector.num_trees()
+    ]
+    self.assertLen(matching_log, 1)
+    self.assertEqual(matching_log[0].evaluation, inspector.evaluation())
 
   @parameterized.parameters(
       {
