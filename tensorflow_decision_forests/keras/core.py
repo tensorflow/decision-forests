@@ -334,6 +334,7 @@ class CoreModel(models.Model):
     verbose: If true, displays information about the training.
     advanced_arguments: Advanced control of the model that most users won't need
       to use. See `AdvancedArguments` for details.
+    name: The name of the model.
   """
 
   def __init__(self,
@@ -346,8 +347,9 @@ class CoreModel(models.Model):
                ranking_group: Optional[str] = None,
                temp_directory: Optional[str] = None,
                verbose: Optional[bool] = True,
-               advanced_arguments: Optional[AdvancedArguments] = None) -> None:
-    super(CoreModel, self).__init__()
+               advanced_arguments: Optional[AdvancedArguments] = None,
+               name: Optional[str] = None) -> None:
+    super(CoreModel, self).__init__(name=name)
 
     self._task = task
     self._learner = learner

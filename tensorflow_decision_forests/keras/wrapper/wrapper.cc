@@ -459,6 +459,7 @@ class $0(core.CoreModel):
 $7
     advanced_arguments: Advanced control of the model that most users won't need
       to use. See `AdvancedArguments` for details.
+    name: The name of the model.
 $2
   """
 
@@ -473,6 +474,7 @@ $2
       verbose: Optional[bool] = True,
       hyperparameter_template: Optional[str] = None,
       advanced_arguments: Optional[AdvancedArguments] = None,
+      name: Optional[str] = None,
 $3,
       explicit_args: Optional[Set[str]] = None):
 
@@ -494,7 +496,8 @@ $4
       ranking_group=ranking_group,
       temp_directory=temp_directory,
       verbose=verbose,
-      advanced_arguments=advanced_arguments)
+      advanced_arguments=advanced_arguments,
+      name=name)
 
   @staticmethod
   def predefined_hyperparameters() -> List[core.HyperParameterTemplate]:
