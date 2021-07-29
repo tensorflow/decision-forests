@@ -445,9 +445,12 @@ class $0(core.CoreModel):
       identifies queries in a query/document ranking task. The ranking group
       is not added automatically for the set of features if
       `exclude_non_specified_features=false`.
-    temp_directory: Temporary directory used during the training. The space
-      required depends on the learner. In many cases, only a temporary copy of a
-      model will be there.
+    temp_directory: Temporary directory used to store the model Assets after the
+      training, and possibly as a work directory during the training. This
+      temporary directory is necessary for the model to be exported after
+      training e.g. `model.save(path)`. If not specified, `temp_directory` is
+      set to a temporary directory using `tempfile.TemporaryDirectory`. This
+      directory is deleted when the model python object is garbage-collected.
     verbose: If true, displays information about the training.
     hyperparameter_template: Override the default value of the hyper-parameters.
       If None (default) the default parameters of the library are used. If set,

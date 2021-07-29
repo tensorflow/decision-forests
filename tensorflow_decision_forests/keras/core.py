@@ -331,9 +331,12 @@ class CoreModel(models.Model):
       identifies queries in a query/document ranking task. The ranking group is
       not added automatically for the set of features if
       exclude_non_specified_features=false.
-    temp_directory: Temporary directory used during the training. The space
-      required depends on the learner. In many cases, only a temporary copy of a
-      model will be there.
+    temp_directory: Temporary directory used to store the model Assets after the
+      training, and possibly as a work directory during the training. This
+      temporary directory is necessary for the model to be exported after
+      training e.g. `model.save(path)`. If not specified, `temp_directory` is
+      set to a temporary directory using `tempfile.TemporaryDirectory`. This
+      directory is deleted when the model python object is garbage-collected.
     verbose: If true, displays information about the training.
     advanced_arguments: Advanced control of the model that most users won't need
       to use. See `AdvancedArguments` for details.
@@ -388,7 +391,8 @@ class CoreModel(models.Model):
           "provided as input.")
 
     if self._temp_directory is None:
-      self._temp_directory = tempfile.mkdtemp()
+      self._temp_directory_handle = tempfile.TemporaryDirectory()
+      self._temp_directory = self._temp_directory_handle.name
       logging.info("Using %s as temporary training directory",
                    self._temp_directory)
 

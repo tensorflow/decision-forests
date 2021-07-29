@@ -15,6 +15,8 @@
     all the trees.
 -   Add `num_threads` constructor argument to control the number of training
     threads without using the advanced configuration.
+-   By default, remove the temporary directory used to train the model when the
+    model python object is garbage collected.
 
 ## 0.1.7 - 2021-06-23
 
