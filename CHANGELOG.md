@@ -8,6 +8,8 @@
 -   Makes all the Yggdrasil structural variable importances available.
 -   Makes getting the variable importance instantaneous.
 -   Surface the `name` argument in the model classes constructors.
+-   `postprocessing` model constructor argument to easy apply post-processing on
+    the model predictions without relying on the Keras Functional API.
 
 ## 0.1.7 - 2021-06-23
 

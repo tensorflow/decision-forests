@@ -324,6 +324,7 @@ class CoreModel(models.Model):
       the raw input). Can be used to prepare the features or to stack multiple
       models on top of each other. Unlike preprocessing done in the tf.dataset,
       the operation in "preprocessing" are serialized with the model.
+    postprocessing: Like "preprocessing" but applied on the model output.
     ranking_group: Only for task=Task.RANKING. Name of a tf.string feature that
       identifies queries in a query/document ranking task. The ranking group is
       not added automatically for the set of features if
@@ -344,6 +345,7 @@ class CoreModel(models.Model):
                features: Optional[List[FeatureUsage]] = None,
                exclude_non_specified_features: Optional[bool] = False,
                preprocessing: Optional["models.Functional"] = None,
+               postprocessing: Optional["models.Functional"] = None,
                ranking_group: Optional[str] = None,
                temp_directory: Optional[str] = None,
                verbose: Optional[bool] = True,
@@ -357,6 +359,7 @@ class CoreModel(models.Model):
     self._features = features or []
     self._exclude_non_specified = exclude_non_specified_features
     self._preprocessing = preprocessing
+    self._postprocessing = postprocessing
     self._ranking_group = ranking_group
     self._temp_directory = temp_directory
     self._verbose = verbose
@@ -586,9 +589,14 @@ class CoreModel(models.Model):
       # Yggdrasil returns the probably of both classes in binary classification.
       # Keras expects only the value (logic or probability) of the "positive"
       # class (value=1).
-      return predictions.dense_predictions[:, 1:2]
+      predictions = predictions.dense_predictions[:, 1:2]
     else:
-      return predictions.dense_predictions
+      predictions = predictions.dense_predictions
+
+    if self._postprocessing is not None:
+      predictions = self._postprocessing(predictions)
+
+    return predictions
 
   # This function should not be serialized in the SavedModel.
   @base_tracking.no_automatic_dependency_tracking

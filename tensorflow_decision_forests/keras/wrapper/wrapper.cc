@@ -440,6 +440,7 @@ class $0(core.CoreModel):
       the raw input). Can be used to prepare the features or to stack multiple
       models on top of each other. Unlike preprocessing done in the tf.dataset,
       the operation in "preprocessing" are serialized with the model.
+    postprocessing: Like "preprocessing" but applied on the model output.
     ranking_group: Only for `task=Task.RANKING`. Name of a tf.string feature that
       identifies queries in a query/document ranking task. The ranking group
       is not added automatically for the set of features if
@@ -469,6 +470,7 @@ $2
       features: Optional[List[core.FeatureUsage]] = None,
       exclude_non_specified_features: Optional[bool] = False,
       preprocessing: Optional["tf.keras.models.Functional"] = None,
+      postprocessing: Optional["tf.keras.models.Functional"] = None,
       ranking_group: Optional[str] = None,
       temp_directory: Optional[str] = None,
       verbose: Optional[bool] = True,
@@ -493,6 +495,7 @@ $4
       features=features,
       exclude_non_specified_features=exclude_non_specified_features,
       preprocessing=preprocessing,
+      postprocessing=postprocessing,
       ranking_group=ranking_group,
       temp_directory=temp_directory,
       verbose=verbose,
