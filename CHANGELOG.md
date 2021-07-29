@@ -13,6 +13,8 @@
     Functional API.
 -   Add `extract_all_trees` method in the model inspector to efficiently exact
     all the trees.
+-   Add `num_threads` constructor argument to control the number of training
+    threads without using the advanced configuration.
 
 ## 0.1.7 - 2021-06-23
 

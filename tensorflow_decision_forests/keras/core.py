@@ -246,8 +246,10 @@ class AdvancedArguments(NamedTuple):
   """
 
   infer_prediction_signature: Optional[bool] = True
-  yggdrasil_training_config: Optional[YggdrasilTrainingConfig] = None
-  yggdrasil_deployment_config: Optional[YggdrasilDeploymentConfig] = None
+  yggdrasil_training_config: Optional[
+      YggdrasilTrainingConfig] = abstract_learner_pb2.TrainingConfig()
+  yggdrasil_deployment_config: Optional[
+      YggdrasilDeploymentConfig] = abstract_learner_pb2.DeploymentConfig()
   fail_on_non_keras_compatible_feature_name: Optional[bool] = True
 
 
@@ -335,6 +337,10 @@ class CoreModel(models.Model):
     verbose: If true, displays information about the training.
     advanced_arguments: Advanced control of the model that most users won't need
       to use. See `AdvancedArguments` for details.
+    num_threads: Number of threads used to train the model. Different learning
+      algorithms use multi-threading differently and with different degree of
+      efficiency. If specified, `num_threads` field of the
+      `advanced_arguments.yggdrasil_deployment_config` has priority.
     name: The name of the model.
   """
 
@@ -350,6 +356,7 @@ class CoreModel(models.Model):
                temp_directory: Optional[str] = None,
                verbose: Optional[bool] = True,
                advanced_arguments: Optional[AdvancedArguments] = None,
+               num_threads: Optional[int] = 6,
                name: Optional[str] = None) -> None:
     super(CoreModel, self).__init__(name=name)
 
@@ -363,6 +370,7 @@ class CoreModel(models.Model):
     self._ranking_group = ranking_group
     self._temp_directory = temp_directory
     self._verbose = verbose
+    self._num_threads = num_threads
 
     # Internal, indicates whether the first evaluation during training,
     # triggered by providing validation data, should trigger the training
@@ -971,6 +979,12 @@ class CoreModel(models.Model):
           feature.name)
       guide.column_guides.append(col_guide)
 
+    # Deployment configuration
+    deployment_config = copy.deepcopy(
+        self._advanced_arguments.yggdrasil_deployment_config)
+    if not deployment_config.HasField("num_threads"):
+      deployment_config.num_threads = self._num_threads
+
     # Train the model.
     # The model will be exported to "train_model_path".
     #
@@ -989,7 +1003,7 @@ class CoreModel(models.Model):
         keep_model_in_resource=True,
         guide=guide,
         training_config=self._advanced_arguments.yggdrasil_training_config,
-        deployment_config=self._advanced_arguments.yggdrasil_deployment_config,
+        deployment_config=deployment_config,
     )
 
     # Request and store a description of the model.

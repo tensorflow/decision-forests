@@ -515,7 +515,9 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     dataset = adult_dataset()
     model = build_model(
-        signature=Signature.AUTOMATIC_FEATURE_DISCOVERY, dataset=dataset)
+        signature=Signature.AUTOMATIC_FEATURE_DISCOVERY,
+        dataset=dataset,
+        num_threads=8)
     self._check_adult_model_with_cart(model, dataset)
 
     inspector = model.make_inspector()

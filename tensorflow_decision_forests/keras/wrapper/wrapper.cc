@@ -460,6 +460,10 @@ class $0(core.CoreModel):
 $7
     advanced_arguments: Advanced control of the model that most users won't need
       to use. See `AdvancedArguments` for details.
+    num_threads: Number of threads used to train the model. Different learning
+      algorithms use multi-threading differently and with different degree of
+      efficiency. If specified, `num_threads` field of the
+      `advanced_arguments.yggdrasil_deployment_config` has priority.
     name: The name of the model.
 $2
   """
@@ -476,6 +480,7 @@ $2
       verbose: Optional[bool] = True,
       hyperparameter_template: Optional[str] = None,
       advanced_arguments: Optional[AdvancedArguments] = None,
+      num_threads: Optional[int] = 6,
       name: Optional[str] = None,
 $3,
       explicit_args: Optional[Set[str]] = None):
@@ -500,6 +505,7 @@ $4
       temp_directory=temp_directory,
       verbose=verbose,
       advanced_arguments=advanced_arguments,
+      num_threads=num_threads,
       name=name)
 
   @staticmethod
