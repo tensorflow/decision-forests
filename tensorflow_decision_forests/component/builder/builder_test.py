@@ -23,10 +23,13 @@ from absl import flags
 from absl import logging
 from absl.testing import parameterized
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 
+from tensorflow_decision_forests import keras
 from tensorflow_decision_forests.component import py_tree
 from tensorflow_decision_forests.component.builder import builder as builder_lib
+from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
 
 Tree = py_tree.tree.Tree
 NonLeafNode = py_tree.node.NonLeafNode
@@ -58,7 +61,7 @@ def test_model_directory() -> str:
 
 
 def test_dataset_directory() -> str:
-  return os.path.join(test_data_path(), "model")
+  return os.path.join(test_data_path(), "dataset")
 
 
 class BuilderTest(parameterized.TestCase, tf.test.TestCase):
@@ -448,6 +451,88 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
 
     builder.add_tree(Tree(LeafNode(RegressionValue(1, num_examples=10))))
     self.assertRaises(ValueError, builder.close)
+
+  def test_get_set_dictionary(self):
+    builder = builder_lib.RandomForestBuilder(
+        path=os.path.join(tmp_path(), "model"),
+        objective=py_tree.objective.ClassificationObjective(
+            "label", classes=["true", "false"]))
+
+    builder.add_tree(
+        Tree(
+            NonLeafNode(
+                condition=CategoricalIsInCondition(
+                    feature=SimpleColumnSpec(
+                        name="f1",
+                        type=py_tree.dataspec.ColumnType.CATEGORICAL),
+                    mask=["x", "y"],
+                    missing_evaluation=False),
+                pos_child=LeafNode(
+                    value=ProbabilityValue(
+                        probability=[0.8, 0.2], num_examples=10)),
+                neg_child=LeafNode(
+                    value=ProbabilityValue(
+                        probability=[0.2, 0.8], num_examples=20)))))
+
+    self.assertEqual(builder.get_dictionary("f1"), ["<OOD>", "x", "y"])
+    builder.set_dictionary("f1", ["<OOD>", "x", "y", "z"])
+    self.assertEqual(builder.get_dictionary("f1"), ["<OOD>", "x", "y", "z"])
+    builder.close()
+
+  def test_extract_random_forest(self):
+    """Extract 5 trees from a trained RF model, and pack them into a model."""
+
+    # Load a dataset
+    dataset_path = os.path.join(test_dataset_directory(), "adult_test.csv")
+    dataframe = pd.read_csv(dataset_path)
+    # This "adult_binary_class_rf" model expect for "education_num" to be a
+    # string.
+    dataframe["education_num"] = dataframe["education_num"].astype(str)
+    dataset = keras.pd_dataframe_to_tf_dataset(dataframe, "income")
+
+    # Load an inspector to an existing model.
+    src_model_path = os.path.join(test_model_directory(),
+                                  "adult_binary_class_rf")
+    inspector = inspector_lib.make_inspector(src_model_path)
+
+    # Extract a piece of this model
+    dst_model_path = os.path.join(tmp_path(), "model")
+    builder = builder_lib.RandomForestBuilder(
+        path=dst_model_path,
+        objective=inspector.objective(),
+        # Make sure the features and feature dictionaries are the same as in the
+        # original model.
+        import_dataspec=inspector.dataspec)
+
+    # Extract the first 5 trees
+    for i in range(5):
+      tree = inspector.extract_tree(i)
+      builder.add_tree(tree)
+
+    builder.close()
+
+    truncated_model = tf.keras.models.load_model(dst_model_path)
+
+    # By default, the model builder export numerical features as float32. In
+    # this dataset, some numerical features are stored as int64. Therefore,
+    # we need to apply a cast.
+    #
+    # TODO(gbm): Allow the user to specify the signature in a model builder.
+    numerical_features = []
+    for feature in inspector.features():
+      if feature.type == keras.FeatureSemantic.NUMERICAL.value:
+        numerical_features.append(feature)
+
+    # Cast all the numerical features to floats.
+    def cast_numerical_to_float32(features, labels):
+      for numerical_feature in numerical_features:
+        features[numerical_feature.name] = tf.cast(
+            features[numerical_feature.name], tf.float32)
+      return features, labels
+
+    predictions = truncated_model.predict(
+        dataset.map(cast_numerical_to_float32))
+    self.assertEqual(predictions.shape, (9769, 1))
 
 
 if __name__ == "__main__":

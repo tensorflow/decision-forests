@@ -155,9 +155,13 @@ class AbstractInspector(object):
                          f" Got {label_column.type} instead.")
 
       if label_column.categorical.is_already_integerized:
+        # The dictionary returned in the objective does not contains the
+        # out-of-dictionary item. However, "number_of_unique_values" take into
+        # account the OOD item e.g. number_of_unique_values=3 for a binary
+        # classification.
         return py_tree.objective.ClassificationObjective(
             label=label.name,
-            num_classes=label_column.categorical.number_of_unique_values + 1)
+            num_classes=label_column.categorical.number_of_unique_values - 1)
       else:
         # The first element is the "out-of-vocabulary" that is not used in
         # labels.

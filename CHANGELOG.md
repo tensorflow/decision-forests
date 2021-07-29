@@ -17,6 +17,20 @@
     threads without using the advanced configuration.
 -   By default, remove the temporary directory used to train the model when the
     model python object is garbage collected.
+-   Add the `import_dataspec` constructor argument to the model builder to
+    import the feature definition and dictionaries (instead of relying on
+    automatic discovery).
+
+### Changes
+
+-   When saving a model in a directory already containing a model, only the
+    `assets` directory is entirely removed before the export (instead of the
+    entire model directory).
+
+### Fixes
+
+-   Wrong label shape in the model inspector's objective field for
+    pre-integerized labels.
 
 ## 0.1.7 - 2021-06-23
 

@@ -25,6 +25,9 @@ from yggdrasil_decision_forests.dataset import data_spec_pb2
 
 ColumnType = data_spec_pb2.ColumnType
 
+# Special value to out of vocabulary items.
+OUT_OF_DICTIONARY = "<OOD>"
+
 
 class SimpleColumnSpec(NamedTuple):
   """Simplified representation of a column spec.
@@ -73,7 +76,7 @@ def categorical_value_idx_to_value(column_spec: data_spec_pb2.Column,
     for key, value in column_spec.categorical.items.items():
       if value.index == value_idx:
         return key
-    return "<OOB>"
+    return OUT_OF_DICTIONARY
 
 
 def categorical_column_dictionary_to_list(
@@ -103,7 +106,8 @@ def categorical_column_dictionary_to_list(
 
   for index, value in enumerate(items):
     if value is None:
-      raise ValueError(f"Invalid dictionary. Non value for index {index}")
+      raise ValueError(f"Invalid dictionary. Non value for index {index} "
+                       f"in column {column_spec}")
 
   return items  # pytype: disable=bad-return-type
 

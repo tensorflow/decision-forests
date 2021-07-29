@@ -851,9 +851,17 @@ class CoreModel(models.Model):
       **kwargs: Arguments passed to the core keras model's save.
     """
 
-    if tf.io.gfile.exists(os.path.join(filepath, "saved_model.pb")):
+    # TF does not override assets when exporting a model in a directory already
+    # containing a model. In such case, we need to remove the initial assets
+    # directory manually.
+    # Only the assets directory is removed (instead of the whole "filepath") in
+    # case this directory contains important files.
+    assets_dir = os.path.join(filepath, "assets")
+    saved_model_file = os.path.join(filepath, "saved_model.pb")
+
+    if tf.io.gfile.exists(saved_model_file) and tf.io.gfile.exists(assets_dir):
       if overwrite:
-        tf.io.gfile.rmtree(filepath)
+        tf.io.gfile.rmtree(assets_dir)
       else:
         raise ValueError(
             f"A model already exist as {filepath}. Use an empty directory "
