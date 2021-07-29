@@ -445,6 +445,27 @@ class _AbstractDecisionForestInspector(AbstractInspector):
         root=_extract_branch(node_generator),
         label_classes=self.label_classes())
 
+  def extract_all_trees(self) -> List[py_tree.tree.Tree]:
+    """Extracts all the decision trees of the model.
+
+    This method is more efficient than calling "extract_tree" repeatedly. See
+    "extract_tree" for more details.
+
+    Returns:
+      The list of extracted trees.
+    """
+
+    node_generator = self.iterate_on_nodes()
+
+    trees = []
+    for _ in range(self.num_trees()):
+      trees.append(
+          py_tree.tree.Tree(
+              root=_extract_branch(node_generator),
+              label_classes=self.label_classes()))
+
+    return trees
+
 
 class _RandomForestInspector(_AbstractDecisionForestInspector):
   """Inspector for the RANDOM_FOREST model."""
