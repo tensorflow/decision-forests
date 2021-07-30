@@ -121,6 +121,9 @@ tf_cc_test(
     data = [
         ":tf_distribution_py_worker",
     ],
+    tags = [
+        "noasan",  # OOM as a TF is initialized in each workers.
+    ],
     deps = [
         ":tf_distribution",
         ":tf_distribution_cc_proto",
