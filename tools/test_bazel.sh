@@ -28,8 +28,9 @@ BAZEL=bazel-3.7.2
 # TENSORFLOW_BAZELRC="${HOME}/git/tf_bazelrc"
 
 # Alternatively, download bazelrc:
+# .bazelrc of TF 2.5.0. This value should match the TF version in the "WORKSPACE" file.
 TENSORFLOW_BAZELRC="tensorflow_bazelrc"
-wget https://raw.githubusercontent.com/tensorflow/tensorflow/master/.bazelrc -O ${TENSORFLOW_BAZELRC}
+wget https://raw.githubusercontent.com/tensorflow/tensorflow/a4dfb8d1a71385bd6d122e4f27f86dcebb96712d/.bazelrc -O ${TENSORFLOW_BAZELRC}
 
 # copybara:strip_begin
 # First follow the instruction: go/tf-rbe-guide
@@ -40,7 +41,12 @@ FLAGS="--config=linux --config=rbe_linux_py3 --config=tensorflow_testing_rbe_lin
 # Uncomment the following line to generate a sharable pip package.
 # You will also need to install the dockers described in:
 # https://github.com/tensorflow/custom-op
+#
+# For <TF2.7.0
+# FLAGS="${FLAGS} --crosstool_top=//third_party/toolchains/preconfig/ubuntu16.04/gcc7_manylinux2010-nvcc-cuda10.1:toolchain"
+# For >=TF2.7.0
 # FLAGS="${FLAGS} --crosstool_top=@ubuntu18.04-gcc7_manylinux2010-cuda11.2-cudnn8.1-tensorrt7.2_config_cuda//crosstool:toolchain"
+
 
 ${BAZEL} --bazelrc=${TENSORFLOW_BAZELRC} build \
   //tensorflow_decision_forests/...:all \

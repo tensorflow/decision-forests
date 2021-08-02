@@ -23,6 +23,20 @@ The available builders are:
   - CARTBuilder
   - GradientBoostedTreeBuilder
 
+About categorical and categorical-set features with string dictionary:
+
+Categorical and categorical-set features are tied to a dictionary of possible
+values. In addition, the special value "out-of-dictionary" (OOD) designate all
+the which are not in the dictionary. For example, the condition
+"a in ["x","<OOB>"]" if true if the feature "a" is equal to "x" or to any value
+not in the dictionary.
+
+The feature dictionaries are automatically assembled as the union of all the
+observed values in the tree conditions. Alternatively, dictionaries can be
+get/set manually with "{get,set}_dictionary()" or imported from an existing
+dataspec with the "import_dataspec" constructor argument.
+
+
 Usage:
 
 ```python
@@ -53,6 +67,34 @@ builder.add_tree(
                 value=ProbabilityValue(probability=[0.1, 0.9])),
             neg_child=LeafNode(
                 value=ProbabilityValue(probability=[0.8, 0.2])))))
+
+# Create a second tree
+#  f2 in ["x", "y"]
+#    ├─(pos)─ [0.1, 0.9]
+#    └─(neg)─ [0.8, 0.2]
+#
+builder.add_tree(
+    Tree(
+        NonLeafNode(
+            condition=CategoricalIsInCondition(
+                    feature=SimpleColumnSpec(
+                        name="f2",
+                        type=py_tree.dataspec.ColumnType.CATEGORICAL),
+                    mask=["x", "y"],
+                    missing_evaluation=False),
+            pos_child=LeafNode(
+                value=ProbabilityValue(probability=[0.1, 0.9])),
+            neg_child=LeafNode(
+                value=ProbabilityValue(probability=[0.8, 0.2])))))
+
+# Optionally set the dictionary of the categorical feature "f2".
+# If not set, all the values not seens in the model ("z" in this case) will not
+# be known by the model and will be treated as OOD (out of dictionary).
+#
+# Defining a dictionary only has an impact if a condition is testing for the
+# `<OOD>` item directly i.e. the test `f2 in ["<OOD>"]` depends on the content
+# of the dictionary.
+builder.set_dictionary("f2",["<OOD>", "x", "y", "z"]
 
 builder.close()
 
@@ -103,7 +145,8 @@ class AbstractBuilder(object):
   """Generic model builder."""
 
   def __init__(self, path: str, objective: py_tree.objective.AbstractObjective,
-               model_format: Optional[ModelFormat]):
+               model_format: Optional[ModelFormat],
+               import_dataspec: Optional[data_spec_pb2.DataSpecification]):
 
     if not path:
       raise ValueError("The path cannot be empty")
@@ -124,6 +167,9 @@ class AbstractBuilder(object):
     self._initialize_header_column_idx()
 
     tf.io.gfile.makedirs(self.yggdrasil_model_path())
+
+    if import_dataspec:
+      self._import_dataspec(import_dataspec)
 
   def close(self):
     """Finalize the builder work.
@@ -204,6 +250,98 @@ class AbstractBuilder(object):
 
     return self._objective
 
+  def _import_dataspec(self, src_dataspec: data_spec_pb2.DataSpecification):
+    """Imports an existing dataspec (feature definitions).
+
+    This method should be called right after the object construction i.e. it
+    should not be called after some part of the model was build.
+
+    Actions
+      - Import the name and type of the features.
+      - Import the feature dictionaries (if any).
+      - Import the feature statistics (if any).
+
+    Does not import the index of the features i.e. feature #3 in the src
+    dataspec might be different from feature #3 in the imported dataspec.
+
+    Does not import the dataspec column of the label.
+
+    Args:
+      src_dataspec: Dataspec to import.
+    """
+
+    for src_col in src_dataspec.columns:
+
+      dst_col_idx, created = self._get_or_create_column_idx(src_col.name)
+
+      # Skip the label
+      if dst_col_idx == self._header.label_col_idx:
+        continue
+
+      if isinstance(self._objective, py_tree.objective.RankingObjective):
+        if dst_col_idx == self._header.ranking_group_col_idx:
+          continue
+
+      if not created:
+        raise ValueError(
+            "import_dataspec was called after some of the model was build. "
+            "Make sure to call import_dataspec right after the model "
+            "constructor.")
+
+      # Simply copy the dataspec column.
+      self._dataspec.columns[dst_col_idx].CopyFrom(src_col)
+
+  def _check_column_has_dictionary(self, column_spec: data_spec_pb2.Column):
+    """Ensures that a column spec contain a dictionary (possibly empty)."""
+
+    if column_spec.type not in [
+        ColumnType.CATEGORICAL, ColumnType.CATEGORICAL_SET
+    ]:
+      raise ValueError(
+          f"The feature \"{column_spec.name}\" is neither a CATEGORICAL "
+          "OR CATEGORICAL_SET feature")
+
+    if column_spec.categorical.is_already_integerized:
+      raise ValueError(
+          f"The feature \"{column_spec.name}\" is already integerized "
+          "and do not have a dictionary")
+
+  def get_dictionary(self, col_name: str) -> List[str]:
+    """Gets the dictionary of a categorical(-set) string feature."""
+
+    col_idx = self._dataspec_column_index.get(col_name)
+    if col_idx is None:
+      raise ValueError(f"Unknown feature \"{col_name}\"")
+
+    column_spec = self._dataspec.columns[col_idx]
+    self._check_column_has_dictionary(column_spec)
+
+    return py_tree.dataspec.categorical_column_dictionary_to_list(column_spec)
+
+  def set_dictionary(self, col_name: str, dictionary: List[str]) -> None:
+    """Sets the dictionary of a categorical or categorical-set column."""
+
+    col_idx = self._dataspec_column_index.get(col_name)
+    if col_idx is None:
+      raise ValueError(f"Unknown feature \"{col_name}\"")
+
+    if py_tree.dataspec.OUT_OF_DICTIONARY not in dictionary:
+      raise ValueError(
+          "fThe dictionary should contain an \"{OUT_OF_DICTIONARY}\" value")
+
+    column_spec = self._dataspec.columns[col_idx]
+    self._check_column_has_dictionary(column_spec)
+
+    column_spec.categorical.number_of_unique_values = len(dictionary)
+    column_spec.categorical.items.clear()
+    # The OOB value should be the first one.
+    column_spec.categorical.items[py_tree.dataspec.OUT_OF_DICTIONARY].index = 0
+    for item in dictionary:
+      if item == py_tree.dataspec.OUT_OF_DICTIONARY:
+        continue
+      column_spec.categorical.items[item].index = len(
+          column_spec.categorical.items)
+
   def observe_feature(self,
                       feature: inspector_lib.SimpleColumnSpec,
                       categorical_values: Optional[Union[List[str],
@@ -253,7 +391,7 @@ class AbstractBuilder(object):
         # The value is stored as a string.
         if created:
           # Create the out-of-vocabulary item.
-          column.categorical.items["<OOV>"].index = 0
+          column.categorical.items[py_tree.dataspec.OUT_OF_DICTIONARY].index = 0
           column.categorical.number_of_unique_values = 1
         for value in categorical_values:
           if value not in column.categorical.items:
@@ -291,10 +429,14 @@ class AbstractBuilder(object):
     Should be called once before writing the header to disk.
     """
 
+    assert not self._dataspec.columns
+
     # The first column is the label.
     self._header.label_col_idx = 0
     label_column = self._dataspec.columns.add()
     label_column.name = self._objective.label
+    self._dataspec_column_index[label_column.name] = self._header.label_col_idx
+
     if isinstance(self._objective, py_tree.objective.ClassificationObjective):
       label_column.type = ColumnType.CATEGORICAL
 
@@ -302,11 +444,14 @@ class AbstractBuilder(object):
       label_column.categorical.number_of_unique_values = self._objective.num_classes + 1
 
       if not self._objective.has_integer_labels:
-        label_column.categorical.items["<OOV>"].index = 0
+        label_column.categorical.items[
+            py_tree.dataspec.OUT_OF_DICTIONARY].index = 0
         for idx, value in enumerate(self._objective.classes):
           label_column.categorical.items[value].index = idx + 1
         assert len(label_column.categorical.items
                   ) == label_column.categorical.number_of_unique_values
+      else:
+        label_column.categorical.is_already_integerized = True
 
     elif isinstance(self._objective, (py_tree.objective.RegressionObjective,
                                       py_tree.objective.RankingObjective)):
@@ -316,11 +461,15 @@ class AbstractBuilder(object):
       raise NotImplementedError(f"No supported objective {self._objective}")
 
     if isinstance(self._objective, py_tree.objective.RankingObjective):
+      assert len(self._dataspec.columns) == 1
+
       # Create the "group" column for Ranking.
       self._header.ranking_group_col_idx = 1
       group_column = self._dataspec.columns.add()
       group_column.type = ColumnType.HASH
       group_column.name = self._objective.group
+      self._dataspec_column_index[
+          group_column.name] = self._header.ranking_group_col_idx
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -328,10 +477,13 @@ class AbstractDecisionForestBuilder(AbstractBuilder):
   """Generic decision forest model builder."""
 
   def __init__(self, path: str, objective: py_tree.objective.AbstractObjective,
-               model_format: Optional[ModelFormat]):
+               model_format: Optional[ModelFormat],
+               import_dataspec: Optional[data_spec_pb2.DataSpecification]):
 
-    super(AbstractDecisionForestBuilder, self).__init__(path, objective,
-                                                        model_format)
+    super(AbstractDecisionForestBuilder,
+          self).__init__(path, objective, model_format, import_dataspec)
+
+    self._trees = []
 
     num_node_shards = 1  # Store all the nodes in a single shard.
     self.specialized_header().num_node_shards = num_node_shards
@@ -343,6 +495,12 @@ class AbstractDecisionForestBuilder(AbstractBuilder):
                                          num_node_shards)))
 
   def close(self):
+
+    assert self.specialized_header().num_trees == len(self._trees)
+
+    for tree in self._trees:
+      self._write_branch(tree.root)
+    self._trees = []
 
     # Write the model specialized header.
     _write_binary_proto(
@@ -372,7 +530,8 @@ class AbstractDecisionForestBuilder(AbstractBuilder):
   def add_tree(self, tree: py_tree.tree.Tree):
     """Adds one tree to the model."""
 
-    self._write_branch(tree.root)
+    self._observe_branch(tree.root)
+    self._trees.append(tree)
     self.specialized_header().num_trees += 1
 
   def check_leaf(self, node: py_tree.node.LeafNode):
@@ -385,13 +544,11 @@ class AbstractDecisionForestBuilder(AbstractBuilder):
 
     pass
 
-  def _write_branch(self, node: py_tree.node.AbstractNode):
-    """Write of a node and its children to the writer.
+  def _observe_branch(self, node: py_tree.node.AbstractNode):
+    """Indexes the possible attribute values and check the tree validity.
 
-    Nodes are written in a Depth First Pre-order traversals (as expected by the
-    model format).
-
-    This function is the inverse of inspector_lib._extract_branch.
+    This method should be called on all the trees before any calls to
+    "_write_branch".
 
     Args:
       node: The node to write.
@@ -409,6 +566,23 @@ class AbstractDecisionForestBuilder(AbstractBuilder):
           self.observe_feature(feature)
     elif isinstance(node, py_tree.node.LeafNode):
       self.check_leaf(node)
+
+    # Recursive call on the children.
+    if isinstance(node, py_tree.node.NonLeafNode):
+      self._observe_branch(node.neg_child)
+      self._observe_branch(node.pos_child)
+
+  def _write_branch(self, node: py_tree.node.AbstractNode):
+    """Write of a node and its children to the writer.
+
+    Nodes are written in a Depth First Pre-order traversals (as expected by the
+    model format).
+
+    This function is the inverse of inspector_lib._extract_branch.
+
+    Args:
+      node: The node to write.
+    """
 
     # Converts the node into a proto node.
     core_node = py_tree.node.node_to_core_node(node, self.dataspec)
@@ -430,12 +604,14 @@ class RandomForestBuilder(AbstractDecisionForestBuilder):
       path: str,
       objective: py_tree.objective.AbstractObjective,
       model_format: Optional[ModelFormat] = ModelFormat.TENSORFLOW_SAVED_MODEL,
-      winner_take_all: Optional[bool] = False):
+      winner_take_all: Optional[bool] = False,
+      import_dataspec: Optional[data_spec_pb2.DataSpecification] = None):
     self._specialized_header = random_forest_pb2.Header(
         winner_take_all_inference=winner_take_all)
 
     # Should be called last.
-    super(RandomForestBuilder, self).__init__(path, objective, model_format)
+    super(RandomForestBuilder, self).__init__(path, objective, model_format,
+                                              import_dataspec)
 
   def model_type(self) -> str:
     return "RANDOM_FOREST"
@@ -456,9 +632,9 @@ class RandomForestBuilder(AbstractDecisionForestBuilder):
       if len(node.value.probability) != self.objective.num_classes:
         raise ValueError(
             "The number of dimensions of the probability of "
-            "the classification value ({len(node.value.probability)}) does not "
+            f"the classification value ({len(node.value.probability)}) does not "
             "match the number of classes of the label in the objective "
-            "({self.objective.num_classes})")
+            f"({self.objective.num_classes})")
 
     elif isinstance(self.objective, py_tree.objective.RegressionObjective):
       if not isinstance(node.value, py_tree.value.RegressionValue):
@@ -496,7 +672,8 @@ class GradientBoostedTreeBuilder(AbstractDecisionForestBuilder):
       path: str,
       objective: py_tree.objective.AbstractObjective,
       bias: Optional[float] = 0.0,
-      model_format: Optional[ModelFormat] = ModelFormat.TENSORFLOW_SAVED_MODEL):
+      model_format: Optional[ModelFormat] = ModelFormat.TENSORFLOW_SAVED_MODEL,
+      import_dataspec: Optional[data_spec_pb2.DataSpecification] = None):
 
     # Compute the number of tree per iterations and loss.
     #
@@ -542,8 +719,8 @@ class GradientBoostedTreeBuilder(AbstractDecisionForestBuilder):
         loss=loss)
 
     # Should be called last.
-    super(GradientBoostedTreeBuilder, self).__init__(path, objective,
-                                                     model_format)
+    super(GradientBoostedTreeBuilder,
+          self).__init__(path, objective, model_format, import_dataspec)
 
   def model_type(self) -> str:
     return "GRADIENT_BOOSTED_TREES"

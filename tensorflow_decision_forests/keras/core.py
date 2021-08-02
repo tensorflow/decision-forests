@@ -246,8 +246,10 @@ class AdvancedArguments(NamedTuple):
   """
 
   infer_prediction_signature: Optional[bool] = True
-  yggdrasil_training_config: Optional[YggdrasilTrainingConfig] = None
-  yggdrasil_deployment_config: Optional[YggdrasilDeploymentConfig] = None
+  yggdrasil_training_config: Optional[
+      YggdrasilTrainingConfig] = abstract_learner_pb2.TrainingConfig()
+  yggdrasil_deployment_config: Optional[
+      YggdrasilDeploymentConfig] = abstract_learner_pb2.DeploymentConfig()
   fail_on_non_keras_compatible_feature_name: Optional[bool] = True
 
 
@@ -324,16 +326,24 @@ class CoreModel(models.Model):
       the raw input). Can be used to prepare the features or to stack multiple
       models on top of each other. Unlike preprocessing done in the tf.dataset,
       the operation in "preprocessing" are serialized with the model.
+    postprocessing: Like "preprocessing" but applied on the model output.
     ranking_group: Only for task=Task.RANKING. Name of a tf.string feature that
       identifies queries in a query/document ranking task. The ranking group is
       not added automatically for the set of features if
       exclude_non_specified_features=false.
-    temp_directory: Temporary directory used during the training. The space
-      required depends on the learner. In many cases, only a temporary copy of a
-      model will be there.
+    temp_directory: Temporary directory used to store the model Assets after the
+      training, and possibly as a work directory during the training. This
+      temporary directory is necessary for the model to be exported after
+      training e.g. `model.save(path)`. If not specified, `temp_directory` is
+      set to a temporary directory using `tempfile.TemporaryDirectory`. This
+      directory is deleted when the model python object is garbage-collected.
     verbose: If true, displays information about the training.
     advanced_arguments: Advanced control of the model that most users won't need
       to use. See `AdvancedArguments` for details.
+    num_threads: Number of threads used to train the model. Different learning
+      algorithms use multi-threading differently and with different degree of
+      efficiency. If specified, `num_threads` field of the
+      `advanced_arguments.yggdrasil_deployment_config` has priority.
     name: The name of the model.
   """
 
@@ -344,10 +354,12 @@ class CoreModel(models.Model):
                features: Optional[List[FeatureUsage]] = None,
                exclude_non_specified_features: Optional[bool] = False,
                preprocessing: Optional["models.Functional"] = None,
+               postprocessing: Optional["models.Functional"] = None,
                ranking_group: Optional[str] = None,
                temp_directory: Optional[str] = None,
                verbose: Optional[bool] = True,
                advanced_arguments: Optional[AdvancedArguments] = None,
+               num_threads: Optional[int] = 6,
                name: Optional[str] = None) -> None:
     super(CoreModel, self).__init__(name=name)
 
@@ -357,9 +369,11 @@ class CoreModel(models.Model):
     self._features = features or []
     self._exclude_non_specified = exclude_non_specified_features
     self._preprocessing = preprocessing
+    self._postprocessing = postprocessing
     self._ranking_group = ranking_group
     self._temp_directory = temp_directory
     self._verbose = verbose
+    self._num_threads = num_threads
 
     # Internal, indicates whether the first evaluation during training,
     # triggered by providing validation data, should trigger the training
@@ -377,7 +391,8 @@ class CoreModel(models.Model):
           "provided as input.")
 
     if self._temp_directory is None:
-      self._temp_directory = tempfile.mkdtemp()
+      self._temp_directory_handle = tempfile.TemporaryDirectory()
+      self._temp_directory = self._temp_directory_handle.name
       logging.info("Using %s as temporary training directory",
                    self._temp_directory)
 
@@ -586,9 +601,14 @@ class CoreModel(models.Model):
       # Yggdrasil returns the probably of both classes in binary classification.
       # Keras expects only the value (logic or probability) of the "positive"
       # class (value=1).
-      return predictions.dense_predictions[:, 1:2]
+      predictions = predictions.dense_predictions[:, 1:2]
     else:
-      return predictions.dense_predictions
+      predictions = predictions.dense_predictions
+
+    if self._postprocessing is not None:
+      predictions = self._postprocessing(predictions)
+
+    return predictions
 
   # This function should not be serialized in the SavedModel.
   @base_tracking.no_automatic_dependency_tracking
@@ -831,9 +851,17 @@ class CoreModel(models.Model):
       **kwargs: Arguments passed to the core keras model's save.
     """
 
-    if tf.io.gfile.exists(os.path.join(filepath, "saved_model.pb")):
+    # TF does not override assets when exporting a model in a directory already
+    # containing a model. In such case, we need to remove the initial assets
+    # directory manually.
+    # Only the assets directory is removed (instead of the whole "filepath") in
+    # case this directory contains important files.
+    assets_dir = os.path.join(filepath, "assets")
+    saved_model_file = os.path.join(filepath, "saved_model.pb")
+
+    if tf.io.gfile.exists(saved_model_file) and tf.io.gfile.exists(assets_dir):
       if overwrite:
-        tf.io.gfile.rmtree(filepath)
+        tf.io.gfile.rmtree(assets_dir)
       else:
         raise ValueError(
             f"A model already exist as {filepath}. Use an empty directory "
@@ -963,6 +991,12 @@ class CoreModel(models.Model):
           feature.name)
       guide.column_guides.append(col_guide)
 
+    # Deployment configuration
+    deployment_config = copy.deepcopy(
+        self._advanced_arguments.yggdrasil_deployment_config)
+    if not deployment_config.HasField("num_threads"):
+      deployment_config.num_threads = self._num_threads
+
     # Train the model.
     # The model will be exported to "train_model_path".
     #
@@ -981,7 +1015,7 @@ class CoreModel(models.Model):
         keep_model_in_resource=True,
         guide=guide,
         training_config=self._advanced_arguments.yggdrasil_training_config,
-        deployment_config=self._advanced_arguments.yggdrasil_deployment_config,
+        deployment_config=deployment_config,
     )
 
     # Request and store a description of the model.

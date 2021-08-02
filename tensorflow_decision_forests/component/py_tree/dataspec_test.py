@@ -35,7 +35,7 @@ def toy_dataspec():
   f2.name = "f2"
   f2.type = data_spec_pb2.ColumnType.CATEGORICAL
   f2.categorical.number_of_unique_values = 3
-  f2.categorical.items["<OOV>"].index = 0
+  f2.categorical.items["<OOD>"].index = 0
   f2.categorical.items["x"].index = 1
   f2.categorical.items["y"].index = 2
 
@@ -87,9 +87,9 @@ class DataspecTest(parameterized.TestCase, tf.test.TestCase):
     dataspec = toy_dataspec()
     self.assertEqual(
         dataspec_lib.categorical_column_dictionary_to_list(dataspec.columns[1]),
-        ["<OOV>", "x", "y"])
+        ["<OOD>", "x", "y"])
 
-  def test_categorical_column_dictionary_to_list(self):
+  def test_column_name_to_column_idx(self):
     dataspec = toy_dataspec()
     self.assertEqual(dataspec_lib.column_name_to_column_idx("f1", dataspec), 0)
     self.assertEqual(dataspec_lib.column_name_to_column_idx("f2", dataspec), 1)

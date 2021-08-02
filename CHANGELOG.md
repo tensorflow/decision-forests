@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.8 - ???
+## 0.1.8 - 2021-07-28
 
 ### Features
 
@@ -8,6 +8,29 @@
 -   Makes all the Yggdrasil structural variable importances available.
 -   Makes getting the variable importance instantaneous.
 -   Surface the `name` argument in the model classes constructors.
+-   Add a `postprocessing` model constructor argument to easy apply
+    post-processing on the model predictions without relying on the Keras
+    Functional API.
+-   Add `extract_all_trees` method in the model inspector to efficiently exact
+    all the trees.
+-   Add `num_threads` constructor argument to control the number of training
+    threads without using the advanced configuration.
+-   By default, remove the temporary directory used to train the model when the
+    model python object is garbage collected.
+-   Add the `import_dataspec` constructor argument to the model builder to
+    import the feature definition and dictionaries (instead of relying on
+    automatic discovery).
+
+### Changes
+
+-   When saving a model in a directory already containing a model, only the
+    `assets` directory is entirely removed before the export (instead of the
+    entire model directory).
+
+### Fixes
+
+-   Wrong label shape in the model inspector's objective field for
+    pre-integerized labels.
 
 ## 0.1.7 - 2021-06-23
 

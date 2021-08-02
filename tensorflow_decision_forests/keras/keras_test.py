@@ -515,7 +515,9 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     dataset = adult_dataset()
     model = build_model(
-        signature=Signature.AUTOMATIC_FEATURE_DISCOVERY, dataset=dataset)
+        signature=Signature.AUTOMATIC_FEATURE_DISCOVERY,
+        dataset=dataset,
+        num_threads=8)
     self._check_adult_model_with_cart(model, dataset)
 
     inspector = model.make_inspector()
@@ -1379,6 +1381,24 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
       logging.info("Post-training prediction: %s", predictions)
       # 3 classes
       self.assertEqual(predictions.shape[1], 3)
+
+  def test_postprocessing(self):
+    num_examples = 100
+    num_features = 4
+    x_train = np.random.uniform(size=(num_examples, num_features))
+    y_train = x_train[:, 0] + 0.1 * np.random.uniform(
+        size=(num_examples)) >= x_train[:, 1] + x_train[:, 2]
+
+    def postprocessing(x):
+      return {"pred": x, "pred_plus_one": x + 1}
+
+    model = keras.RandomForestModel(postprocessing=postprocessing)
+    model.fit(x=x_train, y=y_train)
+
+    predictions = model.predict(x_train)
+    self.assertIn("pred", predictions)
+    self.assertIn("pred_plus_one", predictions)
+    self.assertAllGreaterEqual(predictions["pred_plus_one"], 1.0)
 
 
 if __name__ == "__main__":

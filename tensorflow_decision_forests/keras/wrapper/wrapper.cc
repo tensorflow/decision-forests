@@ -440,13 +440,17 @@ class $0(core.CoreModel):
       the raw input). Can be used to prepare the features or to stack multiple
       models on top of each other. Unlike preprocessing done in the tf.dataset,
       the operation in "preprocessing" are serialized with the model.
+    postprocessing: Like "preprocessing" but applied on the model output.
     ranking_group: Only for `task=Task.RANKING`. Name of a tf.string feature that
       identifies queries in a query/document ranking task. The ranking group
       is not added automatically for the set of features if
       `exclude_non_specified_features=false`.
-    temp_directory: Temporary directory used during the training. The space
-      required depends on the learner. In many cases, only a temporary copy of a
-      model will be there.
+    temp_directory: Temporary directory used to store the model Assets after the
+      training, and possibly as a work directory during the training. This
+      temporary directory is necessary for the model to be exported after
+      training e.g. `model.save(path)`. If not specified, `temp_directory` is
+      set to a temporary directory using `tempfile.TemporaryDirectory`. This
+      directory is deleted when the model python object is garbage-collected.
     verbose: If true, displays information about the training.
     hyperparameter_template: Override the default value of the hyper-parameters.
       If None (default) the default parameters of the library are used. If set,
@@ -459,6 +463,10 @@ class $0(core.CoreModel):
 $7
     advanced_arguments: Advanced control of the model that most users won't need
       to use. See `AdvancedArguments` for details.
+    num_threads: Number of threads used to train the model. Different learning
+      algorithms use multi-threading differently and with different degree of
+      efficiency. If specified, `num_threads` field of the
+      `advanced_arguments.yggdrasil_deployment_config` has priority.
     name: The name of the model.
 $2
   """
@@ -469,11 +477,13 @@ $2
       features: Optional[List[core.FeatureUsage]] = None,
       exclude_non_specified_features: Optional[bool] = False,
       preprocessing: Optional["tf.keras.models.Functional"] = None,
+      postprocessing: Optional["tf.keras.models.Functional"] = None,
       ranking_group: Optional[str] = None,
       temp_directory: Optional[str] = None,
       verbose: Optional[bool] = True,
       hyperparameter_template: Optional[str] = None,
       advanced_arguments: Optional[AdvancedArguments] = None,
+      num_threads: Optional[int] = 6,
       name: Optional[str] = None,
 $3,
       explicit_args: Optional[Set[str]] = None):
@@ -493,10 +503,12 @@ $4
       features=features,
       exclude_non_specified_features=exclude_non_specified_features,
       preprocessing=preprocessing,
+      postprocessing=postprocessing,
       ranking_group=ranking_group,
       temp_directory=temp_directory,
       verbose=verbose,
       advanced_arguments=advanced_arguments,
+      num_threads=num_threads,
       name=name)
 
   @staticmethod

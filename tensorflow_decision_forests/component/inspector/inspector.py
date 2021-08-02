@@ -155,9 +155,13 @@ class AbstractInspector(object):
                          f" Got {label_column.type} instead.")
 
       if label_column.categorical.is_already_integerized:
+        # The dictionary returned in the objective does not contains the
+        # out-of-dictionary item. However, "number_of_unique_values" take into
+        # account the OOD item e.g. number_of_unique_values=3 for a binary
+        # classification.
         return py_tree.objective.ClassificationObjective(
             label=label.name,
-            num_classes=label_column.categorical.number_of_unique_values + 1)
+            num_classes=label_column.categorical.number_of_unique_values - 1)
       else:
         # The first element is the "out-of-vocabulary" that is not used in
         # labels.
@@ -444,6 +448,27 @@ class _AbstractDecisionForestInspector(AbstractInspector):
     return py_tree.tree.Tree(
         root=_extract_branch(node_generator),
         label_classes=self.label_classes())
+
+  def extract_all_trees(self) -> List[py_tree.tree.Tree]:
+    """Extracts all the decision trees of the model.
+
+    This method is more efficient than calling "extract_tree" repeatedly. See
+    "extract_tree" for more details.
+
+    Returns:
+      The list of extracted trees.
+    """
+
+    node_generator = self.iterate_on_nodes()
+
+    trees = []
+    for _ in range(self.num_trees()):
+      trees.append(
+          py_tree.tree.Tree(
+              root=_extract_branch(node_generator),
+              label_classes=self.label_classes()))
+
+    return trees
 
 
 class _RandomForestInspector(_AbstractDecisionForestInspector):

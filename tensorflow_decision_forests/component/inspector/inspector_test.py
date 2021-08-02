@@ -133,6 +133,10 @@ class InspectorTest(parameterized.TestCase, tf.test.TestCase):
     # Checked with :show_model --full_definition
     self.assertEqual(tree.root.condition.feature.name, "capital_gain")
 
+    all_trees = inspector.extract_all_trees()
+    self.assertLen(all_trees, inspector.num_trees())
+    self.assertEqual(all_trees[1].root.condition.feature.name, "capital_gain")
+
     tensorboard_logs = os.path.join(tmp_path(), "tensorboard_logs")
     inspector.export_to_tensorboard(tensorboard_logs)
 
