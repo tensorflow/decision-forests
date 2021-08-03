@@ -1215,8 +1215,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     with self.assertRaises(ValueError):
       experiment(infer_prediction_signature=False, save_model=True)
 
-    with self.assertRaises(ValueError):
-      experiment(infer_prediction_signature=True, save_model=False)
+    experiment(infer_prediction_signature=True, save_model=False)
 
   def test_get_all_models(self):
     print(keras.get_all_models())
