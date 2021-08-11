@@ -153,7 +153,7 @@ def set_core_node(value: AbstractValue, core_node: decision_tree_pb2.Node):
   elif isinstance(value, RegressionValue):
     core_node.regressor.top_value = value.value
     if value.standard_deviation is not None:
-      dist = core_node.regressor.dist
+      dist = core_node.regressor.distribution
       dist.count = value.num_examples
       dist.sum = 0
       dist.sum_squares = value.standard_deviation**2 * value.num_examples

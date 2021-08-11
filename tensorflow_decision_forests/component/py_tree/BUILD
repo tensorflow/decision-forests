@@ -66,7 +66,6 @@ py_library(
     srcs = ["value.py"],
     srcs_version = "PY3",
     deps = [
-        # absl/logging dep,
         # numpy dep,
         # six dep,
         "@ydf//yggdrasil_decision_forests/model/decision_tree:decision_tree_py_proto",
@@ -126,6 +125,8 @@ py_test(
         # absl/logging dep,
         # absl/testing:parameterized dep,
         "@org_tensorflow//tensorflow/python",
+        "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
+        "@ydf//yggdrasil_decision_forests/model/decision_tree:decision_tree_py_proto",
     ],
 )
 

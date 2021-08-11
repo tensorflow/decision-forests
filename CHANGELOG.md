@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.8 - 2021-08-11
+
+### Fixes
+
+-   Fix failure from
+    [Github Issue #45](https://github.com/tensorflow/decision-forests/issues/45)
+    where the wrong field was accessed for leaf node distributions.
+
 ## 0.1.8 - 2021-07-28
 
 ### Features

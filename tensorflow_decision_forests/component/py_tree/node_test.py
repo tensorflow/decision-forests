@@ -25,6 +25,9 @@ from tensorflow_decision_forests.component.py_tree import dataspec as dataspec_l
 from tensorflow_decision_forests.component.py_tree import node as node_lib
 from tensorflow_decision_forests.component.py_tree import value as value_lib
 
+from yggdrasil_decision_forests.dataset import data_spec_pb2
+from yggdrasil_decision_forests.model.decision_tree import decision_tree_pb2
+
 
 class NodeTest(parameterized.TestCase, tf.test.TestCase):
 
@@ -32,6 +35,15 @@ class NodeTest(parameterized.TestCase, tf.test.TestCase):
     node = node_lib.LeafNode(
         value=value_lib.RegressionValue(
             value=5.0, num_examples=10, standard_deviation=1.0))
+    core_node = decision_tree_pb2.Node(
+        regressor=decision_tree_pb2.NodeRegressorOutput(top_value=5.0))
+    dist = core_node.regressor.distribution
+    dist.count = 10.0
+    dist.sum = 0
+    dist.sum_squares = 10.0
+    self.assertEqual(
+        node_lib.node_to_core_node(node, data_spec_pb2.DataSpecification()),
+        core_node)
     logging.info("node:\n%s", node)
 
   def test_non_leaf_without_children(self):
