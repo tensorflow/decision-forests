@@ -8,6 +8,10 @@
     [Github Issue #45](https://github.com/tensorflow/decision-forests/issues/45)
     where the wrong field was accessed for leaf node distributions.
 
+-   Fix incorrect handling of CART pruning when validation set is empty.
+    Previously, the whole tree would be erroneously pruned. Now, pruning is
+    disabled if the validation set is not specified.
+
 ## 0.1.8 - 2021-07-28
 
 ### Features
