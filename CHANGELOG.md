@@ -12,6 +12,8 @@
     Previously, the whole tree would be erroneously pruned. Now, pruning is
     disabled if the validation set is not specified.
 
+-   Fix saving of categorical features specification in the Builder.
+
 ## 0.1.8 - 2021-07-28
 
 ### Features

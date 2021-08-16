@@ -350,8 +350,8 @@ class AbstractBuilder(object):
 
     Generally, users don't need to call this function. An example of advanced
     exception is if a model does not refer to a specific possible categorical
-    value, and if this value should be threader differently that the
-    Out-of-vocabulary.
+    value, and if this value should be treated differently than
+    out-of-vocabulary values.
 
     Should be called at least once on each of the model input features.
     If called multiple times with `categorical_values` the set of possible
@@ -387,6 +387,7 @@ class AbstractBuilder(object):
         column.categorical.number_of_unique_values = max(
             column.categorical.number_of_unique_values,
             max(categorical_values) + 1)
+        column.categorical.is_already_integerized = True
       else:
         # The value is stored as a string.
         if created:
