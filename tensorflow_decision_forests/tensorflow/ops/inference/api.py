@@ -834,7 +834,7 @@ class _CompiledSimpleMLModelResource(tracking.TrackableResource):
       self._resource_handle = self._create_resource()
 
     if (not context.executing_eagerly() and
-        tf.get_default_graph()._get_control_flow_context() is not None):  # pylint: disable=protected-access
+        tf.compat.v1.get_default_graph()._get_control_flow_context() is not None):  # pylint: disable=protected-access
       with tf.init_scope():
         self._init_op = self._initialize()
     else:
