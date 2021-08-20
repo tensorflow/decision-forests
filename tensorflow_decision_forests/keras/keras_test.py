@@ -31,6 +31,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+
 from google.protobuf import text_format
 
 from tensorflow_decision_forests import keras
@@ -1028,13 +1029,13 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
   def test_synthetic_classification_numerical(self):
     self._synthetic_train_and_test(
-        keras.Task.CLASSIFICATION, 0.8, 0.72, test_numerical=True)
+        keras.Task.CLASSIFICATION, 0.8, 0.717, test_numerical=True)
 
   def test_synthetic_classification_squeeze_label(self):
     self._synthetic_train_and_test(
         keras.Task.CLASSIFICATION,
         0.8,
-        0.72,
+        0.717,
         test_numerical=True,
         label_shape=1)
 
@@ -1215,7 +1216,14 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     with self.assertRaises(ValueError):
       experiment(infer_prediction_signature=False, save_model=True)
 
-    experiment(infer_prediction_signature=True, save_model=False)
+    def versiontuple(v):
+      return tuple(map(int, (v.split("."))))
+
+    if versiontuple(tf.__version__) >= (2, 7):
+      experiment(infer_prediction_signature=True, save_model=False)
+    else:
+      with self.assertRaises(ValueError):
+        experiment(infer_prediction_signature=True, save_model=False)
 
   def test_get_all_models(self):
     print(keras.get_all_models())

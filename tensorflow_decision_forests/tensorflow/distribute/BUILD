@@ -114,26 +114,3 @@ cc_library(
 
 # Tests
 # =====
-
-tf_cc_test(
-    name = "tf_distribution_test",
-    srcs = ["tf_distribution_test.cc"],
-    data = [
-        ":tf_distribution_py_worker",
-    ],
-    tags = [
-        "noasan",  # OOM as a TF is initialized in each workers.
-    ],
-    deps = [
-        ":tf_distribution",
-        ":tf_distribution_cc_proto",
-        "@com_google_googletest//:gtest_main",
-        "@org_tensorflow//tensorflow/core/platform:test",
-        "@ydf//yggdrasil_decision_forests/utils:filesystem",
-        "@ydf//yggdrasil_decision_forests/utils:test",
-        "@ydf//yggdrasil_decision_forests/utils/distribute",
-        "@ydf//yggdrasil_decision_forests/utils/distribute:distribute_without_implementations",
-        "@ydf//yggdrasil_decision_forests/utils/distribute:test_utils",
-        "@ydf//yggdrasil_decision_forests/utils/distribute:toy_worker",
-    ],
-)

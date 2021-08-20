@@ -48,6 +48,9 @@ function install_dependencies() {
   ${PYTHON} -m pip install setuptools -U
   ${PYTHON} -m pip install build -U
   ${PYTHON} -m pip install virtualenv -U
+  # TODO(janpf): Automatically edit the policy.json file with the
+  # libtensorflow_framework.so.2 entry.
+  ${PYTHON} -m pip install auditwheel -U
 }
 
 function assemble_files() {
@@ -89,7 +92,7 @@ function test_package() {
   PACKAGE="$1"; shift
 
   pip3 install --upgrade pip
-  pip3 install dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-linux_x86_64.whl
+  pip3 install dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-linux_x86_64.whl --force-reinstall
   pip3 list
   pip3 show tensorflow_decision_forests -f
   $PYTHON examples/minimal.py
@@ -145,7 +148,7 @@ eval "$(pyenv init -)"
 
 assemble_files
 
-if [ $1 = "simple" ]; then
+if [ "$1" = "simple" ]; then
   install_dependencies python3.9
   build_package python3.9 39
   test_package python3.9 39

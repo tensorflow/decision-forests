@@ -1,3 +1,5 @@
+# Experimental. Not ready for use.
+
 This directory contains an implementation of a "Yggdrasil Decision Forests
 Distribute" (YDF-D) manager using TensorFlow distributed computation.
 

@@ -14,6 +14,10 @@
 
 -   Fix saving of categorical features specification in the Builder.
 
+-   Migration to Tensorflow 2.6. You will see an `undefined symbol` error if you
+    install this version with a TensorFlow version different than 2.6. Previous
+    versions were compiled for TF 2.5.
+
 ## 0.1.8 - 2021-07-28
 
 ### Features
