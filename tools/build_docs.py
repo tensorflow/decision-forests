@@ -35,9 +35,6 @@ flags.DEFINE_bool("search_hints", True,
 flags.DEFINE_string("site_path", "/decision_forests/api_docs/python",
                     "Path prefix in the _toc.yaml")
 
-flags.DEFINE_bool('gen_report', False,
-                  ('Generate an API report containing the health of the'
-                   'docstrings of the public API.'))
 
 def main(argv):
   if len(argv) > 1:
@@ -50,7 +47,6 @@ def main(argv):
       code_url_prefix=FLAGS.code_url_prefix,
       search_hints=FLAGS.search_hints,
       site_path=FLAGS.site_path,
-      gen_report=FLAGS.gen_report,
       callbacks=[public_api.explicit_package_contents_filter])
   doc_generator.build(FLAGS.output_dir)
 
