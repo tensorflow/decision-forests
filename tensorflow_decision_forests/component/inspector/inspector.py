@@ -221,15 +221,45 @@ class AbstractInspector(object):
 
   def variable_importances(
       self) -> Dict[str, List[Tuple[py_tree.dataspec.SimpleColumnSpec, float]]]:
-    """Various variable importances.
+    """Variable importances (VI) i.e impact of each feature to the model.
 
-    Values are sorted by decreasing value/importance.
+    VIs generally indicates how much a variable contributes to the model
+    predictions or quality. Different VIs have different semantics and are
+    generally not comparable.
 
-    The importance of a variable indicates how much a variable contributes to
-    the model predictions or to the model quality.
+    The VIs returned by `variable_importances()` depends on the learning
+    algorithm and its hyper-parameters. For example, the hyperparameter
+    `compute_oob_variable_importances=True` of the Random Forest learner enables
+    the computation of permutation out-of-bag variable importances.
 
-    The available variable importances depends on the model type and possibly
-    its hyper-parameters.
+    See
+    https://documentation.corp.google.com/external/ydf/yggdrasil_decision_forests/documentation/user_manual.md#variable-importances
+    for the definition of the variable importances.
+
+    Values are sorted by decreasing value/importance except if stated otherwise.
+
+    Usage example:
+
+    ```python
+    # Train a Random Forest. Enable the computation of OOB (out-of-bag) variable
+    # importances.
+    model = tfdf.keras.RandomForestModel(compute_oob_variable_importances=True)
+    model.fit(...)
+
+    # Print all the variable importances
+    model.summary()
+
+    # List the available variable importances
+    print(inspector.variable_importances().keys())
+
+    # Show a specific variable importance
+    # Each line is: (feature name, (index of the feature), importance score)
+    inspector.variable_importances()["MEAN_DECREASE_IN_ACCURACY"]
+    >> [("bill_length_mm" (1; #1), 0.0713061951754389),
+    >> ("island" (4; #4), 0.007298519736842035),
+    >> ("flipper_length_mm" (1; #3), 0.004505893640351366),
+    ...
+    ```
 
     Returns:
       Variable importances.
