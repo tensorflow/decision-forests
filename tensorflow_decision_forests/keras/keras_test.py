@@ -31,7 +31,6 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-
 from google.protobuf import text_format
 
 from tensorflow_decision_forests import keras
@@ -1216,10 +1215,12 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     with self.assertRaises(ValueError):
       experiment(infer_prediction_signature=False, save_model=True)
 
+    # Starting with tf2.7, Keras does not expends automatically rank 1 tensors.
     def versiontuple(v):
       return tuple(map(int, (v.split("."))))
 
     if versiontuple(tf.__version__) >= (2, 7):
+      # Does not expect an exception.
       experiment(infer_prediction_signature=True, save_model=False)
     else:
       with self.assertRaises(ValueError):

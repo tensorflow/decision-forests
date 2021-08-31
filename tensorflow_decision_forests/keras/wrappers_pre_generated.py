@@ -36,19 +36,13 @@ TaskType = "abstract_model_pb2.Task"  # pylint: disable=invalid-name
 AdvancedArguments = core.AdvancedArguments
 
 
-class RandomForestModel(core.CoreModel):
-  r"""Random Forest learning algorithm.
+class CartModel(core.CoreModel):
+  r"""Cart learning algorithm.
 
-  A Random Forest (https://www.stat.berkeley.edu/~breiman/randomforest2001.pdf)
-  is a collection of deep CART decision trees trained independently and without
-  pruning. Each tree is trained on a random subset of the original training 
-  dataset (sampled with replacement).
-  
-  The algorithm is unique in that it is robust to overfitting, even in extreme
-  cases e.g. when there is more features than training examples.
-  
-  It is probably the most well-known of the Decision Forest training
-  algorithms.
+  A CART (Classification and Regression Trees) a decision tree. The non-leaf
+  nodes contains conditions (also known as splits) while the leaf nodes
+  contains prediction values. The training dataset is divided in two parts. The
+  first is used to grow the tree while the second is used to prune the tree.
 
   Usage example:
 
@@ -59,7 +53,7 @@ class RandomForestModel(core.CoreModel):
   dataset = pd.read_csv("project/dataset.csv")
   tf_dataset = tfdf.keras.pd_dataframe_to_tf_dataset(dataset, label="my_label")
 
-  model = tfdf.keras.RandomForestModel()
+  model = tfdf.keras.CartModel()
   model.fit(tf_dataset)
 
   print(model.summary())
@@ -84,9 +78,9 @@ class RandomForestModel(core.CoreModel):
       models on top of each other. Unlike preprocessing done in the tf.dataset,
       the operation in "preprocessing" are serialized with the model.
     postprocessing: Like "preprocessing" but applied on the model output.
-    ranking_group: Only for `task=Task.RANKING`. Name of a tf.string feature that
-      identifies queries in a query/document ranking task. The ranking group
-      is not added automatically for the set of features if
+    ranking_group: Only for `task=Task.RANKING`. Name of a tf.string feature
+      that identifies queries in a query/document ranking task. The ranking
+      group is not added automatically for the set of features if
       `exclude_non_specified_features=false`.
     temp_directory: Temporary directory used to store the model Assets after the
       training, and possibly as a work directory during the training. This
@@ -99,19 +93,10 @@ class RandomForestModel(core.CoreModel):
       If None (default) the default parameters of the library are used. If set,
       `default_hyperparameter_template` refers to one of the following
       preconfigured hyper-parameter sets. Those sets outperforms the default
-      hyper-parameters (either generally or in specific scenarios).
-      You can omit the version (e.g. remove "@v5") to use the last version of
-      the template. In this case, the hyper-parameter can change in between
-      releases (not recommended for training in production).
-      - better_default@v1: A configuration that is generally better than the
-        default parameters without being more expensive. The parameters are:
-        winner_take_all=True.
-      - benchmark_rank1@v1: Top ranking hyper-parameters on our benchmark
-        slightly modified to run in reasonable time. The parameters are:
-        winner_take_all=True, categorical_algorithm="RANDOM",
-        split_axis="SPARSE_OBLIQUE", sparse_oblique_normalization="MIN_MAX",
-        sparse_oblique_num_projections_exponent=1.0.
-
+      hyper-parameters (either generally or in specific scenarios). You can omit
+      the version (e.g. remove "@v5") to use the last version of the template.
+      In this case, the hyper-parameter can change in between releases (not
+      recommended for training in production).
     advanced_arguments: Advanced control of the model that most users won't need
       to use. See `AdvancedArguments` for details.
     num_threads: Number of threads used to train the model. Different learning
@@ -119,21 +104,14 @@ class RandomForestModel(core.CoreModel):
       efficiency. If specified, `num_threads` field of the
       `advanced_arguments.yggdrasil_deployment_config` has priority.
     name: The name of the model.
-    adapt_bootstrap_size_ratio_for_maximum_training_duration: Control how the
-      maximum training duration (if set) is applied. If false, the training
-      stop when the time is used. If true, adapts the size of the sampled
-      dataset used to train each tree such that `num_trees` will train within
-      `maximum_training_duration`. Has no effect if there is no maximum
-      training duration specified. Default: False.
     allow_na_conditions: If true, the tree training evaluates conditions of the
       type `X is NA` i.e. `X is missing`. Default: False.
     categorical_algorithm: How to learn splits on categorical attributes.
       - `CART`: CART algorithm. Find categorical splits of the form "value \\in
         mask". The solution is exact for binary classification, regression and
         ranking. It is approximated for multi-class classification. This is a
-        good first algorithm to use. In case of overfitting (very small
-        dataset, large dictionary), the "random" algorithm is a good
-        alternative.
+        good first algorithm to use. In case of overfitting (very small dataset,
+        large dictionary), the "random" algorithm is a good alternative.
       - `ONE_HOT`: One-hot encoding. Find the optimal categorical split of the
         form "attribute == param". This method is similar (but more efficient)
         than converting converting each possible categorical value into a
@@ -154,32 +132,26 @@ class RandomForestModel(core.CoreModel):
       available, the least frequent items are ignored. Changing this value is
       similar to change the "max_vocab_count" before loading the dataset, with
       the following exception: With `max_vocab_count`, all the remaining items
-      are grouped in a special Out-of-vocabulary item. With `max_num_items`,
+        are grouped in a special Out-of-vocabulary item. With `max_num_items`,
       this is not the case. Default: -1.
     categorical_set_split_min_item_frequency: For categorical set splits e.g.
       texts. Minimum number of occurrences of an item to be considered.
       Default: 1.
-    compute_oob_performances: If true, compute the Out-of-bag evaluation (then
-      available in the summary and model inspector). This evaluation is a cheap
-      alternative to cross-validation evaluation. Default: True.
-    compute_oob_variable_importances: If true, compute the Out-of-bag feature
-      importance (then available in the summary and model inspector). Note that
-      the OOB feature importance can be expensive to compute. Default: False.
     growing_strategy: How to grow the tree.
       - `LOCAL`: Each node is split independently of the other nodes. In other
         words, as long as a node satisfy the splits "constraints (e.g. maximum
         depth, minimum number of observations), the node will be split. This is
         the "classical" way to grow decision trees.
-      - `BEST_FIRST_GLOBAL`: The node with the best loss reduction among all
-        the nodes of the tree is selected for splitting. This method is also
-        called "best first" or "leaf-wise growth". See "Best-first decision
+      - `BEST_FIRST_GLOBAL`: The node with the best loss reduction among all the
+        nodes of the tree is selected for splitting. This method is also called
+        "best first" or "leaf-wise growth". See "Best-first decision
         tree learning", Shi and "Additive logistic regression : A statistical
         view of boosting", Friedman for more details. Default: "LOCAL".
     in_split_min_examples_check: Whether to check the `min_examples` constraint
       in the split search (i.e. splits leading to one child having less than
-      `min_examples` examples are considered invalid) or before the split
-      search (i.e. a node can be derived only if it contains more than
-      `min_examples` examples). If false, there can be nodes with less than
+      `min_examples` examples are considered invalid) or before the split search
+      (i.e. a node can be derived only if it contains more than `min_examples`
+      examples). If false, there can be nodes with less than
       `min_examples` training examples. Default: True.
     max_depth: Maximum depth of the tree. `max_depth=1` means that all trees
       will be roots. Negative values are ignored. Default: 16.
@@ -192,9 +164,9 @@ class RandomForestModel(core.CoreModel):
       model training non-deterministic. Default: -1.0.
     min_examples: Minimum number of examples in a node. Default: 5.
     missing_value_policy: Method used to handle missing attribute values.
-      - `GLOBAL_IMPUTATION`: Missing attribute values are imputed, with the
-        mean (in case of numerical attribute) or the most-frequent-item (in
-        case of categorical attribute) computed on the entire dataset (i.e. the
+      - `GLOBAL_IMPUTATION`: Missing attribute values are imputed, with the mean
+        (in case of numerical attribute) or the most-frequent-item (in case of
+        categorical attribute) computed on the entire dataset (i.e. the
         information contained in the data spec).
       - `LOCAL_IMPUTATION`: Missing attribute values are imputed with the mean
         (numerical attribute) or most-frequent-item (in the case of categorical
@@ -208,27 +180,24 @@ class RandomForestModel(core.CoreModel):
       node. An attribute is valid if it has at least a valid split. If
       `num_candidate_attributes=0`, the value is set to the classical default
       value for Random Forest: `sqrt(number of input attributes)` in case of
-      classification and `number_of_input_attributes / 3` in case of
-      regression. If `num_candidate_attributes=-1`, all the attributes are
+        classification and `number_of_input_attributes / 3` in case of
+        regression. If `num_candidate_attributes=-1`, all the attributes are
       tested. Default: 0.
     num_candidate_attributes_ratio: Ratio of attributes tested at each node. If
       set, it is equivalent to `num_candidate_attributes =
       number_of_input_features x num_candidate_attributes_ratio`. The possible
       values are between ]0, and 1] as well as -1. If not set or equal to -1,
       the `num_candidate_attributes` is used. Default: -1.0.
-    num_trees: Number of individual decision trees. Increasing the number of
-      trees can increase the quality of the model at the expense of size,
-      training speed, and inference latency. Default: 300.
-    sorting_strategy: How are sorted the numerical features in order to find
-      the splits
+    sorting_strategy: How are sorted the numerical features in order to find the
+      splits
       - PRESORT: The features are pre-sorted at the start of the training. This
         solution is faster but consumes much more memory than IN_NODE.
       - IN_NODE: The features are sorted just before being used in the node.
         This solution is slow but consumes little amount of memory.
       . Default: "PRESORT".
     sparse_oblique_normalization: For sparse oblique splits i.e.
-      `split_axis=SPARSE_OBLIQUE`. Normalization applied on the features,
-      before applying the sparse oblique projections.
+      `split_axis=SPARSE_OBLIQUE`. Normalization applied on the features, before
+      applying the sparse oblique projections.
       - `NONE`: No normalization.
       - `STANDARD_DEVIATION`: Normalize the feature by the estimated standard
         deviation on the entire train dataset. Also known as Z-Score
@@ -238,69 +207,59 @@ class RandomForestModel(core.CoreModel):
     sparse_oblique_num_projections_exponent: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Controls of the number of random projections
       to test at each node as `num_features^num_projections_exponent`. Default:
-      None.
+        None.
     sparse_oblique_projection_density_factor: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Controls of the number of random projections
       to test at each node as `num_features^num_projections_exponent`. Default:
-      None.
+        None.
     split_axis: What structure of split to consider for numerical features.
-      - `AXIS_ALIGNED`: Axis aligned splits (i.e. one condition at a time).
-        This is the "classical" way to train a tree. Default value.
+      - `AXIS_ALIGNED`: Axis aligned splits (i.e. one condition at a time). This
+        is the "classical" way to train a tree. Default value.
       - `SPARSE_OBLIQUE`: Sparse oblique splits (i.e. splits one a small number
         of features) from "Sparse Projection Oblique Random Forests", Tomita et
         al., 2020. Default: "AXIS_ALIGNED".
-    winner_take_all: Control how classification trees vote. If true, each tree
-      votes for one class. If false, each tree vote for a distribution of
-      classes. winner_take_all_inference=false is often preferable. Default:
-      True.
-
+    validation_ratio: Ratio of the training dataset used to create the
+      validation dataset used to prune the tree. If set to 0, the entire
+      dataset is used for training, and the tree is not pruned. Default: 0.1.
   """
 
   @core._list_explicit_arguments
-  def __init__(
-      self,
-      task: Optional[TaskType] = core.Task.CLASSIFICATION,
-      features: Optional[List[core.FeatureUsage]] = None,
-      exclude_non_specified_features: Optional[bool] = False,
-      preprocessing: Optional["tf.keras.models.Functional"] = None,
-      postprocessing: Optional["tf.keras.models.Functional"] = None,
-      ranking_group: Optional[str] = None,
-      temp_directory: Optional[str] = None,
-      verbose: Optional[bool] = True,
-      hyperparameter_template: Optional[str] = None,
-      advanced_arguments: Optional[AdvancedArguments] = None,
-      num_threads: Optional[int] = 6,
-      name: Optional[str] = None,
-      adapt_bootstrap_size_ratio_for_maximum_training_duration: Optional[
-          bool] = False,
-      allow_na_conditions: Optional[bool] = False,
-      categorical_algorithm: Optional[str] = "CART",
-      categorical_set_split_greedy_sampling: Optional[float] = 0.1,
-      categorical_set_split_max_num_items: Optional[int] = -1,
-      categorical_set_split_min_item_frequency: Optional[int] = 1,
-      compute_oob_performances: Optional[bool] = True,
-      compute_oob_variable_importances: Optional[bool] = False,
-      growing_strategy: Optional[str] = "LOCAL",
-      in_split_min_examples_check: Optional[bool] = True,
-      max_depth: Optional[int] = 16,
-      max_num_nodes: Optional[int] = None,
-      maximum_training_duration_seconds: Optional[float] = -1.0,
-      min_examples: Optional[int] = 5,
-      missing_value_policy: Optional[str] = "GLOBAL_IMPUTATION",
-      num_candidate_attributes: Optional[int] = 0,
-      num_candidate_attributes_ratio: Optional[float] = -1.0,
-      num_trees: Optional[int] = 300,
-      sorting_strategy: Optional[str] = "PRESORT",
-      sparse_oblique_normalization: Optional[str] = None,
-      sparse_oblique_num_projections_exponent: Optional[float] = None,
-      sparse_oblique_projection_density_factor: Optional[float] = None,
-      split_axis: Optional[str] = "AXIS_ALIGNED",
-      winner_take_all: Optional[bool] = True,
-      explicit_args: Optional[Set[str]] = None):
+  def __init__(self,
+               task: Optional[TaskType] = core.Task.CLASSIFICATION,
+               features: Optional[List[core.FeatureUsage]] = None,
+               exclude_non_specified_features: Optional[bool] = False,
+               preprocessing: Optional["tf.keras.models.Functional"] = None,
+               postprocessing: Optional["tf.keras.models.Functional"] = None,
+               ranking_group: Optional[str] = None,
+               temp_directory: Optional[str] = None,
+               verbose: Optional[bool] = True,
+               hyperparameter_template: Optional[str] = None,
+               advanced_arguments: Optional[AdvancedArguments] = None,
+               num_threads: Optional[int] = 6,
+               name: Optional[str] = None,
+               allow_na_conditions: Optional[bool] = False,
+               categorical_algorithm: Optional[str] = "CART",
+               categorical_set_split_greedy_sampling: Optional[float] = 0.1,
+               categorical_set_split_max_num_items: Optional[int] = -1,
+               categorical_set_split_min_item_frequency: Optional[int] = 1,
+               growing_strategy: Optional[str] = "LOCAL",
+               in_split_min_examples_check: Optional[bool] = True,
+               max_depth: Optional[int] = 16,
+               max_num_nodes: Optional[int] = None,
+               maximum_training_duration_seconds: Optional[float] = -1.0,
+               min_examples: Optional[int] = 5,
+               missing_value_policy: Optional[str] = "GLOBAL_IMPUTATION",
+               num_candidate_attributes: Optional[int] = 0,
+               num_candidate_attributes_ratio: Optional[float] = -1.0,
+               sorting_strategy: Optional[str] = "PRESORT",
+               sparse_oblique_normalization: Optional[str] = None,
+               sparse_oblique_num_projections_exponent: Optional[float] = None,
+               sparse_oblique_projection_density_factor: Optional[float] = None,
+               split_axis: Optional[str] = "AXIS_ALIGNED",
+               validation_ratio: Optional[float] = 0.1,
+               explicit_args: Optional[Set[str]] = None):
 
     learner_params = {
-        "adapt_bootstrap_size_ratio_for_maximum_training_duration":
-            adapt_bootstrap_size_ratio_for_maximum_training_duration,
         "allow_na_conditions":
             allow_na_conditions,
         "categorical_algorithm":
@@ -311,10 +270,6 @@ class RandomForestModel(core.CoreModel):
             categorical_set_split_max_num_items,
         "categorical_set_split_min_item_frequency":
             categorical_set_split_min_item_frequency,
-        "compute_oob_performances":
-            compute_oob_performances,
-        "compute_oob_variable_importances":
-            compute_oob_variable_importances,
         "growing_strategy":
             growing_strategy,
         "in_split_min_examples_check":
@@ -333,8 +288,6 @@ class RandomForestModel(core.CoreModel):
             num_candidate_attributes,
         "num_candidate_attributes_ratio":
             num_candidate_attributes_ratio,
-        "num_trees":
-            num_trees,
         "sorting_strategy":
             sorting_strategy,
         "sparse_oblique_normalization":
@@ -345,8 +298,8 @@ class RandomForestModel(core.CoreModel):
             sparse_oblique_projection_density_factor,
         "split_axis":
             split_axis,
-        "winner_take_all":
-            winner_take_all,
+        "validation_ratio":
+            validation_ratio,
     }
 
     if hyperparameter_template is not None:
@@ -354,9 +307,9 @@ class RandomForestModel(core.CoreModel):
           learner_params, hyperparameter_template,
           self.predefined_hyperparameters(), explicit_args)
 
-    super(RandomForestModel, self).__init__(
+    super(CartModel, self).__init__(
         task=task,
-        learner="RANDOM_FOREST",
+        learner="CART",
         learner_params=learner_params,
         features=features,
         exclude_non_specified_features=exclude_non_specified_features,
@@ -371,24 +324,7 @@ class RandomForestModel(core.CoreModel):
 
   @staticmethod
   def predefined_hyperparameters() -> List[core.HyperParameterTemplate]:
-    return [
-        core.HyperParameterTemplate(
-            name="better_default",
-            version=1,
-            description="A configuration that is generally better than the default parameters without being more expensive.",
-            parameters={"winner_take_all": True}),
-        core.HyperParameterTemplate(
-            name="benchmark_rank1",
-            version=1,
-            description="Top ranking hyper-parameters on our benchmark slightly modified to run in reasonable time.",
-            parameters={
-                "winner_take_all": True,
-                "categorical_algorithm": "RANDOM",
-                "split_axis": "SPARSE_OBLIQUE",
-                "sparse_oblique_normalization": "MIN_MAX",
-                "sparse_oblique_num_projections_exponent": 1.0
-            }),
-    ]
+    return []
 
 
 class GradientBoostedTreesModel(core.CoreModel):
@@ -837,13 +773,19 @@ class GradientBoostedTreesModel(core.CoreModel):
     ]
 
 
-class CartModel(core.CoreModel):
-  r"""Cart learning algorithm.
+class RandomForestModel(core.CoreModel):
+  r"""Random Forest learning algorithm.
 
-  A CART (Classification and Regression Trees) a decision tree. The non-leaf
-  nodes contains conditions (also known as splits) while the leaf nodes
-  contains prediction values. The training dataset is divided in two parts. The
-  first is used to grow the tree while the second is used to prune the tree.
+  A Random Forest (https://www.stat.berkeley.edu/~breiman/randomforest2001.pdf)
+  is a collection of deep CART decision trees trained independently and without
+  pruning. Each tree is trained on a random subset of the original training 
+  dataset (sampled with replacement).
+  
+  The algorithm is unique in that it is robust to overfitting, even in extreme
+  cases e.g. when there is more features than training examples.
+  
+  It is probably the most well-known of the Decision Forest training
+  algorithms.
 
   Usage example:
 
@@ -854,7 +796,7 @@ class CartModel(core.CoreModel):
   dataset = pd.read_csv("project/dataset.csv")
   tf_dataset = tfdf.keras.pd_dataframe_to_tf_dataset(dataset, label="my_label")
 
-  model = tfdf.keras.CartModel()
+  model = tfdf.keras.RandomForestModel()
   model.fit(tf_dataset)
 
   print(model.summary())
@@ -898,7 +840,14 @@ class CartModel(core.CoreModel):
       You can omit the version (e.g. remove "@v5") to use the last version of
       the template. In this case, the hyper-parameter can change in between
       releases (not recommended for training in production).
-      
+      - better_default@v1: A configuration that is generally better than the
+        default parameters without being more expensive. The parameters are:
+        winner_take_all=True.
+      - benchmark_rank1@v1: Top ranking hyper-parameters on our benchmark
+        slightly modified to run in reasonable time. The parameters are:
+        winner_take_all=True, categorical_algorithm="RANDOM",
+        split_axis="SPARSE_OBLIQUE", sparse_oblique_normalization="MIN_MAX",
+        sparse_oblique_num_projections_exponent=1.0.
 
     advanced_arguments: Advanced control of the model that most users won't need
       to use. See `AdvancedArguments` for details.
@@ -907,6 +856,12 @@ class CartModel(core.CoreModel):
       efficiency. If specified, `num_threads` field of the
       `advanced_arguments.yggdrasil_deployment_config` has priority.
     name: The name of the model.
+    adapt_bootstrap_size_ratio_for_maximum_training_duration: Control how the
+      maximum training duration (if set) is applied. If false, the training
+      stop when the time is used. If true, adapts the size of the sampled
+      dataset used to train each tree such that `num_trees` will train within
+      `maximum_training_duration`. Has no effect if there is no maximum
+      training duration specified. Default: False.
     allow_na_conditions: If true, the tree training evaluates conditions of the
       type `X is NA` i.e. `X is missing`. Default: False.
     categorical_algorithm: How to learn splits on categorical attributes.
@@ -941,6 +896,12 @@ class CartModel(core.CoreModel):
     categorical_set_split_min_item_frequency: For categorical set splits e.g.
       texts. Minimum number of occurrences of an item to be considered.
       Default: 1.
+    compute_oob_performances: If true, compute the Out-of-bag evaluation (then
+      available in the summary and model inspector). This evaluation is a cheap
+      alternative to cross-validation evaluation. Default: True.
+    compute_oob_variable_importances: If true, compute the Out-of-bag feature
+      importance (then available in the summary and model inspector). Note that
+      the OOB feature importance can be expensive to compute. Default: False.
     growing_strategy: How to grow the tree.
       - `LOCAL`: Each node is split independently of the other nodes. In other
         words, as long as a node satisfy the splits "constraints (e.g. maximum
@@ -992,6 +953,9 @@ class CartModel(core.CoreModel):
       number_of_input_features x num_candidate_attributes_ratio`. The possible
       values are between ]0, and 1] as well as -1. If not set or equal to -1,
       the `num_candidate_attributes` is used. Default: -1.0.
+    num_trees: Number of individual decision trees. Increasing the number of
+      trees can increase the quality of the model at the expense of size,
+      training speed, and inference latency. Default: 300.
     sorting_strategy: How are sorted the numerical features in order to find
       the splits
       - PRESORT: The features are pre-sorted at the start of the training. This
@@ -1022,48 +986,58 @@ class CartModel(core.CoreModel):
       - `SPARSE_OBLIQUE`: Sparse oblique splits (i.e. splits one a small number
         of features) from "Sparse Projection Oblique Random Forests", Tomita et
         al., 2020. Default: "AXIS_ALIGNED".
-    validation_ratio: Ratio of the training dataset used to create the
-      validation dataset used to prune the tree. Default: 0.1.
+    winner_take_all: Control how classification trees vote. If true, each tree
+      votes for one class. If false, each tree vote for a distribution of
+      classes. winner_take_all_inference=false is often preferable. Default:
+      True.
 
   """
 
   @core._list_explicit_arguments
-  def __init__(self,
-               task: Optional[TaskType] = core.Task.CLASSIFICATION,
-               features: Optional[List[core.FeatureUsage]] = None,
-               exclude_non_specified_features: Optional[bool] = False,
-               preprocessing: Optional["tf.keras.models.Functional"] = None,
-               postprocessing: Optional["tf.keras.models.Functional"] = None,
-               ranking_group: Optional[str] = None,
-               temp_directory: Optional[str] = None,
-               verbose: Optional[bool] = True,
-               hyperparameter_template: Optional[str] = None,
-               advanced_arguments: Optional[AdvancedArguments] = None,
-               num_threads: Optional[int] = 6,
-               name: Optional[str] = None,
-               allow_na_conditions: Optional[bool] = False,
-               categorical_algorithm: Optional[str] = "CART",
-               categorical_set_split_greedy_sampling: Optional[float] = 0.1,
-               categorical_set_split_max_num_items: Optional[int] = -1,
-               categorical_set_split_min_item_frequency: Optional[int] = 1,
-               growing_strategy: Optional[str] = "LOCAL",
-               in_split_min_examples_check: Optional[bool] = True,
-               max_depth: Optional[int] = 16,
-               max_num_nodes: Optional[int] = None,
-               maximum_training_duration_seconds: Optional[float] = -1.0,
-               min_examples: Optional[int] = 5,
-               missing_value_policy: Optional[str] = "GLOBAL_IMPUTATION",
-               num_candidate_attributes: Optional[int] = 0,
-               num_candidate_attributes_ratio: Optional[float] = -1.0,
-               sorting_strategy: Optional[str] = "PRESORT",
-               sparse_oblique_normalization: Optional[str] = None,
-               sparse_oblique_num_projections_exponent: Optional[float] = None,
-               sparse_oblique_projection_density_factor: Optional[float] = None,
-               split_axis: Optional[str] = "AXIS_ALIGNED",
-               validation_ratio: Optional[float] = 0.1,
-               explicit_args: Optional[Set[str]] = None):
+  def __init__(
+      self,
+      task: Optional[TaskType] = core.Task.CLASSIFICATION,
+      features: Optional[List[core.FeatureUsage]] = None,
+      exclude_non_specified_features: Optional[bool] = False,
+      preprocessing: Optional["tf.keras.models.Functional"] = None,
+      postprocessing: Optional["tf.keras.models.Functional"] = None,
+      ranking_group: Optional[str] = None,
+      temp_directory: Optional[str] = None,
+      verbose: Optional[bool] = True,
+      hyperparameter_template: Optional[str] = None,
+      advanced_arguments: Optional[AdvancedArguments] = None,
+      num_threads: Optional[int] = 6,
+      name: Optional[str] = None,
+      adapt_bootstrap_size_ratio_for_maximum_training_duration: Optional[
+          bool] = False,
+      allow_na_conditions: Optional[bool] = False,
+      categorical_algorithm: Optional[str] = "CART",
+      categorical_set_split_greedy_sampling: Optional[float] = 0.1,
+      categorical_set_split_max_num_items: Optional[int] = -1,
+      categorical_set_split_min_item_frequency: Optional[int] = 1,
+      compute_oob_performances: Optional[bool] = True,
+      compute_oob_variable_importances: Optional[bool] = False,
+      growing_strategy: Optional[str] = "LOCAL",
+      in_split_min_examples_check: Optional[bool] = True,
+      max_depth: Optional[int] = 16,
+      max_num_nodes: Optional[int] = None,
+      maximum_training_duration_seconds: Optional[float] = -1.0,
+      min_examples: Optional[int] = 5,
+      missing_value_policy: Optional[str] = "GLOBAL_IMPUTATION",
+      num_candidate_attributes: Optional[int] = 0,
+      num_candidate_attributes_ratio: Optional[float] = -1.0,
+      num_trees: Optional[int] = 300,
+      sorting_strategy: Optional[str] = "PRESORT",
+      sparse_oblique_normalization: Optional[str] = None,
+      sparse_oblique_num_projections_exponent: Optional[float] = None,
+      sparse_oblique_projection_density_factor: Optional[float] = None,
+      split_axis: Optional[str] = "AXIS_ALIGNED",
+      winner_take_all: Optional[bool] = True,
+      explicit_args: Optional[Set[str]] = None):
 
     learner_params = {
+        "adapt_bootstrap_size_ratio_for_maximum_training_duration":
+            adapt_bootstrap_size_ratio_for_maximum_training_duration,
         "allow_na_conditions":
             allow_na_conditions,
         "categorical_algorithm":
@@ -1074,6 +1048,10 @@ class CartModel(core.CoreModel):
             categorical_set_split_max_num_items,
         "categorical_set_split_min_item_frequency":
             categorical_set_split_min_item_frequency,
+        "compute_oob_performances":
+            compute_oob_performances,
+        "compute_oob_variable_importances":
+            compute_oob_variable_importances,
         "growing_strategy":
             growing_strategy,
         "in_split_min_examples_check":
@@ -1092,6 +1070,8 @@ class CartModel(core.CoreModel):
             num_candidate_attributes,
         "num_candidate_attributes_ratio":
             num_candidate_attributes_ratio,
+        "num_trees":
+            num_trees,
         "sorting_strategy":
             sorting_strategy,
         "sparse_oblique_normalization":
@@ -1102,8 +1082,8 @@ class CartModel(core.CoreModel):
             sparse_oblique_projection_density_factor,
         "split_axis":
             split_axis,
-        "validation_ratio":
-            validation_ratio,
+        "winner_take_all":
+            winner_take_all,
     }
 
     if hyperparameter_template is not None:
@@ -1111,9 +1091,9 @@ class CartModel(core.CoreModel):
           learner_params, hyperparameter_template,
           self.predefined_hyperparameters(), explicit_args)
 
-    super(CartModel, self).__init__(
+    super(RandomForestModel, self).__init__(
         task=task,
-        learner="CART",
+        learner="RANDOM_FOREST",
         learner_params=learner_params,
         features=features,
         exclude_non_specified_features=exclude_non_specified_features,
@@ -1128,4 +1108,21 @@ class CartModel(core.CoreModel):
 
   @staticmethod
   def predefined_hyperparameters() -> List[core.HyperParameterTemplate]:
-    return []
+    return [
+        core.HyperParameterTemplate(
+            name="better_default",
+            version=1,
+            description="A configuration that is generally better than the default parameters without being more expensive.",
+            parameters={"winner_take_all": True}),
+        core.HyperParameterTemplate(
+            name="benchmark_rank1",
+            version=1,
+            description="Top ranking hyper-parameters on our benchmark slightly modified to run in reasonable time.",
+            parameters={
+                "winner_take_all": True,
+                "categorical_algorithm": "RANDOM",
+                "split_axis": "SPARSE_OBLIQUE",
+                "sparse_oblique_normalization": "MIN_MAX",
+                "sparse_oblique_num_projections_exponent": 1.0
+            }),
+    ]

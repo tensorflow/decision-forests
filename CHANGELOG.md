@@ -1,22 +1,21 @@
 # Changelog
 
-## 0.1.8 - 2021-08-11
+## 0.1.9 - 2021-08-31
+
+### Features
+
+-   Disable tree pruning in the CART algorithm if the validation dataset is
+    empty (i.e. `validation_ratio=0`).
+-   Migration to Tensorflow 2.6. You will see an `undefined symbol` error if you
+    install this version with a TensorFlow version different than 2.6. Previous
+    versions were compiled for TF 2.5.
 
 ### Fixes
 
 -   Fix failure from
     [Github Issue #45](https://github.com/tensorflow/decision-forests/issues/45)
     where the wrong field was accessed for leaf node distributions.
-
--   Fix incorrect handling of CART pruning when validation set is empty.
-    Previously, the whole tree would be erroneously pruned. Now, pruning is
-    disabled if the validation set is not specified.
-
 -   Fix saving of categorical features specification in the Builder.
-
--   Migration to Tensorflow 2.6. You will see an `undefined symbol` error if you
-    install this version with a TensorFlow version different than 2.6. Previous
-    versions were compiled for TF 2.5.
 
 ## 0.1.8 - 2021-07-28
 
