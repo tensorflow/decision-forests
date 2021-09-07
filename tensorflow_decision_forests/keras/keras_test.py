@@ -1408,6 +1408,34 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     self.assertIn("pred_plus_one", predictions)
     self.assertAllGreaterEqual(predictions["pred_plus_one"], 1.0)
 
+  def test_unset_predict_single_probability_for_binary_classification(self):
+
+    # Train a simple binary classification model.
+    x_train = np.random.uniform(size=(50, 1))
+    y_train = x_train[:, 0] >= 0.5
+    model = keras.RandomForestModel(
+        num_trees=10,
+        advanced_arguments=keras.AdvancedArguments(
+            predict_single_probability_for_binary_classification=False))
+    model.fit(x=x_train, y=y_train)
+
+    # Make sure the prediction contains the probabilities of the two classes.
+    predictions = model.predict(x_train)
+    self.assertEqual(predictions.shape[1], 2)
+
+  def test_set_predict_single_probability_for_binary_classification(self):
+
+    # Train a simple binary classification model.
+    x_train = np.random.uniform(size=(50, 1))
+    y_train = x_train[:, 0] >= 0.5
+    model = keras.RandomForestModel(
+        num_trees=10,
+        advanced_arguments=keras.AdvancedArguments(
+            predict_single_probability_for_binary_classification=True))
+    model.fit(x=x_train, y=y_train)
+    predictions = model.predict(x_train)
+    self.assertEqual(predictions.shape[1], 1)
+
 
 if __name__ == "__main__":
   tf.test.main()

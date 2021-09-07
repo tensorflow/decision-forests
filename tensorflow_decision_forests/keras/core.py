@@ -243,6 +243,12 @@ class AdvancedArguments(NamedTuple):
     fail_on_non_keras_compatible_feature_name: If true (default), training will
       fail if one of the feature name is not compatible with part of the Keras
       API. If false, a warning will be generated instead.
+    predict_single_probability_for_binary_classification: Only used for binary
+      classification. If true (default), the prediction of a binary class model
+      is a tensor of shape [None, 1] containing the probability of the positive
+      class (value=1). If false, the prediction of a binary class model is a
+      tensor of shape [None, num_classes=2] containing the probability of the
+      complementary classes.
   """
 
   infer_prediction_signature: Optional[bool] = True
@@ -251,6 +257,7 @@ class AdvancedArguments(NamedTuple):
   yggdrasil_deployment_config: Optional[
       YggdrasilDeploymentConfig] = abstract_learner_pb2.DeploymentConfig()
   fail_on_non_keras_compatible_feature_name: Optional[bool] = True
+  predict_single_probability_for_binary_classification: Optional[bool] = True
 
 
 class CoreModel(models.Model):
@@ -596,10 +603,12 @@ class CoreModel(models.Model):
     # Apply the model.
     predictions = self._model.apply(normalized_inputs)
 
-    if (self._task == Task.CLASSIFICATION and
+    if (self._advanced_arguments
+        .predict_single_probability_for_binary_classification and
+        self._task == Task.CLASSIFICATION and
         predictions.dense_predictions.shape[1] == 2):
       # Yggdrasil returns the probably of both classes in binary classification.
-      # Keras expects only the value (logic or probability) of the "positive"
+      # Keras expects only the value (logit or probability) of the "positive"
       # class (value=1).
       predictions = predictions.dense_predictions[:, 1:2]
     else:
