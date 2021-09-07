@@ -8,6 +8,8 @@
     to generate prediction tensors of shape [batch_size, 2] for binary
     classification model.
 -   Add support for weighted training.
+-   Add support for permutation variable importance in the GBT learner with the
+    `compute_permutation_variable_importance` parameter.
 
 ## 0.1.9 - 2021-08-31
 
