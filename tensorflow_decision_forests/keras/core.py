@@ -98,6 +98,7 @@ FeatureSemantic = tf_core.Semantic
 # Feature name placeholder.
 _LABEL = "__LABEL"
 _RANK_GROUP = "__RANK_GROUP"
+_WEIGHTS = "__WEIGHTS"
 
 # This is the list of characters that should not be used as feature name as they
 # as not supported by SavedModel serving signatures.
@@ -432,6 +433,9 @@ class CoreModel(models.Model):
     # Textual description of the model.
     self._description: Optional[Text] = None
 
+    # If the model is trained with weights.
+    self._weighted_training = False
+
   def make_inspector(self) -> inspector_lib.AbstractInspector:
     """Creates an inspector to access the internal model structure.
 
@@ -630,7 +634,14 @@ class CoreModel(models.Model):
                        "`pd_dataframe_to_tf_dataset`, make sure to "
                        f"specify the `label` argument. data={data}")
 
-    train_x, train_y = data
+    if len(data) == 2:
+      train_x, train_y = data
+      train_weights = None
+    elif len(data) == 3:
+      train_x, train_y, train_weights = data
+    else:
+      raise ValueError(f"Unexpected data shape {data}")
+
     if self._verbose:
       logging.info("Collect training examples.\nFeatures: %s\nLabel: %s",
                    train_x, train_y)
@@ -664,6 +675,7 @@ class CoreModel(models.Model):
           f"The training input tensor is expected to be a tensor, list of "
           f"tensors or a dictionary of tensors. Got {train_x} instead")
 
+    # Check the labels
     if not isinstance(train_y, tf.Tensor):
       raise ValueError(
           f"The training label tensor is expected to be a tensor. Got {train_y}"
@@ -678,6 +690,24 @@ class CoreModel(models.Model):
       raise ValueError(
           "Labels can either be passed in as [batch_size, 1] or [batch_size]. "
           "Invalid shape %s." % train_y.shape)
+
+    # Check the training
+    self._weighted_training = train_weights is not None
+    if self._weighted_training:
+      if not isinstance(train_weights, tf.Tensor):
+        raise ValueError(
+            f"The training weights tensor is expected to be a tensor. Got {train_weights}"
+            " instead.")
+
+      if len(train_weights.shape) != 1:
+        if self._verbose:
+          logging.info("Squeezing labels to [batch_size] from [batch_size, 1].")
+        train_weights = tf.squeeze(train_weights, axis=1)
+
+      if len(train_weights.shape) != 1:
+        raise ValueError(
+            "Weights can either be passed in as [batch_size, 1] or [batch_size]. "
+            "Invalid shape %s." % train_weights.shape)
 
     # List the input features and their semantics.
     assert self._semantics is None, "The model is already trained"
@@ -703,7 +733,13 @@ class CoreModel(models.Model):
     self._normalized_input_keys = sorted(
         list(normalized_semantic_inputs.keys()))
 
-    # Adds the semantic of the label.
+    # Add the weights
+    if self._weighted_training:
+      normalized_semantic_inputs[_WEIGHTS] = tf_core.SemanticTensor(
+          tensor=tf.cast(train_weights, tf_core.NormalizedNumericalType),
+          semantic=tf_core.Semantic.NUMERICAL)
+
+    # Add the semantic of the label.
     if self._task == Task.CLASSIFICATION:
       normalized_semantic_inputs[_LABEL] = tf_core.SemanticTensor(
           tensor=tf.cast(train_y, tf_core.NormalizedCategoricalIntType) +
@@ -1014,6 +1050,7 @@ class CoreModel(models.Model):
     tf_core.train(
         input_ids=self._normalized_input_keys,
         label_id=_LABEL,
+        weight_id=_WEIGHTS if self._weighted_training else None,
         model_id=self._training_model_id,
         model_dir=train_model_path,
         learner=self._learner,
@@ -1122,19 +1159,21 @@ def _batch_size(inputs: Union[tf.Tensor, Dict[str, tf.Tensor]]) -> tf.Tensor:
     return tf.shape(inputs)[0]
 
 
-def pd_dataframe_to_tf_dataset(
-    dataframe,
-    label: Optional[str] = None,
-    task: Optional[TaskType] = Task.CLASSIFICATION,
-    max_num_classes: Optional[int] = 100,
-    in_place: Optional[bool] = False,
-    fix_feature_names: Optional[bool] = True) -> tf.data.Dataset:
-  """Converts a Panda Dataframe into a TF Dataset.
+def pd_dataframe_to_tf_dataset(dataframe,
+                               label: Optional[str] = None,
+                               task: Optional[TaskType] = Task.CLASSIFICATION,
+                               max_num_classes: Optional[int] = 100,
+                               in_place: Optional[bool] = False,
+                               fix_feature_names: Optional[bool] = True,
+                               weight: Optional[str] = None) -> tf.data.Dataset:
+  """Converts a Panda Dataframe into a TF Dataset compatible with Keras.
 
   Details:
     - Ensures columns have uniform types.
     - If "label" is provided, separate it as a second channel in the tf.Dataset
-      (as expected by TF-DF).
+      (as expected by Keras).
+    - If "weight" is provided, separate it as a third channel in the tf.Dataset
+      (as expected by Keras).
     - If "task" is provided, ensure the correct dtype of the label. If the task
       a classification and the label a string, integerize the labels. In this
       case, the label values are extracted from the dataset and ordered
@@ -1160,6 +1199,8 @@ def pd_dataframe_to_tf_dataset(
       renamed and made compatible. If `fix_feature_names=False`, the feature
       name will not be changed, but exporting the model might fail (i.e.
       `model.save(...)`).
+    weight: Optional name of a column in `dataframe` to use to weight the
+      training.
 
   Returns:
     A TensorFlow Dataset.
@@ -1196,6 +1237,11 @@ def pd_dataframe_to_tf_dataset(
               "Negative integer classification label found. Make sure "
               "you label values are positive or stored as string.")
 
+  if weight is not None:
+    if weight not in dataframe.columns:
+      raise ValueError(
+          f"The weight \"{weight}\" is not a column of the dataframe.")
+
   if fix_feature_names:
     # Rename the features so they are compatible with SaveModel serving
     # signatures.
@@ -1222,16 +1268,28 @@ def pd_dataframe_to_tf_dataset(
           "Some of the feature names have been changed automatically to be "
           "compatible with SavedModels because fix_feature_names=True.")
 
-  # Make sure tha missing values for string columns are not represented as
+  # Make sure that missing values for string columns are not represented as
   # float(NaN).
   for col in dataframe.columns:
     if dataframe[col].dtype in [str, object]:
       dataframe[col] = dataframe[col].fillna("")
 
   if label is not None:
-    tf_dataset = tf.data.Dataset.from_tensor_slices(
-        (dict(dataframe.drop(label, 1)), dataframe[label].values))
+    features_dataframe = dataframe.drop(label, 1)
+
+    if weight is not None:
+      features_dataframe = features_dataframe.drop(weight, 1)
+      output = (dict(features_dataframe), dataframe[label].values,
+                dataframe[weight].values)
+    else:
+      output = (dict(features_dataframe), dataframe[label].values)
+
+    tf_dataset = tf.data.Dataset.from_tensor_slices(output)
+
   else:
+    if weight is not None:
+      raise ValueError(
+          "\"weight\" is only supported if the \"label\" is also provided")
     tf_dataset = tf.data.Dataset.from_tensor_slices(dict(dataframe))
 
   # The batch size does not impact the training of TF-DF.

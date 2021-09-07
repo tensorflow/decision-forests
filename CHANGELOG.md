@@ -7,6 +7,7 @@
 -   Add advanced option `predict_single_probability_for_binary_classification`
     to generate prediction tensors of shape [batch_size, 2] for binary
     classification model.
+-   Add support for weighted training.
 
 ## 0.1.9 - 2021-08-31
 

@@ -460,6 +460,7 @@ def _num_inner_dimension(value: tf.Tensor) -> int:
 
 def train(input_ids: List[str],
           label_id: str,
+          weight_id: Optional[str],
           model_id: str,
           learner: str,
           task: Optional[TaskType] = Task.CLASSIFICATION,
@@ -477,6 +478,7 @@ def train(input_ids: List[str],
   Args:
     input_ids: Ids/names of the input features.
     label_id: Id/name of the label feature.
+    weight_id: Id/name of the weight feature.
     model_id: Id of the model.
     learner: Key of the learner.
     task: Task to solve.
@@ -518,7 +520,8 @@ def train(input_ids: List[str],
   return training_op.SimpleMLModelTrainer(
       feature_ids=",".join(feature_ids),
       label_id=_input_key_to_id(model_id, label_id),
-      weight_id="",
+      weight_id="" if weight_id is None else _input_key_to_id(
+          model_id, weight_id),
       model_id=model_id if keep_model_in_resource else "",
       model_dir=model_dir or "",
       learner=learner,

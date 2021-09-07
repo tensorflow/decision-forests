@@ -561,6 +561,41 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         minimum_accuracy=0.864,
         check_serialization=True)
 
+  def test_model_numpy_weighted(self):
+    """Test on the synthetic numpy dataset with weighting."""
+
+    # Create a syntetic dataset where the features and labels are independent.
+    # The example weight is dependent on the label value. Therefore, the model
+    # predictions should show this bias.
+    #
+    # Ratio of weight between the two classes. The bias is expected to be
+    # ~p/(1+p).
+    p = 5
+    num_examples = 10000
+    num_features = 4
+    x_train = np.random.uniform(size=(num_examples, num_features))
+    x_test = np.random.uniform(size=(num_examples, num_features))
+    y_train = np.random.uniform(size=num_examples) > 0.5
+    w_train = y_train * (p - 1) + 1  # 1 or p depending on the class.
+
+    model = keras.GradientBoostedTreesModel()
+    model.fit(x=x_train, y=y_train, sample_weight=w_train)
+
+    predictions = model.predict(x_test)
+    self.assertNear(np.mean(predictions), p / (p + 1), 0.02)
+
+  def test_model_adult_weighted(self):
+    """Test on the Adult dataset with weighting."""
+
+    dataset = adult_dataset()
+    model = keras.RandomForestModel()
+    ds = keras.pd_dataframe_to_tf_dataset(
+        dataset.train, dataset.label, weight="age")
+    model.fit(ds)
+
+    inspector = model.make_inspector()
+    self.assertGreater(inspector.evaluation().accuracy, 0.84)
+
   def test_model_adult_automatic_discovery_oob_variable_importance(self):
 
     dataset = adult_dataset()
