@@ -83,7 +83,7 @@ class ClassificationObjective(AbstractObjective):
     elif classes is not None:
       num_classes = len(classes)
 
-    if num_classes < 2:
+    if num_classes < 2:  # pytype: disable=unsupported-operands
       raise ValueError("The number of unique classes should be at least 2 i.e."
                        " binary classification")
 
