@@ -43,6 +43,7 @@ class RemoteConnection {
 
   static tf::Status Create(const std::string& target, const Blob& welcome_blob,
                            absl::string_view worker_name, int worker_idx,
+                           const int num_workers,
                            std::unique_ptr<RemoteConnection>* connection);
 
   // Run a task.
@@ -95,6 +96,9 @@ class TfDistributionManager : public AbstractManager {
 
   absl::Status Done(absl::optional<bool> kill_worker_manager) override;
 
+  utils::StatusOr<int> NumWorkersInConfiguration(
+      const proto::Config& config) const override;
+
  private:
   struct Worker {
     int worker_idx;
@@ -109,8 +113,8 @@ class TfDistributionManager : public AbstractManager {
   };
 
   absl::Status Initialize(const proto::Config& config,
-                          absl::string_view worker_name,
-                          Blob welcome_blob) override;
+                          absl::string_view worker_name, Blob welcome_blob,
+                          int parallel_execution_per_worker) override;
 
   absl::Status InitializeWorkers(const proto::Config& config,
                                  absl::string_view worker_name,
@@ -123,7 +127,7 @@ class TfDistributionManager : public AbstractManager {
 
   void JoinWorkers();
 
-  bool verbose_ = true;
+  int verbosity_;
   std::vector<std::unique_ptr<Worker>> workers_;
 
   // Async query to execute by any worker.

@@ -47,11 +47,12 @@ class WorkerResource : public tf::ResourceBase {
   }
 
   absl::Status ReadyWorker(const std::string& welcome_blob,
-                           const std::string& worker_name,
-                           const int worker_idx) {
+                           const std::string& worker_name, const int worker_idx,
+                           const int num_workers) {
     absl::WriterMutexLock l(&mu_);
     ASSIGN_OR_RETURN(worker_, AbstractWorkerRegisterer::Create(worker_name));
-    RETURN_IF_ERROR(InternalInitializeWorker(worker_idx, worker_.get()));
+    RETURN_IF_ERROR(
+        InternalInitializeWorker(worker_idx, num_workers, worker_.get()));
     RETURN_IF_ERROR(worker_->Setup(welcome_blob));
     return absl::OkStatus();
   }
@@ -78,6 +79,7 @@ class YggdrasilDistributeRunTask : public OpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("resource_uid", &resource_uid_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("worker_name", &worker_name_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("worker_idx", &worker_idx_));
+    OP_REQUIRES_OK(ctx, ctx->GetAttr("num_workers", &num_workers_));
   }
 
   ~YggdrasilDistributeRunTask() override {
@@ -120,12 +122,13 @@ class YggdrasilDistributeRunTask : public OpKernel {
         }));
 
     TF_RETURN_IF_ERROR(utils::FromUtilStatus(worker_resource_->ReadyWorker(
-        welcome_blob_, worker_name_, worker_idx_)));
+        welcome_blob_, worker_name_, worker_idx_, num_workers_)));
 
     return tf::Status::OK();
   }
 
   int worker_idx_;
+  int num_workers_;
   std::string welcome_blob_;
   std::string worker_name_;
   std::string resource_uid_;

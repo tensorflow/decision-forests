@@ -30,12 +30,12 @@ namespace distribute {
 namespace {
 
 // Create a TF DIst manager and its workers.
-ManagerAndWorkers CreateTfDistManager() {
+ManagerAndWorkers CreateTfDistManager(int parallel_execution_per_worker = 1) {
   ManagerAndWorkers manager_and_workers;
   // Manager configuration.
   proto::Config config;
   config.set_implementation_key("TF_DIST");
-  config.set_verbose(true);
+  config.set_verbosity(2);
   config.set_working_directory(
       file::JoinPath(test::TmpDirectory(), "work_dir"));
   auto* addresses = config.MutableExtension(proto::tf_distribution)
@@ -87,8 +87,9 @@ ManagerAndWorkers CreateTfDistManager() {
   absl::SleepFor(absl::Seconds(2));
 
   // Start manager.
-  manager_and_workers.manager =
-      CreateManager(config, kToyWorkerKey, "hello").value();
+  manager_and_workers.manager = CreateManager(config, kToyWorkerKey, "hello",
+                                              parallel_execution_per_worker)
+                                    .value();
   return manager_and_workers;
 }
 
@@ -128,7 +129,7 @@ TEST(TFDist, BlockingRequest) {
 
 TEST(TFDist, WorkerError) {
   auto all = CreateTfDistManager();
-  TestWorkerError(all.manager.get());
+  TestBlockingRequest(all.manager.get());
   all.Join();
 }
 
@@ -149,6 +150,22 @@ TEST(TFDist, AsynchronousRequestWithSpecificWorker) {
   TestAsynchronousRequestWithSpecificWorker(all.manager.get());
   all.Join();
 }
+
+// Enable the following test when the TF-Distribution supports worker-to-worker
+// communication.
+/*
+TEST(TFDist, AsynchronousIntraWorkerCommunication) {
+  auto all = CreateTfDistManager();
+  TestAsynchronousIntraWorkerCommunication(all.manager.get());
+  all.Join();
+}
+
+TEST(TFDist, AsynchronousParallelWorkerExecution) {
+  auto all = CreateTfDistManager(5);
+  TestAsynchronousParallelWorkerExecution(all.manager.get());
+  all.Join();
+}
+*/
 
 }  // namespace
 }  // namespace distribute

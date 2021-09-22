@@ -25,6 +25,7 @@ REGISTER_OP("YggdrasilDistributeRunTask")
     .Attr("worker_name: string")
     .Attr("resource_uid: string")
     .Attr("worker_idx: int")
+    .Attr("num_workers: int")
     .Input("input_blob: string")
     .Output("output_blob: string");
 

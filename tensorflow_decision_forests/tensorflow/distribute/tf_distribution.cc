@@ -40,6 +40,27 @@ namespace tf = ::tensorflow;
 
 constexpr char TfDistributionManager::kKey[];
 
+utils::StatusOr<int> TfDistributionManager::NumWorkersInConfiguration(
+    const proto::Config& config) const {
+  const auto& imp_config = config.GetExtension(proto::tf_distribution);
+
+  switch (imp_config.worker_address_case()) {
+    case proto::TfDistribution::kSocketAddresses:
+      return imp_config.socket_addresses().addresses_size();
+    case proto::TfDistribution::kEnvironmentVariable: {
+      const char* tf_config = std::getenv("TF_CONFIG");
+      if (tf_config == nullptr) {
+        return absl::InvalidArgumentError("TF_CONFIG not defined");
+      }
+      ASSIGN_OR_RETURN(const auto worker_addresses,
+                       internal::JsonConfigToWorkers(tf_config));
+      return worker_addresses.size();
+    }
+    default:
+      return absl::UnimplementedError("Unknown worker address type");
+  }
+}
+
 absl::Status TfDistributionManager::InitializeWorkers(
     const proto::Config& config, const absl::string_view worker_name,
     Blob welcome_blob) {
@@ -70,7 +91,7 @@ absl::Status TfDistributionManager::InitializeWorkers(
     return absl::InvalidArgumentError("There should be at least one worker");
   }
 
-  if (verbose_) {
+  if (verbosity_ >= 1) {
     LOG(INFO) << "Start manager with " << worker_addresses.size()
               << " workers.";
   }
@@ -80,14 +101,14 @@ absl::Status TfDistributionManager::InitializeWorkers(
     worker->worker_idx = worker_idx;
     worker->address = worker_addresses[worker_idx];
 
-    if (verbose_) {
-      LOG(INFO) << "Connect to worker #" << worker_idx << " to "
+    if (verbosity_ >= 1) {
+      LOG(INFO) << "Connect to worker #" << worker_idx << " at address "
                 << worker_addresses[worker_idx];
     }
 
     CHECK_OK(utils::ToUtilStatus(internal::RemoteConnection::Create(
         worker_addresses[worker_idx], welcome_blob, worker_name, worker_idx,
-        &worker->connection)));
+        worker_addresses.size(), &worker->connection)));
 
     worker->main_thread_local_pool =
         absl::make_unique<utils::concurrency::Thread>(
@@ -103,7 +124,7 @@ absl::Status TfDistributionManager::InitializeWorkers(
 
 void TfDistributionManager::WorkerRun(Blob blob, Worker* worker) {
   auto result = worker->connection->RunTask(std::move(blob));
-  if (verbose_ && !result.ok()) {
+  if (verbosity_ >= 1 && !result.ok()) {
     LOG(WARNING) << "Session called failed with error: "
                  << result.status().ToString();
   }
@@ -132,7 +153,7 @@ void TfDistributionManager::WorkerMainGlobalPool(Worker* worker) {
 
 utils::StatusOr<Blob> TfDistributionManager::BlockingRequest(Blob blob,
                                                              int worker_idx) {
-  if (verbose_) {
+  if (verbosity_ >= 2) {
     LOG(INFO) << "Sending blocking request with " << blob.size() << " bytes";
   }
   if (worker_idx < 0) {
@@ -144,7 +165,7 @@ utils::StatusOr<Blob> TfDistributionManager::BlockingRequest(Blob blob,
 
 absl::Status TfDistributionManager::AsynchronousRequest(Blob blob,
                                                         int worker_idx) {
-  if (verbose_) {
+  if (verbosity_ >= 2) {
     LOG(INFO) << "Sending asynchronous request with " << blob.size()
               << " bytes";
   }
@@ -157,14 +178,14 @@ absl::Status TfDistributionManager::AsynchronousRequest(Blob blob,
 }
 
 utils::StatusOr<Blob> TfDistributionManager::NextAsynchronousAnswer() {
-  if (verbose_) {
+  if (verbosity_ >= 2) {
     LOG(INFO) << "Wait for next asynchronous result";
   }
   auto answer_or = async_pending_answers_.Pop();
   if (!answer_or.has_value()) {
     return absl::OutOfRangeError("No more results available");
   }
-  if (verbose_) {
+  if (verbosity_ >= 2) {
     LOG(INFO) << "Receive asynchronous request with "
               << answer_or.value().value().size() << " bytes";
   }
@@ -175,7 +196,7 @@ int TfDistributionManager::NumWorkers() { return workers_.size(); }
 
 absl::Status TfDistributionManager::Done(
     absl::optional<bool> kill_worker_manager) {
-  if (verbose_) {
+  if (verbosity_ >= 1) {
     LOG(INFO) << "Shutdown manager";
   }
   if (done_was_called_) {
@@ -204,7 +225,7 @@ absl::Status TfDistributionManager::Done(
 
   workers_.clear();
 
-  if (verbose_) {
+  if (verbosity_ >= 1) {
     LOG(INFO) << "Manager has been shutdown";
   }
 
@@ -220,10 +241,10 @@ void TfDistributionManager::JoinWorkers() {
 
 absl::Status TfDistributionManager::Initialize(
     const proto::Config& config, const absl::string_view worker_name,
-    Blob welcome_blob) {
-  verbose_ = config.verbose();
+    Blob welcome_blob, int parallel_execution_per_worker) {
+  verbosity_ = config.verbosity();
 
-  if (verbose_) {
+  if (verbosity_ >= 2) {
     LOG(INFO) << "Initialize manager with " << welcome_blob.size()
               << " bytes welcome blob";
   }
@@ -238,7 +259,7 @@ namespace internal {
 tf::Status RemoteConnection::Create(
     const std::string& target, const Blob& welcome_blob,
     const absl::string_view worker_name, const int worker_idx,
-    std::unique_ptr<RemoteConnection>* connection) {
+    const int num_workers, std::unique_ptr<RemoteConnection>* connection) {
   // Generate manager uid.  Used to distinguish between the different managers
   // controlling a same pool of workers.
   std::random_device rnd;
@@ -272,6 +293,7 @@ tf::Status RemoteConnection::Create(
             .Attr("welcome_blob", welcome_blob)
             .Attr("worker_name", std::string(worker_name))
             .Attr("worker_idx", worker_idx)
+            .Attr("num_workers", num_workers)
             .Attr("resource_uid", resource_uid);
     conn->root->UpdateBuilder(&builder);
     conn->root->UpdateStatus(
