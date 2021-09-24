@@ -101,8 +101,10 @@ class SemanticTensor(NamedTuple):
 
 
 # The available tensor dtypes for each semantic.
-FlexibleNumericalTypes = [tf.float32, tf.int32, tf.int64, tf.float64]
-FlexibleCategoricalIntTypes = [tf.int32, tf.int64]
+FlexibleNumericalTypes = [
+    tf.float32, tf.int8, tf.int16, tf.int32, tf.int64, tf.float64
+]
+FlexibleCategoricalIntTypes = [tf.int8, tf.int16, tf.int32, tf.int64]
 FlexibleCategoricalStringTypes = [tf.string]
 FlexibleCategoricalSetIntTypes = FlexibleCategoricalIntTypes
 FlexibleCategoricalSetStringTypes = FlexibleCategoricalStringTypes

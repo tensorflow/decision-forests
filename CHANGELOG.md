@@ -10,6 +10,7 @@
 -   Add support for weighted training.
 -   Add support for permutation variable importance in the GBT learner with the
     `compute_permutation_variable_importance` parameter.
+-   Support for tf.int8 and tf.int16 values.
 
 ## 0.1.9 - 2021-08-31
 
