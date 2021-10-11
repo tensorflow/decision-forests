@@ -20,21 +20,38 @@ TensorFlow Decision Forest is not yet available as a Windows Pip package.
     [Windows Subsystem for Linux (WSL)](https://en.wikipedia.org/wiki/Windows_Subsystem_for_Linux)
     on your Windows machine and follow the Linux instructions.
 
-## No support for in-model preprocessing with input of rank 1
+## Incompatibility with old or nightly version of TensorFlow
 
-Keras expands the dimension of input tensors to rank 2 (using `tf.expand_dims`).
-If your `preprocessing` model argument only support rank 1 tensors, you will get
-an error complaining about tensor shape.
+TensorFlow [ABI](https://en.wikipedia.org/wiki/Application_binary_interface) is
+not compatible in between releases. Because TF-DF relies on custom TensorFlow
+C++ ops, each version of TF-DF is tied to a specific version of TensorFlow. The
+last released version of TF-DF is always tied to the last released version of
+TensorFlow.
+
+For reasons, the current version of TF-DF might not be compatible with older
+versions or with the nightly build of TensorFlow.
+
+If using incompatible versions of TF and TF-DF, you will see cryptic errors such
+as:
+
+```
+tensorflow_decision_forests/tensorflow/ops/training/training.so: undefined symbol: _ZN10tensorflow11GetNodeAttrERKNS_9AttrSliceEN4absl14lts_2020_09_2311string_viewEPSs
+```
 
 **Workarounds:**
 
--   *Solution #1:* Apply your preprocessing before the model, for example using
-    the dataset's
-    [`map`](https://www.tensorflow.org/api_docs/python/tf/data/Dataset#map)
-    method.
+-   Use the version of TF-DF that is compatible with your version of TensorFlow.
 
--   *Solution #2:* Wrapps your preprocessing function into another function that
-    [squeeze](https://www.tensorflow.org/api_docs/python/tf/squeeze) its inputs.
+### Compatibility table
+
+The following table shows the compatibility between
+`tensorflow_decision_forests` and its dependencies:
+
+tensorflow_decision_forests | tensorflow
+--------------------------- | ----------
+0.1.9                       | 2.6
+0.1.1 - 0.1.8               | 2.5
+0.1.0                       | 2.4
 
 ## No support for TF distribution strategies.
 
