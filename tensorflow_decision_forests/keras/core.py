@@ -175,10 +175,12 @@ class FeatureUsage(object):
       if discretized is not None:
         raise ValueError("\"discretized\" only works for NUMERICAL semantic.")
 
-    if semantic != FeatureSemantic.CATEGORICAL:
+    if semantic not in [
+        FeatureSemantic.CATEGORICAL, FeatureSemantic.CATEGORICAL_SET
+    ]:
       if max_vocab_count is not None:
         raise ValueError(
-            "\"max_vocab_count\" only works for CATEGORICAL semantic.")
+            "\"max_vocab_count\" only works for CATEGORICAL or CATEGORICAL_SET semantics.")
 
     if semantic is None:
       # The semantic is automatically determined at training time.
