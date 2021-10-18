@@ -564,6 +564,9 @@ tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
 
           // Store the values.
           std::sort(tmp_value.begin(), tmp_value.end());
+          tmp_value.erase(std::unique(tmp_value.begin(), tmp_value.end()),
+                          tmp_value.end());
+
           col_data->AddVector(tmp_value);
         }
         feature->non_mutex_protected_clear();
@@ -608,6 +611,9 @@ tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
 
           // Store the values.
           std::sort(tmp_value.begin(), tmp_value.end());
+          tmp_value.erase(std::unique(tmp_value.begin(), tmp_value.end()),
+                          tmp_value.end());
+
           col_data->AddVector(tmp_value);
         }
         feature->non_mutex_protected_clear();

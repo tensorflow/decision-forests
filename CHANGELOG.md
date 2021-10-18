@@ -11,6 +11,11 @@
 -   Add support for permutation variable importance in the GBT learner with the
     `compute_permutation_variable_importance` parameter.
 -   Support for tf.int8 and tf.int16 values.
+### Fixes
+
+-   Missing filtering of unique values in the categorical-set training feature
+    accumulator. Was responsible for a small (e.g. ~0.5% on SST2 dataset) drop
+    of accuracy compared to the C++ API.
 
 ## 0.1.9 - 2021-08-31
 
