@@ -61,8 +61,10 @@ cc_library(
         "@ydf//yggdrasil_decision_forests/utils:logging",
         "@ydf//yggdrasil_decision_forests/utils:status_macros",
         "@ydf//yggdrasil_decision_forests/utils:tensorflow",
+        "@ydf//yggdrasil_decision_forests/utils:uid",
         "@ydf//yggdrasil_decision_forests/utils/distribute:core",
         "@ydf//yggdrasil_decision_forests/utils/distribute:distribute_cc_proto",
+        "@ydf//yggdrasil_decision_forests/utils/distribute:utils",
     ],
     alwayslink = 1,
 )
@@ -101,6 +103,10 @@ cc_library(
     deps = [
         ":tf_distribution_cc_proto",
         "@com_google_absl//absl/status",
+        "@org_tensorflow//tensorflow/cc:cc_ops",
+        "@org_tensorflow//tensorflow/cc:client_session",
+        "@org_tensorflow//tensorflow/cc:ops",
+        "@org_tensorflow//tensorflow/cc:scope",
         "@org_tensorflow//tensorflow/core:framework_headers_lib",
         "@ydf//yggdrasil_decision_forests/utils:concurrency",
         "@ydf//yggdrasil_decision_forests/utils:status_macros",
@@ -108,6 +114,7 @@ cc_library(
         "@ydf//yggdrasil_decision_forests/utils/distribute:all_workers",
         "@ydf//yggdrasil_decision_forests/utils/distribute:core",
         "@ydf//yggdrasil_decision_forests/utils/distribute:distribute_cc_proto",
+        "@ydf//yggdrasil_decision_forests/utils/distribute:utils",
     ],
     alwayslink = 1,
 )

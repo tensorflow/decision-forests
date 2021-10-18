@@ -153,7 +153,6 @@ TEST(TFDist, AsynchronousRequestWithSpecificWorker) {
 
 // Enable the following test when the TF-Distribution supports worker-to-worker
 // communication.
-/*
 TEST(TFDist, AsynchronousIntraWorkerCommunication) {
   auto all = CreateTfDistManager();
   TestAsynchronousIntraWorkerCommunication(all.manager.get());
@@ -165,7 +164,6 @@ TEST(TFDist, AsynchronousParallelWorkerExecution) {
   TestAsynchronousParallelWorkerExecution(all.manager.get());
   all.Join();
 }
-*/
 
 }  // namespace
 }  // namespace distribute

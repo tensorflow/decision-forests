@@ -33,6 +33,7 @@
 #include "yggdrasil_decision_forests/utils/logging.h"
 #include "yggdrasil_decision_forests/utils/status_macros.h"
 #include "yggdrasil_decision_forests/utils/tensorflow.h"
+#include "yggdrasil_decision_forests/utils/uid.h"
 
 namespace yggdrasil_decision_forests {
 namespace distribute {
@@ -61,9 +62,20 @@ utils::StatusOr<int> TfDistributionManager::NumWorkersInConfiguration(
   }
 }
 
+std::vector<std::string> TfDistributionManager::CreateWorkerResourceIds(
+    absl::string_view worker_name, const int num_workers) {
+  std::vector<std::string> resource_ids;
+  resource_ids.reserve(num_workers);
+  for (int worker_idx = 0; worker_idx < num_workers; worker_idx++) {
+    resource_ids.push_back(absl::Substitute("$0_$1_$2", worker_name, worker_idx,
+                                            utils::GenUniqueId()));
+  }
+  return resource_ids;
+}
+
 absl::Status TfDistributionManager::InitializeWorkers(
     const proto::Config& config, const absl::string_view worker_name,
-    Blob welcome_blob) {
+    Blob welcome_blob, const int parallel_execution_per_worker) {
   const auto& imp_config = config.GetExtension(proto::tf_distribution);
 
   std::vector<std::string> worker_addresses;
@@ -96,6 +108,9 @@ absl::Status TfDistributionManager::InitializeWorkers(
               << " workers.";
   }
 
+  const auto worker_resource_ids =
+      CreateWorkerResourceIds(worker_name, worker_addresses.size());
+
   for (int worker_idx = 0; worker_idx < worker_addresses.size(); worker_idx++) {
     auto worker = absl::make_unique<Worker>();
     worker->worker_idx = worker_idx;
@@ -108,15 +123,10 @@ absl::Status TfDistributionManager::InitializeWorkers(
 
     CHECK_OK(utils::ToUtilStatus(internal::RemoteConnection::Create(
         worker_addresses[worker_idx], welcome_blob, worker_name, worker_idx,
-        worker_addresses.size(), &worker->connection)));
+        worker_addresses, worker_resource_ids, parallel_execution_per_worker,
+        &worker->connection)));
 
-    worker->main_thread_local_pool =
-        absl::make_unique<utils::concurrency::Thread>(
-            [this, worker = worker.get()]() { WorkerMainLocalPool(worker); });
-
-    worker->main_thread_global_pool =
-        absl::make_unique<utils::concurrency::Thread>(
-            [this, worker = worker.get()]() { WorkerMainGlobalPool(worker); });
+    worker->StartThreads(parallel_execution_per_worker, this);
     workers_.push_back(std::move(worker));
   }
   return absl::OkStatus();
@@ -124,6 +134,7 @@ absl::Status TfDistributionManager::InitializeWorkers(
 
 void TfDistributionManager::WorkerRun(Blob blob, Worker* worker) {
   auto result = worker->connection->RunTask(std::move(blob));
+
   if (verbosity_ >= 1 && !result.ok()) {
     LOG(WARNING) << "Session called failed with error: "
                  << result.status().ToString();
@@ -131,7 +142,7 @@ void TfDistributionManager::WorkerRun(Blob blob, Worker* worker) {
   async_pending_answers_.Push(std::move(result));
 }
 
-void TfDistributionManager::WorkerMainLocalPool(Worker* worker) {
+void TfDistributionManager::ProcessLocalQueries(Worker* worker) {
   while (true) {
     auto pending_blob_or = worker->async_pending_queries_.Pop();
     if (!pending_blob_or.has_value()) {
@@ -141,7 +152,7 @@ void TfDistributionManager::WorkerMainLocalPool(Worker* worker) {
   }
 }
 
-void TfDistributionManager::WorkerMainGlobalPool(Worker* worker) {
+void TfDistributionManager::ProcessGlobalQueries(Worker* worker) {
   while (true) {
     auto pending_blob_or = async_pending_queries_.Pop();
     if (!pending_blob_or.has_value()) {
@@ -194,6 +205,40 @@ utils::StatusOr<Blob> TfDistributionManager::NextAsynchronousAnswer() {
 
 int TfDistributionManager::NumWorkers() { return workers_.size(); }
 
+absl::Status TfDistributionManager::SetParallelExecutionPerWorker(int num) {
+  if (verbosity_) {
+    LOG(INFO) << "Change the number of parallel execution per worker";
+  }
+
+  // Close the query channels.
+  async_pending_queries_.Close();
+  for (auto& worker : workers_) {
+    worker->async_pending_queries_.Close();
+  }
+
+  // Wait for the threads to join
+  JoinWorkers();
+
+  // Re-open the channels and restart the threads.
+  async_pending_queries_.Reopen();
+  for (auto& worker : workers_) {
+    worker->async_pending_queries_.Reopen();
+    worker->StartThreads(num, this);
+  }
+  return absl::OkStatus();
+}
+
+void TfDistributionManager::Worker::StartThreads(
+    int parallel_execution_per_worker, TfDistributionManager* manager) {
+  process_local_queries.Start(parallel_execution_per_worker, [this, manager]() {
+    manager->ProcessLocalQueries(this);
+  });
+
+  process_global_queries.Start(
+      parallel_execution_per_worker,
+      [this, manager]() { manager->ProcessGlobalQueries(this); });
+}
+
 absl::Status TfDistributionManager::Done(
     absl::optional<bool> kill_worker_manager) {
   if (verbosity_ >= 1) {
@@ -234,8 +279,8 @@ absl::Status TfDistributionManager::Done(
 
 void TfDistributionManager::JoinWorkers() {
   for (auto& worker : workers_) {
-    worker->main_thread_local_pool->Join();
-    worker->main_thread_global_pool->Join();
+    worker->process_local_queries.JoinAndClear();
+    worker->process_global_queries.JoinAndClear();
   }
 }
 
@@ -249,8 +294,9 @@ absl::Status TfDistributionManager::Initialize(
               << " bytes welcome blob";
   }
 
-  RETURN_IF_ERROR(
-      InitializeWorkers(config, worker_name, std::move(welcome_blob)));
+  RETURN_IF_ERROR(InitializeWorkers(config, worker_name,
+                                    std::move(welcome_blob),
+                                    parallel_execution_per_worker));
   return absl::OkStatus();
 }
 
@@ -259,19 +305,10 @@ namespace internal {
 tf::Status RemoteConnection::Create(
     const std::string& target, const Blob& welcome_blob,
     const absl::string_view worker_name, const int worker_idx,
-    const int num_workers, std::unique_ptr<RemoteConnection>* connection) {
-  // Generate manager uid.  Used to distinguish between the different managers
-  // controlling a same pool of workers.
-  std::random_device rnd;
-  auto rnd_value = std::uniform_int_distribution<uint64_t>(
-      std::numeric_limits<uint64_t>::lowest(),
-      std::numeric_limits<uint64_t>::max())(rnd);
-
-  // Identifier of the tf resource containing the worker.
-  std::string resource_uid =
-      absl::Substitute("$0_$1_$2_$3", worker_name, worker_idx,
-                       absl::GetCurrentTimeNanos(), rnd_value);
-
+    const std::vector<std::string>& worker_addresses,
+    const std::vector<std::string>& worker_resource_ids,
+    const int parallel_execution_per_worker,
+    std::unique_ptr<RemoteConnection>* connection) {
   auto conn = absl::make_unique<RemoteConnection>();
   conn->root = absl::make_unique<tf::Scope>(tf::Scope::NewRootScope());
 
@@ -293,8 +330,11 @@ tf::Status RemoteConnection::Create(
             .Attr("welcome_blob", welcome_blob)
             .Attr("worker_name", std::string(worker_name))
             .Attr("worker_idx", worker_idx)
-            .Attr("num_workers", num_workers)
-            .Attr("resource_uid", resource_uid);
+            .Attr("worker_addresses", worker_addresses)
+            .Attr("worker_resource_ids", worker_resource_ids)
+            .Attr("parallel_execution_per_worker",
+                  parallel_execution_per_worker)
+            .Attr("resource_uid", worker_resource_ids[worker_idx]);
     conn->root->UpdateBuilder(&builder);
     conn->root->UpdateStatus(
         builder.Finalize(conn->root->graph(), &conn->run_task_node));
@@ -319,7 +359,7 @@ tf::Status RemoteConnection::Create(
     auto builder =
         ::tensorflow::NodeBuilder(unique_name, "YggdrasilDistributeStopWorker")
             .Input(conn->stop_worker_input_node)
-            .Attr("resource_uid", resource_uid);
+            .Attr("resource_uid", worker_resource_ids[worker_idx]);
     conn->root->UpdateBuilder(&builder);
     conn->root->UpdateStatus(
         builder.Finalize(conn->root->graph(), &conn->stop_worker_node));

@@ -25,7 +25,15 @@ REGISTER_OP("YggdrasilDistributeRunTask")
     .Attr("worker_name: string")
     .Attr("resource_uid: string")
     .Attr("worker_idx: int")
-    .Attr("num_workers: int")
+    .Attr("parallel_execution_per_worker: int")
+    .Attr("worker_addresses: list(string)")
+    .Attr("worker_resource_ids: list(string)")
+    .Input("input_blob: string")
+    .Output("output_blob: string");
+
+REGISTER_OP("YggdrasilDistributeRunInterWorkerTask")
+    .SetIsStateful()
+    .Attr("resource_uid: string")
     .Input("input_blob: string")
     .Output("output_blob: string");
 
