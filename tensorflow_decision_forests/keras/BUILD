@@ -99,7 +99,6 @@ py_test(
         # absl/flags dep,
         # absl/logging dep,
         # absl/testing:parameterized dep,
-        # enum dep,
         # numpy dep,
         # pandas dep,
         "@org_tensorflow//tensorflow/python",
