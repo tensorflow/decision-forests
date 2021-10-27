@@ -468,6 +468,11 @@ $7
       efficiency. If specified, `num_threads` field of the
       `advanced_arguments.yggdrasil_deployment_config` has priority.
     name: The name of the model.
+    max_vocab_count: Default maximum size of the vocabulary for CATEGORICAL and
+      CATEGORICAL_SET features stored as strings. If more unique values exist,
+      only the most frequent values are kept, and the remaining values are
+      considered as out-of-vocabulary. The value `max_vocab_count` defined in a
+      `FeatureUsage` (if any) takes precedence.
 $2
   """
 
@@ -485,6 +490,7 @@ $2
       advanced_arguments: Optional[AdvancedArguments] = None,
       num_threads: Optional[int] = 6,
       name: Optional[str] = None,
+      max_vocab_count : Optional[int] = 2000,
 $3,
       explicit_args: Optional[Set[str]] = None):
 
@@ -509,7 +515,8 @@ $4
       verbose=verbose,
       advanced_arguments=advanced_arguments,
       num_threads=num_threads,
-      name=name)
+      name=name,
+      max_vocab_count=max_vocab_count)
 
   @staticmethod
   def predefined_hyperparameters() -> List[core.HyperParameterTemplate]:

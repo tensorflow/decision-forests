@@ -994,7 +994,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
           keras.FeatureUsage("cat_set_int_0",
                              keras.FeatureSemantic.CATEGORICAL_SET),
           keras.FeatureUsage("cat_set_str_0",
-                             keras.FeatureSemantic.CATEGORICAL_SET)
+                             keras.FeatureSemantic.CATEGORICAL_SET,
+                             max_vocab_count=500)
       ])
 
     if test_categorical:

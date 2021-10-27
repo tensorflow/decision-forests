@@ -154,10 +154,10 @@ class FeatureUsage(object):
       discretized into a small set of unique values. This makes the training
       faster but often lead to worst models. A reasonable discretization value
       is 255.
-    max_vocab_count: For CATEGORICAL features only. Number of unique categorical
-      values. If more categorical values are present, the least frequent values
-      are grouped into a Out-of-vocabulary item. Reducing the value can improve
-      or hurt the model.
+    max_vocab_count: For CATEGORICAL and CATEGORICAL_SET features only. Number
+      of unique categorical values stored as string. If more categorical values
+      are present, the least frequent values are grouped into a
+      Out-of-vocabulary item. Reducing the value can improve or hurt the model.
   """
 
   def __init__(self,
@@ -175,10 +175,12 @@ class FeatureUsage(object):
       if discretized is not None:
         raise ValueError("\"discretized\" only works for NUMERICAL semantic.")
 
-    if semantic != FeatureSemantic.CATEGORICAL:
+    if semantic not in [
+        FeatureSemantic.CATEGORICAL, FeatureSemantic.CATEGORICAL_SET
+    ]:
       if max_vocab_count is not None:
-        raise ValueError(
-            "\"max_vocab_count\" only works for CATEGORICAL semantic.")
+        raise ValueError("\"max_vocab_count\" only works for CATEGORICAL "
+                         "and CATEGORICAL_SET semantic.")
 
     if semantic is None:
       # The semantic is automatically determined at training time.
@@ -192,7 +194,11 @@ class FeatureUsage(object):
     elif semantic in [
         FeatureSemantic.CATEGORICAL, FeatureSemantic.CATEGORICAL_SET
     ]:
-      self._guide.type = data_spec_pb2.CATEGORICAL
+      if semantic == FeatureSemantic.CATEGORICAL:
+        self._guide.type = data_spec_pb2.CATEGORICAL
+      else:
+        self._guide.type = data_spec_pb2.CATEGORICAL_SET
+
       if max_vocab_count:
         self._guide.categorial.max_vocab_count = max_vocab_count
 
@@ -353,6 +359,11 @@ class CoreModel(models.Model):
       efficiency. If specified, `num_threads` field of the
       `advanced_arguments.yggdrasil_deployment_config` has priority.
     name: The name of the model.
+    max_vocab_count: Default maximum size of the vocabulary for CATEGORICAL and
+      CATEGORICAL_SET features stored as strings. If more unique values exist,
+      only the most frequent values are kept, and the remaining values are
+      considered as out-of-vocabulary. The value `max_vocab_count` defined in a
+      `FeatureUsage` (if any) takes precedence.
   """
 
   def __init__(self,
@@ -368,7 +379,8 @@ class CoreModel(models.Model):
                verbose: Optional[bool] = True,
                advanced_arguments: Optional[AdvancedArguments] = None,
                num_threads: Optional[int] = 6,
-               name: Optional[str] = None) -> None:
+               name: Optional[str] = None,
+               max_vocab_count: Optional[int] = 2000) -> None:
     super(CoreModel, self).__init__(name=name)
 
     self._task = task
@@ -382,6 +394,7 @@ class CoreModel(models.Model):
     self._temp_directory = temp_directory
     self._verbose = verbose
     self._num_threads = num_threads
+    self._max_vocab_count = max_vocab_count
 
     # Internal, indicates whether the first evaluation during training,
     # triggered by providing validation data, should trigger the training
@@ -1030,6 +1043,7 @@ class CoreModel(models.Model):
 
     # Create the dataspec guide.
     guide = data_spec_pb2.DataSpecificationGuide()
+    guide.default_column_guide.categorial.max_vocab_count = self._max_vocab_count
     for feature in self._features:
       col_guide = copy.deepcopy(feature.guide)
       col_guide.column_name_pattern = tf_core.normalize_inputs_regexp(

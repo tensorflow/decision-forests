@@ -11,11 +11,16 @@
 -   Add support for permutation variable importance in the GBT learner with the
     `compute_permutation_variable_importance` parameter.
 -   Support for tf.int8 and tf.int16 values.
+-   Add `max_vocab_count` argument to the model constructor. The existing
+    `max_vocab_count` argument in `FeatureUsage` objects take precedence.
+
 ### Fixes
 
 -   Missing filtering of unique values in the categorical-set training feature
     accumulator. Was responsible for a small (e.g. ~0.5% on SST2 dataset) drop
     of accuracy compared to the C++ API.
+-   Fix broken support for `max_vocab_count` in a `FeatureUsage` with type
+    `CATEGORICAL_SET`.
 
 ## 0.1.9 - 2021-08-31
 
