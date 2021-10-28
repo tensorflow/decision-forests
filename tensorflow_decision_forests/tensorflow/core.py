@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Core classes and functions of TensorFlow Decision Forests."""
+"""Core classes and functions of TensorFlow Decision Forests trainin."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -20,14 +20,19 @@ from __future__ import print_function
 
 import copy
 import enum
+import logging
 import math
 import re
-from typing import Optional, List, Tuple, Dict, Union, NamedTuple, Callable, Text
+from typing import Optional, List, Tuple, Dict, Union, NamedTuple, Callable, Text, Any
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+from tensorflow.python.distribute import distribute_lib
+from tensorflow.python.distribute import parameter_server_strategy_v2
+from tensorflow.python.distribute.coordinator import coordinator_context
+from tensorflow_decision_forests.tensorflow.distribute import tf_distribution_pb2
 from tensorflow_decision_forests.tensorflow.ops.training import api as training_op
 from yggdrasil_decision_forests.dataset import data_spec_pb2
 from yggdrasil_decision_forests.learner import abstract_learner_pb2
@@ -142,6 +147,169 @@ Task = abstract_model_pb2.Task
 TaskType = "abstract_model_pb2.Task"  # pylint: disable=invalid-name
 
 
+class DistributionConfiguration(NamedTuple):
+  """Configuration information about the distribution strategy.
+
+  Attributes:
+    num_workers: Number of workers i.e. tf worker server with the task "worker".
+    workers_socket_addresses: Socket address (ip+port) of the workers.
+  """
+
+  num_workers: int
+  workers_socket_addresses: Optional[List[Tuple[str, int]]]
+
+
+def get_distribution_configuration(
+    strategy: Optional[Any] = None) -> Optional[DistributionConfiguration]:
+  """Extracts the distribution configuration from the distribution strategy.
+
+  Args:
+    strategy: Optional distribution strategy. If none is provided, the
+      distributed strategy is obtained with "tf.distribute.get_strategy".
+
+  Returns:
+    Distributed training meta-data. None if distributed training is not enabled.
+  """
+
+  if strategy is None:
+    strategy = tf.distribute.get_strategy()
+  # pylint:disable=protected-access
+  if isinstance(strategy,
+                parameter_server_strategy_v2.ParameterServerStrategyV2):
+
+    workers_socket_addresses = []
+    cluster_spec = strategy._cluster_resolver.cluster_spec().as_dict()
+
+    try:
+      # TODO(gbm): Add support for BNS addresses.
+      for worker in cluster_spec["worker"]:
+        ip, port = worker.split(":")
+        workers_socket_addresses.append((ip, int(port)))
+
+    except ValueError as e:
+      logging.warning(
+          "Cannot parse the socket address of the distribution "
+          "strategy as a socket address in:\n%s. Using TF_CONFIG instead."
+          "\nException: %s", cluster_spec, e)
+      workers_socket_addresses = None
+
+    return DistributionConfiguration(
+        num_workers=strategy._extended._num_workers,
+        workers_socket_addresses=workers_socket_addresses)
+  elif isinstance(strategy, distribute_lib._DefaultDistributionStrategy):
+    return None
+  # pylint:enable=protected-access
+
+  raise ValueError(f"Not supported distribution strategy {strategy}. Only "
+                   "no-strategy and ParameterServerStrategyV2 is supported")
+
+
+def get_num_distribution_workers(strategy: Optional[Any] = None) -> int:
+  """Extracts the number of workers from the distribution strategy.
+
+  Args:
+    strategy: Distribution strategy to parse. If not set, use the scope
+      distribution strategy (i.e. `tf.distribute.get_strategy()`)
+
+  Returns:
+    Number of workers.
+  """
+
+  distribute_config = get_distribution_configuration(strategy)
+  if distribute_config is None:
+    raise ValueError("Number of workers not available. The method "
+                     "`get_num_distribution_workers` should be called within a "
+                     "`ParameterServerStrategyV2` scope.")
+
+  return distribute_config.num_workers
+
+
+class WorkerIndex(NamedTuple):
+  """Index of a worker in a worker pool.
+
+  Attributes:
+    worker_idx: Index of the worker. Value in [0, num_workers).
+    num_workers: Total number of workers.
+  """
+
+  worker_idx: int
+  num_workers: int
+
+
+def get_worker_idx_and_num_workers(
+    context: distribute_lib.InputContext) -> WorkerIndex:
+  """Gets the current worker index and the total number of workers.
+
+  This method should be called by a worker in a tf.function called in the worker
+  context. In practice, this method should be called in the in a the
+  `dataset_fn(context)` method.
+
+  Currently, `context` is ignored as it is not populated by the
+  `ParameterServerStrategyV2`. However, `context` should still be provided for
+  compatibility with future API changes.
+
+  Usage examples:
+
+    paths = [...list of dataset files]
+
+    def dataset_fn(context: Optional[distribute_lib.InputContext] = None):
+      # Distributed dataset_fn.
+
+      ds_path = tf.data.Dataset.from_tensor_slices(paths)
+
+      if context is not None:
+        current_worker = keras.get_worker_idx_and_num_workers(context)
+        assert current_worker.num_workers > 1, "Not distributed dataset reading"
+        ds_path = ds_path.shard(
+            num_shards=current_worker.num_workers,
+            index=current_worker.worker_index)
+
+      # Load the examples from "ds_path", for example with
+      # `tf.data.experimental.CsvDataset`.
+
+      def read_csv_file(path):
+        csv_columns = [ ... ]
+        return tf.data.experimental.CsvDataset(path, csv_columns, header=False)
+
+      ds_columns = ds_path.interleave(read_csv_file)
+
+      def extract_label(*columns):
+        return columns[0:-1], columns[-1]
+
+      return ds_columns.map(extract_label).batch(batch_size)
+
+  Args:
+    context: Distribution strategy input context.
+
+  Returns:
+    Return the index of the worker (tensor) and the total number of workers
+    (integer).
+  """
+
+  # Not used for now.
+  del context
+
+  if not tf.inside_function():
+    raise ValueError(
+        "Cannot retrieve the worker index. `get_worker_idx_and_num_workers` "
+        "should be called from within a tf.function on a worker. To get the "
+        "index of workers in the manager, try `context.input_pipeline_id` in "
+        "a `dataset_fn(context)`.")
+
+  def call_time_worker_index():
+    dispatch_context = coordinator_context.get_current_dispatch_context()
+    return dispatch_context.worker_index
+
+  worker_index = tf.compat.v1.get_default_graph().capture_call_time_value(
+      call_time_worker_index, tf.TensorSpec([], dtype=tf.dtypes.int64))
+  worker_index.op._set_attr(  # pylint: disable=protected-access
+      "_user_specified_name",
+      tf.compat.v1.AttrValue(s=tf.compat.as_bytes("worker_index")))
+
+  return WorkerIndex(
+      worker_idx=worker_index, num_workers=get_num_distribution_workers())
+
+
 def collect_training_examples(inputs: Dict[str, SemanticTensor],
                               model_id: str) -> tf.Operation:
   """Collects a batch of training examples.
@@ -212,6 +380,81 @@ def collect_training_examples(inputs: Dict[str, SemanticTensor],
     elif semantic_tensor.semantic == Semantic.BOOLEAN:
       # Boolean features are not yet supported for training in TF-DF.
       raise_non_supported()
+
+    else:
+      raise_non_supported()
+
+  return tf.group(ops)
+
+
+def collect_distributed_training_examples(inputs: Dict[str, SemanticTensor],
+                                          model_id: str,
+                                          dataset_path: str) -> tf.Operation:
+  """Exports feature values to file in the partial dataset cache format.
+
+  For distributed training, multiple tasks (with task="worker" and different
+  task index) can collect feature values at the same time and in the same
+  `dataset_path` location.
+
+  Once feature values are done being collected,
+  "finalize_distributed_dataset_collection" should be called.
+
+  Args:
+    inputs: Feature values to collect.
+    model_id: Id of the model.
+    dataset_path: Directory path to the output partial dataset cache.
+
+  Returns:
+    Op triggering the collection.
+  """
+
+  in_order_inputs = list(inputs.items())
+  in_order_inputs.sort(key=lambda x: x[0])
+
+  ops = []
+  for feature_idx, (feature_name,
+                    semantic_tensor) in enumerate(in_order_inputs):
+
+    def raise_non_supported():
+      # pylint: disable=cell-var-from-loop
+      raise Exception(
+          f"Non supported tensor dtype {semantic_tensor.tensor.dtype} "
+          f"and semantic {semantic_tensor.semantic} for feature {feature_name} for "
+          "distributed  training")
+      # pylint: enable=cell-var-from-loop
+
+    resource_id = _input_key_to_id(model_id, feature_name)
+    if semantic_tensor.semantic == Semantic.NUMERICAL:
+      if semantic_tensor.tensor.dtype == NormalizedNumericalType:
+        ops.append(
+            training_op.SimpleMLNumericalFeatureOnFile(
+                value=semantic_tensor.tensor,
+                resource_id=resource_id,
+                feature_name=feature_name,
+                feature_idx=feature_idx,
+                dataset_path=dataset_path))
+      else:
+        raise_non_supported()
+
+    elif semantic_tensor.semantic == Semantic.CATEGORICAL:
+      if semantic_tensor.tensor.dtype == NormalizedCategoricalIntType:
+        ops.append(
+            training_op.SimpleMLCategoricalIntFeatureOnFile(
+                value=semantic_tensor.tensor,
+                resource_id=resource_id,
+                feature_name=feature_name,
+                feature_idx=feature_idx,
+                dataset_path=dataset_path))
+      elif semantic_tensor.tensor.dtype == NormalizedCategoricalStringType:
+        ops.append(
+            training_op.SimpleMLCategoricalStringFeatureOnFile(
+                value=semantic_tensor.tensor,
+                resource_id=resource_id,
+                feature_name=feature_name,
+                feature_idx=feature_idx,
+                dataset_path=dataset_path))
+      else:
+        raise_non_supported()
 
     else:
       raise_non_supported()
@@ -532,6 +775,172 @@ def train(input_ids: List[str],
       training_config=training_config.SerializeToString(),
       deployment_config=deployment_config.SerializeToString(),
       guide=guide.SerializeToString())
+
+
+def train_on_file_dataset(
+    train_dataset_path: str,
+    valid_dataset_path: Optional[str],
+    feature_ids: List[str],
+    label_id: str,
+    weight_id: Optional[str],
+    model_id: str,
+    learner: str,
+    task: Optional[TaskType] = Task.CLASSIFICATION,
+    generic_hparms: Optional[
+        abstract_learner_pb2.GenericHyperParameters] = None,
+    ranking_group: Optional[str] = None,
+    training_config: Optional[abstract_learner_pb2.TrainingConfig] = None,
+    deployment_config: Optional[abstract_learner_pb2.DeploymentConfig] = None,
+    guide: Optional[data_spec_pb2.DataSpecificationGuide] = None,
+    model_dir: Optional[str] = None,
+    keep_model_in_resource: Optional[bool] = True,
+    working_cache_path: Optional[str] = None,
+    distribution_config: Optional[DistributionConfiguration] = None
+) -> tf.Operation:
+  """Trains a model on dataset stored on file.
+
+  The input arguments and overall logic of this OP is similar to the ":train"
+  CLI or the "learner->Train()" method of Yggdrasil Decision Forests (in fact,
+  this OP simply calls "learner->Train()").
+
+  Similarly as the `train` method, the implementation the learning algorithm
+  should be added as a dependency to the binary. Similarly, the implementation
+  the dataset format should be added as a dependency to the
+  binary.
+
+  In the case of distributed training, `train_on_file_dataset` should only be
+  called by the `chief` process, and `deployment_config` should contain the
+  address of the workers.
+
+  Args:
+    train_dataset_path: Path to the training dataset.
+    valid_dataset_path: Path to the validation dataset.
+    feature_ids: Ids/names of the input features.
+    label_id: Id/name of the label feature.
+    weight_id: Id/name of the weight feature.
+    model_id: Id of the model.
+    learner: Key of the learner.
+    task: Task to solve.
+    generic_hparms: Hyper-parameter of the learner.
+    ranking_group: Id of the ranking group feature. Only for ranking.
+    training_config: Training configuration.
+    deployment_config: Deployment configuration (e.g. where to train the model).
+    guide: Dataset specification guide.
+    model_dir: If specified, export the trained model into this directory.
+    keep_model_in_resource: If true, keep the model as a training model
+      resource.
+    working_cache_path: Path to the working cache directory. If set, and if the
+      training is distributed, all the workers should have write access to this
+      cache.
+    distribution_config: Socket addresses of the workers for distributed
+      training.
+
+  Returns:
+    The OP that trigger the training.
+  """
+
+  if generic_hparms is None:
+    generic_hparms = abstract_learner_pb2.GenericHyperParameters()
+
+  if training_config is None:
+    training_config = abstract_learner_pb2.TrainingConfig()
+  else:
+    training_config = copy.deepcopy(training_config)
+
+  if deployment_config is None:
+    deployment_config = abstract_learner_pb2.DeploymentConfig()
+  else:
+    deployment_config = copy.deepcopy(deployment_config)
+
+  if guide is None:
+    guide = data_spec_pb2.DataSpecificationGuide()
+
+  if ranking_group is not None:
+    training_config.ranking_group = ranking_group
+
+  # Set the method argument into the proto configs.
+  training_config.learner = learner
+  training_config.task = task
+  training_config.label = label_id
+
+  if weight_id is not None:
+    training_config.weight_definition.attribute = weight_id
+    training_config.weight_definition.numerical.SetInParent()
+
+  for feature_id in feature_ids:
+    training_config.features.append(re.escape(feature_id))
+
+  if working_cache_path is not None:
+    deployment_config.cache_path = working_cache_path
+
+  if distribution_config is not None:
+    deployment_config.try_resume_training = True
+    deployment_config.distribute.implementation_key = "TF_DIST"
+
+    if distribution_config.workers_socket_addresses is not None:
+      socket_addresses = deployment_config.distribute.Extensions[
+          tf_distribution_pb2.tf_distribution].socket_addresses
+      for worker_ip, worker_port in distribution_config.workers_socket_addresses:
+        socket_addresses.addresses.add(ip=worker_ip, port=worker_port)
+
+    else:
+      # Assume the worker paths are provided through the env.
+      deployment_config.distribute.Extensions[
+          tf_distribution_pb2.tf_distribution].environment_variable.SetInParent(
+          )
+
+  return training_op.SimpleMLModelTrainerOnFile(
+      train_dataset_path=train_dataset_path,
+      valid_dataset_path=valid_dataset_path if valid_dataset_path else "",
+      model_id=model_id if keep_model_in_resource else "",
+      model_dir=model_dir or "",
+      hparams=generic_hparms.SerializeToString(),
+      training_config=training_config.SerializeToString(),
+      deployment_config=deployment_config.SerializeToString(),
+      guide=guide.SerializeToString())
+
+
+def finalize_distributed_dataset_collection(cluster_coordinator,
+                                            input_ids: List[str], model_id: str,
+                                            dataset_path: str) -> None:
+  """Finaliazes the collection of the partial dataset cache.
+
+  Args:
+    cluster_coordinator: Cluster coordinator of the distributed training.
+    input_ids: Key of the input features and label to collect.
+    model_id: Id of the model.
+    dataset_path: Directory path to the output partial dataset cache.
+  """
+
+  sorted_input_ids = sorted(input_ids)
+  feature_resource_ids = [
+      _input_key_to_id(model_id, x) for x in sorted_input_ids
+  ]
+
+  def worker_fn():
+    training_op.SimpleMLWorkerFinalizeFeatureOnFile(
+        feature_resource_ids=feature_resource_ids, dataset_path=dataset_path)
+
+  _execute_function_on_each_worker(cluster_coordinator, worker_fn)
+
+  training_op.SimpleMLChiefFinalizeFeatureOnFile(
+      feature_names=sorted_input_ids,
+      num_shards=len(cluster_coordinator._cluster.workers),  # pylint: disable=protected-access
+      dataset_path=dataset_path)
+
+
+def _execute_function_on_each_worker(cluster_coordinator, call_fn):
+  """Executes `call_fn` once on each of the workers."""
+
+  # TODO(gbm): Call in parallel using multi-threading.
+  # TODO(gbm): Test for stability when a worker is rescheduled.
+
+  # pylint: disable=protected-access
+  num_workers = cluster_coordinator._strategy._extended._num_workers
+  for worker_idx in range(num_workers):
+    with tf.device(f"/job:worker/task:{worker_idx}"):
+      call_fn()
+  # pylint: enable=protected-access
 
 
 def _input_key_to_id(model_id: str, key: str) -> str:

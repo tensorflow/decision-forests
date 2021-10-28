@@ -71,10 +71,19 @@ class CartModel(wrappers.CartModel):
   pass
 
 
+class DistributedGradientBoostedTreesModel(
+    wrappers.DistributedGradientBoostedTreesModel):
+  pass
+
+
 def get_all_models() -> List[Callable[[], CoreModel]]:
   """Gets the lists of all the available models."""
-  return [RandomForestModel, GradientBoostedTreesModel, CartModel]
+  return [
+      RandomForestModel, GradientBoostedTreesModel, CartModel,
+      DistributedGradientBoostedTreesModel
+  ]
 
 
 # Utilities
 pd_dataframe_to_tf_dataset = core.pd_dataframe_to_tf_dataset
+get_worker_idx_and_num_workers = core.get_worker_idx_and_num_workers

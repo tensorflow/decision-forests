@@ -46,8 +46,8 @@ cc_library(
     srcs = ["tf_distribution.cc"],
     hdrs = ["tf_distribution.h"],
     deps = [
+        ":register_ops",
         ":tf_distribution_cc_proto",
-        ":tf_distribution_op",
         "@com_google_absl//absl/synchronization",
         "@com_github_tencent_rapidjson//:rapidjson",
         "@org_tensorflow//tensorflow/cc:cc_ops",

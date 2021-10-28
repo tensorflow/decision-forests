@@ -11,6 +11,7 @@
 -   Add support for permutation variable importance in the GBT learner with the
     `compute_permutation_variable_importance` parameter.
 -   Support for tf.int8 and tf.int16 values.
+-   Support for distributed gradient boosted trees learning.
 -   Add `max_vocab_count` argument to the model constructor. The existing
     `max_vocab_count` argument in `FeatureUsage` objects take precedence.
 

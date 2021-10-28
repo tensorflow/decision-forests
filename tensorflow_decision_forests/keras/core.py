@@ -108,6 +108,9 @@ _FORBIDDEN_FEATURE_CHARACTERS = " \t?%,"
 YggdrasilDeploymentConfig = abstract_learner_pb2.DeploymentConfig
 YggdrasilTrainingConfig = abstract_learner_pb2.TrainingConfig
 
+# Get the current worker index and total number of workers.
+get_worker_idx_and_num_workers = tf_core.get_worker_idx_and_num_workers
+
 
 class FeatureUsage(object):
   """Semantic and hyper-parameters for a single feature.
@@ -491,7 +494,6 @@ class CoreModel(models.Model):
       """Prediction of a non-trained model. Returns "zeros"."""
 
       data = next(iterator)
-      data = _expand_1d(data)
       x, _, _ = tf.keras.utils.unpack_x_y_sample_weight(data)
       batch_size = _batch_size(x)
       return tf.zeros([batch_size, 1])
@@ -537,15 +539,15 @@ class CoreModel(models.Model):
       return {}
 
     @tf.function(experimental_relax_shapes=True)
-    def test_function_trained(iterator, model):
+    def step_function_trained(model, iterator):
       """Evaluation of a trained model.
 
       The only difference with "super.make_test_function()" is that
       "self.test_function" is not set.
 
       Args:
-        iterator: Iterator over dataset.
         model: Model object.
+        iterator: Iterator over dataset.
 
       Returns:
         Evaluation metrics.
@@ -558,10 +560,61 @@ class CoreModel(models.Model):
         return outputs
 
       data = next(iterator)
-      return run_step(data)
+      outputs = model.distribute_strategy.run(run_step, args=(data,))
+      outputs = _reduce_per_replica(
+          outputs, self.distribute_strategy, reduction="first")
+      return outputs
 
     if self._is_trained:
-      return partial(test_function_trained, model=self)
+      # Special case if steps_per_execution is one.
+      if (self._steps_per_execution is None or
+          self._steps_per_execution.numpy().item() == 1):
+
+        def test_function(iterator):
+          """Runs a test execution with a single step."""
+          return step_function_trained(self, iterator)
+
+        if not self.run_eagerly:
+          test_function = tf.function(
+              test_function, experimental_relax_shapes=True)
+
+        if self._cluster_coordinator:
+          return lambda it: self._cluster_coordinator.schedule(  # pylint: disable=g-long-lambda
+              test_function, args=(it,))
+        else:
+          return test_function
+
+      # If we're using a coordinator, use the value of self._steps_per_execution
+      # at the time the function is called/scheduled, and not when it is
+      # actually executed.
+      elif self._cluster_coordinator:
+
+        def test_function(iterator, steps_per_execution):
+          """Runs a test execution with multiple steps."""
+          for _ in tf.range(steps_per_execution):
+            outputs = step_function_trained(self, iterator)
+          return outputs
+
+        if not self.run_eagerly:
+          test_function = tf.function(
+              test_function, experimental_relax_shapes=True)
+
+        return lambda it: self._cluster_coordinator.schedule(  # pylint: disable=g-long-lambda
+            test_function,
+            args=(it, self._steps_per_execution.value()))
+      else:
+
+        def test_function(iterator):
+          """Runs a test execution with multiple steps."""
+          for _ in tf.range(self._steps_per_execution):
+            outputs = step_function_trained(self, iterator)
+          return outputs
+
+        if not self.run_eagerly:
+          test_function = tf.function(
+              test_function, experimental_relax_shapes=True)
+        return test_function
+
     else:
       return test_function_not_trained
 
@@ -601,7 +654,7 @@ class CoreModel(models.Model):
     elif isinstance(inputs, tf.Tensor):
       assert len(self._semantics) == 1
       inputs = {next(iter(self._semantics.keys())): inputs}
-    elif isinstance(inputs, list):
+    elif isinstance(inputs, list) or isinstance(inputs, tuple):
       # Note: The name of a tensor (value.name) can change between the training
       # and the inference.
       inputs = {str(idx): value for idx, value in enumerate(inputs)}
@@ -679,7 +732,7 @@ class CoreModel(models.Model):
       pass
     elif isinstance(train_x, tf.Tensor):
       train_x = {train_x.name: train_x}
-    elif isinstance(train_x, list):
+    elif isinstance(train_x, list) or isinstance(train_x, tuple):
       # Note: The name of a tensor (value.name) can change between the training
       # and the inference.
       train_x = {str(idx): value for idx, value in enumerate(train_x)}
@@ -783,11 +836,41 @@ class CoreModel(models.Model):
       raise Exception("Non supported task {}".format(self._task))
 
     if not self._is_trained:
-      tf_core.collect_training_examples(normalized_semantic_inputs,
-                                        self._training_model_id)
+      # Collects the training examples.
+
+      distribution_config = tf_core.get_distribution_configuration()
+      if distribution_config is None:
+        # No distribution strategy. Collecting examples in memory.
+        tf_core.collect_training_examples(normalized_semantic_inputs,
+                                          self._training_model_id)
+
+      else:
+
+        # Each worker collects a part of the dataset.
+        if not self.capabilities().support_partial_cache_dataset_format:
+          raise ValueError(
+              f"The model {type(self)} does not support training with a TF "
+              "Distribution strategy (i.e. model.capabilities()."
+              "support_partial_cache_dataset_format == False). If the dataset "
+              "is small, simply remove "
+              "the distribution strategy scope (i.e. `with strategy.scope():` "
+              "around the model construction). If the dataset is large, use a "
+              "distributed version of the model. For Example, use "
+              "DistributedGradientBoostedTreesModel instead of "
+              "GradientBoostedTreesModel.")
+
+        tf_core.collect_distributed_training_examples(
+            inputs=normalized_semantic_inputs,
+            model_id=self._training_model_id,
+            dataset_path=self._distributed_partial_dataset_cache_path())
 
     # Not metrics are returned during the collection of training examples.
     return {}
+
+  def _distributed_partial_dataset_cache_path(self):
+    """Directory accessible from all workers containing the partial cache."""
+
+    return os.path.join(self._temp_directory, "partial_dataset_cache")
 
   def compile(self, metrics=None):
     """Configure the model for training.
@@ -823,9 +906,24 @@ class CoreModel(models.Model):
       3. "x" is a numpy-array, list of numpy-arrays or dictionary of
          numpy-arrays containing the input features. "y" is a numpy-array.
 
-    Pandas Dataframe can be consumed with "dataframe_to_tf_dataset":
+    Unlike classical neural networks, the learning algorithm requires to scan
+    the training dataset exactly once. Therefore, the dataset should not be
+    repeated. The algorithm also does not benefit from shuffling the dataset.
+
+    Input features generally do not need to be normalized (numerical) or indexed
+    (categorical features stored as string). Also, missing values are well
+    supported (i.e. not need to replace missing values).
+
+    Pandas Dataframe can be prepared with "dataframe_to_tf_dataset":
       dataset = pandas.Dataframe(...)
       model.fit(pd_dataframe_to_tf_dataset(dataset, label="my_label"))
+
+    Some of the learning algorithm will support distributed training with the
+    ParameterServerStrategy e.g.:
+
+      with tf.distribute.experimental.ParameterServerStrategy(...).scope():
+        model = DistributedGradientBoostedTreesModel()
+      model.fit(...)
 
     Args:
       x: Training dataset (See details above for the supported formats).
@@ -1056,27 +1154,60 @@ class CoreModel(models.Model):
     if not deployment_config.HasField("num_threads"):
       deployment_config.num_threads = self._num_threads
 
-    # Train the model.
-    # The model will be exported to "train_model_path".
-    #
-    # Note: It would be possible to train and load the model without saving the
-    # model to disk.
-    tf_core.train(
-        input_ids=self._normalized_input_keys,
-        label_id=_LABEL,
-        weight_id=_WEIGHTS if self._weighted_training else None,
-        model_id=self._training_model_id,
-        model_dir=train_model_path,
-        learner=self._learner,
-        task=self._task,
-        generic_hparms=tf_core.hparams_dict_to_generic_proto(
-            self._learner_params),
-        ranking_group=_RANK_GROUP if self._task == Task.RANKING else None,
-        keep_model_in_resource=True,
-        guide=guide,
-        training_config=self._advanced_arguments.yggdrasil_training_config,
-        deployment_config=deployment_config,
-    )
+    distribution_config = tf_core.get_distribution_configuration()
+    if distribution_config is None:
+      # Train the model.
+      # The model will be exported to "train_model_path".
+      #
+      # Note: It would be possible to train and load the model without saving
+      # the model to file.
+      tf_core.train(
+          input_ids=self._normalized_input_keys,
+          label_id=_LABEL,
+          weight_id=_WEIGHTS if self._weighted_training else None,
+          model_id=self._training_model_id,
+          model_dir=train_model_path,
+          learner=self._learner,
+          task=self._task,
+          generic_hparms=tf_core.hparams_dict_to_generic_proto(
+              self._learner_params),
+          ranking_group=_RANK_GROUP if self._task == Task.RANKING else None,
+          keep_model_in_resource=True,
+          guide=guide,
+          training_config=self._advanced_arguments.yggdrasil_training_config,
+          deployment_config=deployment_config,
+      )
+
+    else:
+      tf_core.finalize_distributed_dataset_collection(
+          cluster_coordinator=self._cluster_coordinator,
+          input_ids=self._normalized_input_keys + [_LABEL] +
+          ([_WEIGHTS] if self._weighted_training else []),
+          model_id=self._training_model_id,
+          dataset_path=self._distributed_partial_dataset_cache_path())
+
+      tf_core.train_on_file_dataset(
+          train_dataset_path="partial_dataset_cache:" +
+          self._distributed_partial_dataset_cache_path(),
+          valid_dataset_path=None,
+          feature_ids=self._normalized_input_keys,
+          label_id=_LABEL,
+          weight_id=_WEIGHTS if self._weighted_training else None,
+          model_id=self._training_model_id,
+          model_dir=train_model_path,
+          learner=self._learner,
+          task=self._task,
+          generic_hparms=tf_core.hparams_dict_to_generic_proto(
+              self._learner_params),
+          ranking_group=_RANK_GROUP if self._task == Task.RANKING else None,
+          keep_model_in_resource=True,
+          guide=guide,
+          training_config=self._advanced_arguments.yggdrasil_training_config,
+          deployment_config=deployment_config,
+          working_cache_path=os.path.join(self._temp_directory,
+                                          "working_cache"),
+          distribution_config=distribution_config,
+      )
 
     # Request and store a description of the model.
     self._description = training_op.SimpleMLShowModel(
@@ -1132,6 +1263,12 @@ class CoreModel(models.Model):
         raise ValueError("Non supported feature type")
 
     self.predict(tf.data.Dataset.from_tensor_slices(examples).batch(2))
+
+  @staticmethod
+  def capabilities() -> abstract_learner_pb2.LearnerCapabilities:
+    """Lists the capabilities of the learning algorithm."""
+
+    return abstract_learner_pb2.LearnerCapabilities()
 
 
 class _TrainerCallBack(tf.keras.callbacks.Callback):
@@ -1544,6 +1681,37 @@ def _write_scalar_summaries(logs, step):
 
 def _is_scalar(x):
   return isinstance(x, (tf.Tensor, tf.Variable)) and x.shape.rank == 0
+
+
+def _is_per_replica_instance(obj):
+  return (isinstance(obj, tf.distribute.DistributedValues) and
+          isinstance(obj, tf.__internal__.CompositeTensor))
+
+
+def _reduce_per_replica(values, strategy, reduction="first"):
+  """Reduce PerReplica objects.
+
+  Args:
+    values: Structure of `PerReplica` objects or `Tensor`s. `Tensor`s are
+      returned as-is.
+    strategy: `tf.distribute.Strategy` object.
+    reduction: One of 'first', 'concat'.
+
+  Returns:
+    Structure of `Tensor`s.
+  """
+
+  def _reduce(v):
+    """Reduce a single `PerReplica` object."""
+    if not _is_per_replica_instance(v):
+      return v
+    elif reduction == "first":
+      return strategy.unwrap(v)[0]
+    else:
+      raise ValueError('`reduction` must be "first" or "concat". Received: '
+                       f"reduction={reduction}.")
+
+  return tf.nest.map_structure(_reduce, values)
 
 
 # pylint: enable=g-doc-args

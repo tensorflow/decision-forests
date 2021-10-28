@@ -29,13 +29,24 @@ tf_custom_op_library_external(
     deps = [":kernel_and_op"],
 )
 
+# Dataset format supported by the disk-based trainer.
+cc_library(
+    name = "dataset_formats",
+    deps = [
+        "@ydf//yggdrasil_decision_forests/learner/distributed_decision_tree/dataset_cache:dataset_cache_reader",
+    ],
+    alwayslink = 1,
+)
+
 # Op+kernel for static linking.
 cc_library(
     name = "kernel_and_op",
     deps = [
+        ":dataset_formats",
         ":kernel",
         ":op",
         "//tensorflow_decision_forests/tensorflow:canonical_learners",
+        "//tensorflow_decision_forests/tensorflow/distribute:tf_distribution",
     ],
     alwayslink = 1,
 )
@@ -84,8 +95,13 @@ cc_library(
 # Definition of the ops i.e. the kernels.
 cc_library(
     name = "kernel",
-    srcs = ["kernel.cc"],
+    srcs = [
+        "feature_on_file.cc",
+        "kernel.cc",
+        "kernel_on_file.cc",
+    ],
     hdrs = [
+        "feature_on_file.h",
         "features.h",
         "kernel.h",
     ],
@@ -104,6 +120,9 @@ cc_library(
         "@ydf//yggdrasil_decision_forests/learner:abstract_learner",
         "@ydf//yggdrasil_decision_forests/learner:abstract_learner_cc_proto",
         "@ydf//yggdrasil_decision_forests/learner:learner_library",
+        "@ydf//yggdrasil_decision_forests/learner/distributed_decision_tree/dataset_cache:column_cache",
+        "@ydf//yggdrasil_decision_forests/learner/distributed_decision_tree/dataset_cache:dataset_cache_cc_proto",
+        "@ydf//yggdrasil_decision_forests/learner/distributed_decision_tree/dataset_cache:dataset_cache_common",
         "@ydf//yggdrasil_decision_forests/model:abstract_model",
         "@ydf//yggdrasil_decision_forests/model:model_library",
         "@ydf//yggdrasil_decision_forests/utils:distribution_cc_proto",

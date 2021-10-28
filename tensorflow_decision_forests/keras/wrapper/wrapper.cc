@@ -231,6 +231,7 @@ ydf::utils::StatusOr<std::string> GenKerasPythonWrapper() {
   std::string imports = absl::Substitute(R"(
 from $0tensorflow_decision_forests.keras import core
 from $0yggdrasil_decision_forests.model import abstract_model_pb2  # pylint: disable=unused-import
+from $0yggdrasil_decision_forests.learner import abstract_learner_pb2
 )",
                                          prefix);
 
@@ -521,6 +522,11 @@ $4
   @staticmethod
   def predefined_hyperparameters() -> List[core.HyperParameterTemplate]:
     return $8
+
+  @staticmethod
+  def capabilities() -> abstract_learner_pb2.LearnerCapabilities:
+    return abstract_learner_pb2.LearnerCapabilities(
+      support_partial_cache_dataset_format=$9)
 )",
         /*$0*/ class_name, /*$1*/ learner_key,
         /*$2*/ fields_documentation,
@@ -528,8 +534,13 @@ $4
         /*$5*/ free_text_documentation,
         /*$6*/ nice_learner_name,
         /*$7*/ FormatDocumentation(predefined_hp_doc, 6, 6),
-        /*$8*/ predefined_hp_list);
+        /*$8*/ predefined_hp_list,
+        /*$9*/ learner->Capabilities().support_partial_cache_dataset_format()
+            ? "True"
+            : "False");
   }
+
+  // TODO(gbm): Text serialize the proto
 
   return wrapper;
 }

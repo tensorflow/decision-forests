@@ -640,22 +640,6 @@ int FeatureSet::NumFeatures() const {
          categorical_set_int_features_.size() + hash_features_.size();
 }
 
-#ifdef TFDF_STOP_TRAINING_ON_INTERRUPT
-namespace {
-// Should the current training learners be stoped?
-std::atomic<bool> stop_training;
-
-// The interruption signal handler to restore when all the learners are done
-// training.
-void (*previous_signal_handler)(int);
-
-// Number of learners training.
-std::atomic<int> active_learners{0};
-
-void StopTrainingSignalHandler(int signal) { stop_training = true; }
-}  // namespace
-#endif
-
 // Trains a simpleML model.
 class SimpleMLModelTrainer : public tensorflow::OpKernel {
  public:
@@ -826,33 +810,15 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
     */
 
 #ifdef TFDF_STOP_TRAINING_ON_INTERRUPT
-    // Detect interrupt signals.
-    const bool set_signal_handler = active_learners.fetch_add(1) == 0;
-    if (set_signal_handler) {
-      stop_training = false;
-      learner->set_stop_training_trigger(&stop_training);
-      previous_signal_handler = std::signal(SIGINT, StopTrainingSignalHandler);
-      if (previous_signal_handler == SIG_ERR) {
-        OP_REQUIRES_OK(ctx,
-                       tf::Status(tf::error::INVALID_ARGUMENT,
-                                  "Cannot change the std::signal handler."));
-      }
-    }
+    OP_REQUIRES_OK(ctx, interruption::EnableUserInterruption());
+    learner->set_stop_training_trigger(&interruption::stop_training);
 #endif
 
     LOG(INFO) << "Train model";
     auto model = learner->TrainWithStatus(dataset);
 
 #ifdef TFDF_STOP_TRAINING_ON_INTERRUPT
-    const bool restore_signal_handler = active_learners.fetch_sub(1) == 1;
-    if (restore_signal_handler) {
-      // Restore the previous signal handler.
-      if (std::signal(SIGINT, previous_signal_handler) == SIG_ERR) {
-        OP_REQUIRES_OK(ctx,
-                       tf::Status(tf::error::INVALID_ARGUMENT,
-                                  "Cannot restore the std::signal handler."));
-      }
-    }
+    OP_REQUIRES_OK(ctx, interruption::DisableUserInterruption());
 #endif
 
     OP_REQUIRES_OK(ctx, utils::FromUtilStatus(model.status()));
@@ -959,14 +925,15 @@ class SimpleMLShowModel : public AbstractSimpleMLModelOp {
 
   void ComputeModel(tf::OpKernelContext* ctx,
                     const model::AbstractModel* const model) override {
+    if (!model) {
+      OP_REQUIRES_OK(ctx, tf::Status(tf::error::INVALID_ARGUMENT,
+                                     "The model does not exist."));
+    }
+
     tf::Tensor* output_tensor = nullptr;
     OP_REQUIRES_OK(
         ctx, ctx->allocate_output(0, tf::TensorShape({}), &output_tensor));
     auto output = output_tensor->scalar<tensorflow::tstring>();
-    if (!model) {
-      output().clear();
-    }
-
     std::string description;
     model->AppendDescriptionAndStatistics(/*full_definition=*/false,
                                           &description);
@@ -997,6 +964,38 @@ class SimpleMLUnloadModel : public tf::OpKernel {
 
 REGISTER_KERNEL_BUILDER(Name("SimpleMLUnloadModel").Device(tf::DEVICE_CPU),
                         SimpleMLUnloadModel);
+
+#ifdef TFDF_STOP_TRAINING_ON_INTERRUPT
+namespace interruption {
+
+tf::Status EnableUserInterruption() {
+  // Detect interrupt signals.
+  const bool set_signal_handler = active_learners.fetch_add(1) == 0;
+  if (set_signal_handler) {
+    stop_training = false;
+    previous_signal_handler = std::signal(SIGINT, StopTrainingSignalHandler);
+    if (previous_signal_handler == SIG_ERR) {
+      TF_RETURN_IF_ERROR(tf::Status(tf::error::INVALID_ARGUMENT,
+                                    "Cannot change the std::signal handler."));
+    }
+  }
+  return tf::Status::OK();
+}
+
+tf::Status DisableUserInterruption() {
+  const bool restore_signal_handler = active_learners.fetch_sub(1) == 1;
+  if (restore_signal_handler) {
+    // Restore the previous signal handler.
+    if (std::signal(SIGINT, previous_signal_handler) == SIG_ERR) {
+      TF_RETURN_IF_ERROR(tf::Status(tf::error::INVALID_ARGUMENT,
+                                    "Cannot restore the std::signal handler."));
+    }
+  }
+  return tf::Status::OK();
+}
+
+}  // namespace interruption
+#endif
 
 }  // namespace ops
 }  // namespace tensorflow_decision_forests

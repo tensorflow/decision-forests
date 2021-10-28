@@ -73,6 +73,7 @@ def py_wrap_yggdrasil_learners(
             "//tensorflow_decision_forests/keras:core",
             "@org_tensorflow//tensorflow/python",
             "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
+            "@ydf//yggdrasil_decision_forests/learner:abstract_learner_py_proto",
         ],
         data = [":" + run_wrapper_name, ":" + wrapper_name],
     )

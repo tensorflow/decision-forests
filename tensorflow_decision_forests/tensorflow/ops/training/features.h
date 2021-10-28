@@ -13,6 +13,8 @@
  * limitations under the License.
  */
 
+// Op storing the input feature and label value in memory before the training.
+//
 #ifndef TENSORFLOW_DECISION_FORESTS_TENSORFLOW_OPS_TRAINING_FEATURES_H_
 #define TENSORFLOW_DECISION_FORESTS_TENSORFLOW_OPS_TRAINING_FEATURES_H_
 
