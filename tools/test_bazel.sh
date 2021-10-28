@@ -43,7 +43,7 @@ FLAGS="--config=linux --config=rbe_cpu_linux --config=tensorflow_testing_rbe_lin
 # https://github.com/tensorflow/custom-op
 #
 # For <TF2.7.0
-# FLAGS="${FLAGS} --crosstool_top=//third_party/toolchains/preconfig/ubuntu16.04/gcc7_manylinux2010-nvcc-cuda10.1:toolchain"
+FLAGS="${FLAGS} --crosstool_top=//third_party/toolchains/preconfig/ubuntu16.04/gcc7_manylinux2010-nvcc-cuda10.1:toolchain"
 # For >=TF2.7.0
 # FLAGS="${FLAGS} --crosstool_top=@ubuntu18.04-gcc7_manylinux2010-cuda11.2-cudnn8.1-tensorrt7.2_config_cuda//crosstool:toolchain"
 
