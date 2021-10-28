@@ -160,7 +160,7 @@ class DistributionConfiguration(NamedTuple):
 
 
 def get_distribution_configuration(
-    strategy: Optional[Any] = None) -> Optional[DistributionConfiguration]:
+    strategy: Optional[Any]) -> Optional[DistributionConfiguration]:
   """Extracts the distribution configuration from the distribution strategy.
 
   Args:
@@ -173,6 +173,7 @@ def get_distribution_configuration(
 
   if strategy is None:
     strategy = tf.distribute.get_strategy()
+
   # pylint:disable=protected-access
   if isinstance(strategy,
                 parameter_server_strategy_v2.ParameterServerStrategyV2):
@@ -868,7 +869,7 @@ def train_on_file_dataset(
     training_config.weight_definition.numerical.SetInParent()
 
   for feature_id in feature_ids:
-    training_config.features.append(re.escape(feature_id))
+    training_config.features.append(normalize_inputs_regexp(feature_id))
 
   if working_cache_path is not None:
     deployment_config.cache_path = working_cache_path

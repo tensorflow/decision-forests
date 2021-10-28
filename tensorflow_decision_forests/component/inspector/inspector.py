@@ -43,7 +43,7 @@ import collections
 import math
 import os
 import typing
-from typing import List, Any, Optional, Generator, Callable, Dict, Tuple
+from typing import List, Any, Optional, Generator, Callable, Dict, Tuple, Union
 
 import six
 import tensorflow as tf
@@ -104,6 +104,22 @@ class Evaluation(typing.NamedTuple):
   rmse: Optional[float] = None
   ndcg: Optional[float] = None
   aucs: Optional[List[float]] = None
+
+  def to_dict(self) -> Dict[str, Union[int, float, List[float]]]:
+    """Convert the object into a dictionary of values."""
+    d = {}
+
+    def add_if_not_none(key, value):
+      if value is not None:
+        d[key] = value
+
+    add_if_not_none("num_examples", self.num_examples)
+    add_if_not_none("accuracy", self.accuracy)
+    add_if_not_none("loss", self.loss)
+    add_if_not_none("rmse", self.rmse)
+    add_if_not_none("ndcg", self.ndcg)
+    add_if_not_none("aucs", self.aucs)
+    return d
 
 
 class TrainLog(typing.NamedTuple):

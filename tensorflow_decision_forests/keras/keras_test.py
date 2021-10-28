@@ -1568,6 +1568,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     # Configure the model and datasets
     strategy = tf.distribute.experimental.ParameterServerStrategy(
         cluster_resolver)
+
     with strategy.scope():
       model = keras.DistributedGradientBoostedTreesModel()
       model.compile(metrics=["accuracy"])
@@ -1608,6 +1609,119 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     # However, because of the currently required repeat, if workers are running
     # at different speed, some examples can be repeated.
     self.assertAlmostEqual(evaluation["accuracy"], 0.8603476, delta=0.02)
+
+  def test_training_adult_from_disk(self):
+    # Path to dataset.
+    dataset_directory = os.path.join(test_data_path(), "dataset")
+    train_path = os.path.join(dataset_directory, "adult_train.csv")
+    test_path = os.path.join(dataset_directory, "adult_test.csv")
+
+    label = "income"
+
+    model = keras.GradientBoostedTreesModel()
+    model.compile(metrics=["accuracy"])
+
+    training_history = model.fit_on_dataset_path(
+        train_path=train_path,
+        label_key=label,
+        dataset_format="csv",
+        valid_path=test_path)
+    logging.info("Training history: %s", training_history.history)
+
+    logging.info("Trained model:")
+    model.summary()
+
+    _, tf_test = dataset_to_tf_dataset(adult_dataset())
+    evaluation = model.evaluate(tf_test, return_dict=True)
+    logging.info("Evaluation: %s", evaluation)
+    self.assertAlmostEqual(evaluation["accuracy"], 0.8703476, delta=0.01)
+
+    model.predict(tf_test)
+
+    features = [feature.name for feature in model.make_inspector().features()]
+    self.assertEqual(features, [
+        "age", "workclass", "fnlwgt", "education", "education_num",
+        "marital_status", "occupation", "relationship", "race", "sex",
+        "capital_gain", "capital_loss", "hours_per_week", "native_country"
+    ])
+
+  def test_training_adult_from_disk_with_features(self):
+    # Path to dataset.
+    dataset_directory = os.path.join(test_data_path(), "dataset")
+    train_path = os.path.join(dataset_directory, "adult_train.csv")
+    test_path = os.path.join(dataset_directory, "adult_test.csv")
+
+    label = "income"
+
+    model = keras.GradientBoostedTreesModel(
+        features=[
+            keras.FeatureUsage("age", keras.FeatureSemantic.NUMERICAL),
+            keras.FeatureUsage("relationship",
+                               keras.FeatureSemantic.CATEGORICAL),
+            keras.FeatureUsage("capital_loss", keras.FeatureSemantic.NUMERICAL),
+        ],
+        exclude_non_specified_features=True)
+    model.compile(metrics=["accuracy"])
+
+    training_history = model.fit_on_dataset_path(
+        train_path=train_path,
+        label_key=label,
+        dataset_format="csv",
+        valid_path=test_path)
+    logging.info("Training history: %s", training_history.history)
+
+    logging.info("Trained model:")
+    model.summary()
+
+    _, tf_test = dataset_to_tf_dataset(adult_dataset())
+    evaluation = model.evaluate(tf_test, return_dict=True)
+    logging.info("Evaluation: %s", evaluation)
+    self.assertAlmostEqual(evaluation["accuracy"], 0.79056, delta=0.01)
+
+    features = [feature.name for feature in model.make_inspector().features()]
+    self.assertEqual(features, ["age", "relationship", "capital_loss"])
+
+  def test_distributed_training_adult_from_disk(self):
+    # Path to dataset.
+    dataset_directory = os.path.join(test_data_path(), "dataset")
+    train_path = os.path.join(dataset_directory, "adult_train.csv")
+    test_path = os.path.join(dataset_directory, "adult_test.csv")
+
+    label = "income"
+
+    # Create the workers
+    cluster_resolver = _create_in_process_cluster(num_workers=5, num_ps=1)
+
+    # Configure the model and datasets
+    strategy = tf.distribute.experimental.ParameterServerStrategy(
+        cluster_resolver)
+
+    with strategy.scope():
+      model = keras.DistributedGradientBoostedTreesModel()
+      model.compile(metrics=["accuracy"])
+
+    training_history = model.fit_on_dataset_path(
+        train_path=train_path,
+        label_key=label,
+        dataset_format="csv",
+        valid_path=test_path)
+    logging.info("Training history: %s", training_history.history)
+
+    logging.info("Trained model:")
+    model.summary()
+
+    model._distribution_strategy = None
+    _, tf_test = dataset_to_tf_dataset(adult_dataset())
+    evaluation = model.evaluate(tf_test, return_dict=True)
+    logging.info("Evaluation: %s", evaluation)
+    self.assertAlmostEqual(evaluation["accuracy"], 0.8703476, delta=0.01)
+
+    features = [feature.name for feature in model.make_inspector().features()]
+    self.assertEqual(features, [
+        "age", "workclass", "fnlwgt", "education", "education_num",
+        "marital_status", "occupation", "relationship", "race", "sex",
+        "capital_gain", "capital_loss", "hours_per_week", "native_country"
+    ])
 
   def test_in_memory_not_supported(self):
 

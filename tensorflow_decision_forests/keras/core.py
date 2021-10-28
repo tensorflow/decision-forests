@@ -838,7 +838,8 @@ class CoreModel(models.Model):
     if not self._is_trained:
       # Collects the training examples.
 
-      distribution_config = tf_core.get_distribution_configuration()
+      distribution_config = tf_core.get_distribution_configuration(
+          self.distribute_strategy)
       if distribution_config is None:
         # No distribution strategy. Collecting examples in memory.
         tf_core.collect_training_examples(normalized_semantic_inputs,
@@ -938,13 +939,7 @@ class CoreModel(models.Model):
       All other fields are filled as usual for `Keras.Mode.fit()`.
     """
 
-    # Clear the @tf.function cache and force re-tracing the next time "call" is
-    # called.
-    # TODO(gbm): Use a solution that rely on the public API when available.
-    # pylint: disable=protected-access
-    if self.call._stateful_fn:
-      self.call._stateful_fn._function_cache.primary.clear()
-    # pylint: enable=protected-access
+    self._clear_function_cache()
 
     # Check for a Pandas Dataframe without injecting a dependency.
     if str(type(x)) == "<class 'pandas.core.frame.DataFrame'>":
@@ -991,6 +986,180 @@ class CoreModel(models.Model):
     self._build(x)
 
     return history
+
+  def fit_on_dataset_path(self,
+                          train_path: str,
+                          label_key: str,
+                          weight_key: Optional[str] = None,
+                          ranking_key: Optional[str] = None,
+                          valid_path: Optional[str] = None,
+                          dataset_format: Optional[str] = "csv"):
+    """Trains the model on a dataset stored on disk.
+
+    This solution is generally more efficient and easier that loading the
+    dataset with a tf.Dataset both for local and distributed training.
+
+    Usage example:
+
+      # Local training
+      model = model = keras.GradientBoostedTreesModel()
+      model.fit_on_dataset_path(
+        train_path="/path/to/dataset.csv",
+        label_key="label",
+        dataset_format="csv")
+      model.save("/model/path")
+
+      # Distributed training
+      with tf.distribute.experimental.ParameterServerStrategy(...).scope():
+        model = model = keras.DistributedGradientBoostedTreesModel()
+      model.fit_on_dataset_path(
+        train_path="/path/to/dataset@10",
+        label_key="label",
+        dataset_format="tfrecord+tfe")
+      model.save("/model/path")
+
+    Args:
+       train_path: Path to the training dataset. Support comma separated files,
+         shard and glob notation.
+       label_key: Name of the label column.
+       weight_key: Name of the weighing column.
+       ranking_key: Name of the ranking column.
+       valid_path: Path to the validation dataset. If not provided, or if the
+         learning algorithm does not support/need a validation dataset,
+         `valid_path` is ignored.
+       dataset_format: Format of the dataset. Should be one of the registered
+         dataset format (see
+         https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/user_manual.md#dataset-path-and-format
+           for more details). The format "csv" always available but it is
+           generally only suited for small datasets.
+
+    Returns:
+      A `History` object. Its `History.history` attribute is not yet
+      implemented for decision forests algorithms, and will return empty.
+      All other fields are filled as usual for `Keras.Mode.fit()`.
+    """
+
+    if self._verbose:
+      logging.info("Training on dataset %s", train_path)
+
+    self._clear_function_cache()
+
+    # Call "compile" if the user forgot to do so.
+    if not self._is_compiled:
+      self.compile()
+
+    train_model_path = self._temp_directory
+    model_path = os.path.join(train_model_path, "model")
+
+    # Create the dataspec guide.
+    guide = data_spec_pb2.DataSpecificationGuide(
+        ignore_columns_without_guides=self._exclude_non_specified)
+    guide.default_column_guide.categorial.max_vocab_count = self._max_vocab_count
+    self._normalized_input_keys = []
+    for feature in self._features:
+      col_guide = copy.deepcopy(feature.guide)
+      col_guide.column_name_pattern = tf_core.normalize_inputs_regexp(
+          feature.name)
+      guide.column_guides.append(col_guide)
+      self._normalized_input_keys.append(feature.name)
+
+    label_guide = data_spec_pb2.ColumnGuide(
+        column_name_pattern=tf_core.normalize_inputs_regexp(label_key))
+
+    if self._task == Task.CLASSIFICATION:
+      label_guide.type = data_spec_pb2.CATEGORICAL
+      label_guide.categorial.min_vocab_frequency = 0
+      label_guide.categorial.max_vocab_count = -1
+    elif self._task == Task.REGRESSION:
+      label_guide.type = data_spec_pb2.NUMERICAL
+    elif self._task == Task.RANKING:
+      label_guide.type = data_spec_pb2.NUMERICAL
+    else:
+      raise ValueError(
+          "Non implemented task with \"fit_on_dataset_path\"."
+          f" Use a different task or train with \"fit\".", self._task)
+    guide.column_guides.append(label_guide)
+
+    if ranking_key:
+      ranking_guide = data_spec_pb2.ColumnGuide(
+          column_name_pattern=tf_core.normalize_inputs_regexp(ranking_key),
+          type=data_spec_pb2.HASH)
+      guide.column_guides.append(ranking_guide)
+
+    if weight_key:
+      weight_guide = data_spec_pb2.ColumnGuide(
+          column_name_pattern=tf_core.normalize_inputs_regexp(weight_key),
+          type=data_spec_pb2.NUMERICAL)
+      guide.column_guides.append(weight_guide)
+
+    # Deployment configuration
+    deployment_config = copy.deepcopy(
+        self._advanced_arguments.yggdrasil_deployment_config)
+    if not deployment_config.HasField("num_threads"):
+      deployment_config.num_threads = self._num_threads
+
+    distribution_config = tf_core.get_distribution_configuration(
+        self.distribute_strategy)
+    logging.info("distribution_config: %s", distribution_config)
+    if distribution_config is not None and not self.capabilities(
+    ).support_partial_cache_dataset_format:
+      raise ValueError(
+          f"The model {type(self)} does not support training with a TF "
+          "Distribution strategy (i.e. model.capabilities()."
+          "support_partial_cache_dataset_format == False). If the dataset "
+          "is small, simply remove the distribution strategy scope (i.e. `with "
+          "strategy.scope():` around the model construction). If the dataset "
+          "is large, use a distributed version of the model. For Example, use "
+          "DistributedGradientBoostedTreesModel instead of "
+          "GradientBoostedTreesModel.")
+
+    # Train the model.
+    tf_core.train_on_file_dataset(
+        train_dataset_path=dataset_format + ":" + train_path,
+        valid_dataset_path=(dataset_format + ":" +
+                            valid_path) if valid_path else None,
+        feature_ids=self._normalized_input_keys,
+        label_id=label_key,
+        weight_id=weight_key,
+        model_id=self._training_model_id,
+        model_dir=train_model_path,
+        learner=self._learner,
+        task=self._task,
+        generic_hparms=tf_core.hparams_dict_to_generic_proto(
+            self._learner_params),
+        ranking_group=ranking_key,
+        keep_model_in_resource=True,
+        guide=guide,
+        training_config=self._advanced_arguments.yggdrasil_training_config,
+        deployment_config=deployment_config,
+        working_cache_path=os.path.join(self._temp_directory, "working_cache"),
+        distribution_config=distribution_config)
+
+    if self._verbose:
+      logging.info("Training done. Finalizing the model.")
+
+    # Request and store a description of the model.
+    self._description = training_op.SimpleMLShowModel(
+        model_identifier=self._training_model_id).numpy().decode("utf-8")
+    training_op.SimpleMLUnloadModel(model_identifier=self._training_model_id)
+
+    # Build the model's graph.
+    inspector = inspector_lib.make_inspector(model_path)
+    self._set_from_yggdrasil_model(inspector, model_path)
+
+    # Build the model history.
+    history = tf.keras.callbacks.History()
+    history.model = self
+    history.on_train_begin()
+
+    training_logs = inspector.training_logs()
+    if training_logs is not None:
+      for src_logs in training_logs:
+        if src_logs.evaluation is not None:
+          history.on_epoch_end(src_logs.num_trees,
+                               src_logs.evaluation.to_dict())
+    self.history = history
+    return self.history
 
   def save(self, filepath: str, overwrite: Optional[bool] = True, **kwargs):
     """Saves the model as a TensorFlow SavedModel.
@@ -1076,6 +1245,17 @@ class CoreModel(models.Model):
 
     return []
 
+  def _clear_function_cache(self):
+    """Clear the @tf.function cache and force re-tracing.
+
+    TODO(gbm): Use a solution that rely on the public API when available.
+    """
+
+    # pylint: disable=protected-access
+    if self.call._stateful_fn:
+      self.call._stateful_fn._function_cache.primary.clear()
+    # pylint: enable=protected-access
+
   def _extract_sample(self, x):
     """Extracts a sample (e.g.
 
@@ -1154,7 +1334,8 @@ class CoreModel(models.Model):
     if not deployment_config.HasField("num_threads"):
       deployment_config.num_threads = self._num_threads
 
-    distribution_config = tf_core.get_distribution_configuration()
+    distribution_config = tf_core.get_distribution_configuration(
+        self.distribute_strategy)
     if distribution_config is None:
       # Train the model.
       # The model will be exported to "train_model_path".
@@ -1224,7 +1405,8 @@ class CoreModel(models.Model):
                                 inspector: inspector_lib.AbstractInspector,
                                 path: str):
 
-    self.compile()
+    if not self._is_compiled:
+      self.compile()
 
     features = inspector.features()
     semantics = {
