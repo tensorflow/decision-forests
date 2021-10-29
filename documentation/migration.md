@@ -2,9 +2,9 @@
 
 **TensorFlow Decision Forests** (**TF-DF**) is a collection of Decision Forest
 (**DF**) algorithms available in TensorFlow. Decision Forests work differently
-than Neural Networks (**NN**): DFs generally do not train with
-backpropagation, or in mini-batches. Therefore, TF-DF pipelines have a few
-differences from other TensorFlow pipelines.
+than Neural Networks (**NN**): DFs generally do not train with backpropagation,
+or in mini-batches. Therefore, TF-DF pipelines have a few differences from other
+TensorFlow pipelines.
 
 This document is a list of those differences, and a guide to updating TF
 pipelines to use TF-DF
@@ -168,8 +168,14 @@ There are diminishing returns for increasing the size of the dataset, and DF
 algorithms arguably need fewer examples for convergence than large NN models.
 Instead of scaling the number of training steps (as in a NN), you can try
 scaling the amount of data to see where the compute tradeoff makes sense.
-Therefore **it is a good idea to first try training on a (small) subset of the
+Therefore, **it is a good idea to first try training on a (small) subset of the
 dataset.**
+
+The alternative solution is to use *distributed training*. Distributed training
+is a great way to increase the size of the dataset if multiple machines
+available. While all distributed algorithm are available to distribute the
+computation, not all of them are able to distribute the RAM usage. Check the
+[documentation](distributed_training.md) for more details.
 
 #### How many examples to use
 
@@ -340,8 +346,8 @@ It is possible to handle these features using the following strategies:
 
     *   Images: Using image with Random Forest was popular at some point (e.g.
 
-        [Microsoft Kinect](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/BodyPartRecognition.pdf),
-        but today, neural nets are state of the art.
+        [Microsoft Kinect](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/BodyPartRecognition.pdf)
+        , but today, neural nets are state of the art.
 
     *   Time series:
         [[Moving statistics](http://framework.mathieu.guillame-bert.com/documentation_honey_tutorial_beginner)]
@@ -462,9 +468,11 @@ print(logs)
 Or using TensorBoard:
 
 ```python
-%load_ext tensorboard
+% load_ext
+tensorboard
 model.make_inspector().export_to_tensorboard("/tmp/tensorboard_logs")
-%tensorboard --logdir "/tmp/tensorboard_logs"
+% tensorboard - -logdir
+"/tmp/tensorboard_logs"
 ```
 
 #### Feature importance

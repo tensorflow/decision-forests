@@ -38,8 +38,6 @@ as:
 tensorflow_decision_forests/tensorflow/ops/training/training.so: undefined symbol: _ZN10tensorflow11GetNodeAttrERKNS_9AttrSliceEN4absl14lts_2020_09_2311string_viewEPSs
 ```
 
-**Workarounds:**
-
 -   Use the version of TF-DF that is compatible with your version of TensorFlow.
 
 ### Compatibility table
@@ -53,20 +51,21 @@ tensorflow_decision_forests | tensorflow
 0.1.1 - 0.1.8               | 2.5
 0.1.0                       | 2.4
 
-## No support for TF distribution strategies.
+-   *Solution #2:* Wrapps your preprocessing function into another function that
+    [squeeze](https://www.tensorflow.org/api_docs/python/tf/squeeze) its inputs.
 
-TF-DF does not yet support distribution strategies or datasets that do not fit
-in memory. This is because the classical decision forest training algorithms
-already implemented require the entire dataset to be available in memory.
+## No all models support distributed training and distribute strategies
 
-**Workaround**
+Unless specified, models are trained on a single machine and are not compatible
+with distribution strategies. For example the `GradientBoostedTreesModel` does
+not support distributed training while `DistributedGradientBoostedTreesModel`
+does.
 
-* Downsample your dataset. A rule of thumb is that TF-DF training
-uses 4 bytes per input dimension, so a dataset with 100 million examples and 10
-numerical/categorical features would be 4 GB in memory.
+**Workarounds:**
 
-* Train a manual ensemble on slices of the dataset, i.e. train N models on N
-slices of data, and average the predictions.
+-   Use a model that support distribution strategies (e.g.
+    `DistributedGradientBoostedTreesModel`), or downsample your dataset so it
+    fits on a single machine.
 
 ## No support for GPU / TPU.
 
