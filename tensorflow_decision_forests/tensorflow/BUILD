@@ -19,6 +19,7 @@ cc_library(
     alwayslink = 1,
 )
 
+# Available learning algorithms.
 cc_library(
     name = "canonical_learners",
     deps = [
@@ -26,6 +27,24 @@ cc_library(
         "@ydf//yggdrasil_decision_forests/learner/distributed_gradient_boosted_trees",
         "@ydf//yggdrasil_decision_forests/learner/gradient_boosted_trees",
         "@ydf//yggdrasil_decision_forests/learner/random_forest",
+    ],
+    alwayslink = 1,
+)
+
+# Available engines for distributed training.
+cc_library(
+    name = "distribution_engines",
+    deps = [
+        # Distributed training with TF Parameter Server.
+        #
+        # If not registered, the following error will be raised
+        # when using distributed training with the TF PS and TF-DF:
+        # "Unknown item TF_DIST in class pool".
+        #
+        # Currently, this distribution engine is not available in custom
+        # non-core c++ ops in TF OSS (i.e. when TF-DF is compiled as a shared library).
+        # Either use monolithic build for TF+TF-DF, or use the GRPC distribution strategy.
+        "//tensorflow_decision_forests/tensorflow/distribute:tf_distribution",
     ],
     alwayslink = 1,
 )
@@ -53,6 +72,7 @@ py_library(
         "@org_tensorflow//tensorflow/python/distribute:parameter_server_strategy_v2",
         "@org_tensorflow//tensorflow/python/distribute/coordinator:cluster_coordinator",
         "@org_tensorflow//tensorflow/python/distribute/coordinator:coordinator_context",
+        "//tensorflow_decision_forests/tensorflow/distribute:api_py",  # Compatibility with TF Parameter Server for distribution.
         "//tensorflow_decision_forests/tensorflow/distribute:tf_distribution_py_proto",
         "//tensorflow_decision_forests/tensorflow/ops/training:api_py",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",

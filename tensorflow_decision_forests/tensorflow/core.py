@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Core classes and functions of TensorFlow Decision Forests trainin."""
+"""Core classes and functions of TensorFlow Decision Forests training."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -34,6 +34,7 @@ from tensorflow.python.distribute import parameter_server_strategy_v2
 from tensorflow.python.distribute.coordinator import coordinator_context
 from tensorflow_decision_forests.tensorflow.distribute import tf_distribution_pb2
 from tensorflow_decision_forests.tensorflow.ops.training import api as training_op
+from tensorflow_decision_forests.tensorflow.distribute import api  # pylint: disable=unused-import
 from yggdrasil_decision_forests.dataset import data_spec_pb2
 from yggdrasil_decision_forests.learner import abstract_learner_pb2
 from yggdrasil_decision_forests.model import abstract_model_pb2

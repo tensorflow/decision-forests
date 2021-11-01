@@ -1,13 +1,25 @@
 # Implementation of the Yggdrasil Distribute API using TensorFlow Distribution Strategies.
 #
 load("@ydf//yggdrasil_decision_forests/utils:compile.bzl", "all_proto_library")
-load("@org_tensorflow//tensorflow:tensorflow.bzl", "tf_cc_test")
+
 load("//tensorflow_decision_forests/tensorflow:utils.bzl", "tf_custom_op_library_external")
 load("@org_tensorflow//tensorflow:tensorflow.bzl","tf_cc_test")
 
 package(
     default_visibility = ["//visibility:public"],
     licenses = ["notice"],
+)
+
+# =========
+
+py_library(
+    name = "api_py",
+    srcs = ["api.py"],
+    data = [":distribute.so"],
+    srcs_version = "PY3",
+    deps = [
+        "@org_tensorflow//tensorflow:tensorflow_py",
+    ],
 )
 
 # Worker binaries
@@ -20,8 +32,8 @@ py_binary(
     srcs = ["tf_distribution_py_worker.py"],
     python_version = "PY3",
     srcs_version = "PY3",
-    data = [":distribute.so"],
     deps = [
+        ":api_py",
         # absl:app dep,
         # absl/flags dep,
         # absl/logging dep,
@@ -41,21 +53,26 @@ all_proto_library(
 # Library
 # =======
 
+# TODO(gbm): Split the functions exported and non-exported in tensorflow.so.
+TF_CC_API_DEP = [
+    "@org_tensorflow//tensorflow/cc:cc_ops",
+    "@org_tensorflow//tensorflow/cc:client_session",
+    "@org_tensorflow//tensorflow/cc:ops",
+    "@org_tensorflow//tensorflow/cc:scope",
+    "@org_tensorflow//tensorflow/core:protos_all_cc",
+    "@org_tensorflow//tensorflow/core/distributed_runtime/rpc:grpc_session",
+]
+
 cc_library(
     name = "tf_distribution",
     srcs = ["tf_distribution.cc"],
     hdrs = ["tf_distribution.h"],
     deps = [
-        ":register_ops",
+        ":tf_distribution_op",
         ":tf_distribution_cc_proto",
         "@com_google_absl//absl/synchronization",
         "@com_github_tencent_rapidjson//:rapidjson",
-        "@org_tensorflow//tensorflow/cc:cc_ops",
-        "@org_tensorflow//tensorflow/cc:client_session",
-        "@org_tensorflow//tensorflow/cc:ops",
-        "@org_tensorflow//tensorflow/cc:scope",
-        "@org_tensorflow//tensorflow/core:protos_all_cc",
-        "@org_tensorflow//tensorflow/core/distributed_runtime/rpc:grpc_session",
+        "@org_tensorflow//tensorflow/core:framework_headers_lib",
         "@ydf//yggdrasil_decision_forests/utils:concurrency",
         "@ydf//yggdrasil_decision_forests/utils:filesystem",
         "@ydf//yggdrasil_decision_forests/utils:logging",
@@ -65,21 +82,21 @@ cc_library(
         "@ydf//yggdrasil_decision_forests/utils/distribute:core",
         "@ydf//yggdrasil_decision_forests/utils/distribute:distribute_cc_proto",
         "@ydf//yggdrasil_decision_forests/utils/distribute:utils",
-    ],
+    ] + TF_CC_API_DEP,
     alwayslink = 1,
 )
 
 # TF Ops
 # ======
 
-# Op+kernel for dynamical linking.
+# Op+kernel for dynamic linking.
 tf_custom_op_library_external(
     name = "distribute.so",
-    deps = [":register_ops"],
+    deps = [":kernel_and_op"],
 )
 
 cc_library(
-    name = "register_ops",
+    name = "kernel_and_op",
     deps = [
         ":tf_distribution_kernel",
         ":tf_distribution_op",
@@ -103,10 +120,6 @@ cc_library(
     deps = [
         ":tf_distribution_cc_proto",
         "@com_google_absl//absl/status",
-        "@org_tensorflow//tensorflow/cc:cc_ops",
-        "@org_tensorflow//tensorflow/cc:client_session",
-        "@org_tensorflow//tensorflow/cc:ops",
-        "@org_tensorflow//tensorflow/cc:scope",
         "@org_tensorflow//tensorflow/core:framework_headers_lib",
         "@ydf//yggdrasil_decision_forests/utils:concurrency",
         "@ydf//yggdrasil_decision_forests/utils:status_macros",
@@ -115,7 +128,7 @@ cc_library(
         "@ydf//yggdrasil_decision_forests/utils/distribute:core",
         "@ydf//yggdrasil_decision_forests/utils/distribute:distribute_cc_proto",
         "@ydf//yggdrasil_decision_forests/utils/distribute:utils",
-    ],
+    ] + TF_CC_API_DEP,
     alwayslink = 1,
 )
 

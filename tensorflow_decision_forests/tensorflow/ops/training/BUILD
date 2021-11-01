@@ -46,7 +46,7 @@ cc_library(
         ":kernel",
         ":op",
         "//tensorflow_decision_forests/tensorflow:canonical_learners",
-        "//tensorflow_decision_forests/tensorflow/distribute:tf_distribution",
+        "//tensorflow_decision_forests/tensorflow:distribution_engines",
     ],
     alwayslink = 1,
 )

@@ -101,15 +101,41 @@ py_test(
         # absl/testing:parameterized dep,
         # numpy dep,
         # pandas dep,
-        "//third_party/py/portpicker",
         "@org_tensorflow//tensorflow/python",
-        "@org_tensorflow//tensorflow/python/distribute:distribute_lib",
         "//tensorflow_decision_forests/component/model_plotter",
         "//tensorflow_decision_forests/tensorflow:core",
-        "//tensorflow_decision_forests/tensorflow/distribute:register_ops",
         "@ydf//yggdrasil_decision_forests/dataset:synthetic_dataset_py_proto",
         "@ydf//yggdrasil_decision_forests/learner/decision_tree:decision_tree_py_proto",
         "@ydf//yggdrasil_decision_forests/learner/random_forest:random_forest_py_proto",
+    ],
+)
+
+# This test relies on the support of TF PS distribution strategy and TF-DF.
+# Note: TF PS distribution strategy and TF-DF are currently not compatible in non-monolithic build of TensorFlow+TFDF (e.g. OSS TFDF).
+py_test(
+    name = "keras_distributed_test",
+    size = "large",
+    srcs = ["keras_distributed_test.py"],
+    data = [
+        ":synthetic_dataset",
+        ":test_runner",
+        "@ydf//yggdrasil_decision_forests/test_data",
+    ],
+    python_version = "PY3",
+    shard_count = 10,
+    deps = [
+        ":core",
+        ":keras",
+        "@com_google_protobuf//:python_srcs",
+        # absl/flags dep,
+        # absl/logging dep,
+        # absl/testing:parameterized dep,
+        # numpy dep,
+        # pandas dep,
+        "//third_party/py/portpicker",
+        "@org_tensorflow//tensorflow/python",
+        "@org_tensorflow//tensorflow/python/distribute:distribute_lib",
+        "//third_party/tensorflow_decision_forests",
     ],
 )
 
