@@ -64,7 +64,14 @@ function assemble_files() {
   cp ${SRCBIN}/tensorflow/ops/inference/op.py ${SRCPK}/tensorflow_decision_forests/tensorflow/ops/inference/
   cp ${SRCBIN}/tensorflow/ops/training/training.so ${SRCPK}/tensorflow_decision_forests/tensorflow/ops/training/
   cp ${SRCBIN}/tensorflow/ops/training/op.py ${SRCPK}/tensorflow_decision_forests/tensorflow/ops/training/
+  cp ${SRCBIN}/tensorflow/distribute/distribute.so ${SRCPK}/tensorflow_decision_forests/tensorflow/distribute/
   cp ${SRCBIN}/keras/wrappers.py ${SRCPK}/tensorflow_decision_forests/keras/
+
+  # TFDF's proto wrappers.
+  cp ${SRCBIN}/tensorflow/distribute/tf_distribution_pb2.py ${SRCPK}/tensorflow_decision_forests/tensorflow/distribute/
+
+  # Distribution server binaries
+  cp ${SRCBIN}/keras/grpc_worker_main ${SRCPK}/tensorflow_decision_forests/keras/
 
   # YDF's proto wrappers.
   YDFSRCBIN="bazel-bin/external/ydf/yggdrasil_decision_forests"
@@ -73,7 +80,7 @@ function assemble_files() {
   find -name \*.py -exec cp --parents -prv {} ${SRCPK}/yggdrasil_decision_forests \;
   popd
 
-  # Add __init__.py to all exported Yggdrqasil sub-directories.
+  # Add __init__.py to all exported Yggdrasil sub-directories.
   find ${SRCPK}/yggdrasil_decision_forests -type d -exec touch {}/__init__.py \;
 }
 

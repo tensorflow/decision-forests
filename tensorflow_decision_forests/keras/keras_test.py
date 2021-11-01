@@ -1225,51 +1225,6 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     f(b=6, c=7)
     self.assertEqual(f.last_explicit_args, set(["b", "c"]))
 
-  def test_rank1_preprocessing(self):
-    """Test the limitation on rank1 preprocessing."""
-
-    def experiment(infer_prediction_signature, save_model):
-      x_train = [1.0, 2.0, 3.0, 4.0]  # Dataset with a single feature.
-      y_train = [0, 1, 0, 1]
-
-      @tf.function(
-          input_signature=(tf.TensorSpec(shape=[None], dtype=tf.float32),))
-      def processor(x):
-        return x + 1
-
-      model = keras.RandomForestModel(
-          preprocessing=processor,
-          advanced_arguments=keras.AdvancedArguments(
-              infer_prediction_signature=infer_prediction_signature))
-      model.fit(x=x_train, y=y_train)
-
-      if save_model:
-        # Fails if the model is not build before.
-        model.save(os.path.join(self.get_temp_dir(), "saved_model"))
-
-    experiment(infer_prediction_signature=False, save_model=False)
-
-    with self.assertRaises(ValueError):
-      experiment(infer_prediction_signature=False, save_model=True)
-
-    # Starting with tf2.7, Keras does not expends automatically rank 1 tensors.
-    keras_expends = False
-    try:
-
-      def versiontuple(v):
-        return tuple(map(int, (v.split("."))))
-
-      keras_expends = versiontuple(tf.__version__) < (2, 7)
-    except Exception:  # pylint: disable=broad-except
-      pass
-
-    if not keras_expends:
-      # Does not expect an exception.
-      experiment(infer_prediction_signature=True, save_model=False)
-    else:
-      with self.assertRaises(ValueError):
-        experiment(infer_prediction_signature=True, save_model=False)
-
   def test_get_all_models(self):
     print(keras.get_all_models())
 
@@ -1326,7 +1281,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     with self.assertRaises(ValueError):
       model.save(os.path.join(self.get_temp_dir(), "model"))
 
-  def test_training_adult_from_disk(self):
+  def test_training_adult_from_file(self):
     # Path to dataset.
     dataset_directory = os.path.join(test_data_path(), "dataset")
     train_path = os.path.join(dataset_directory, "adult_train.csv")
@@ -1361,7 +1316,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         "capital_gain", "capital_loss", "hours_per_week", "native_country"
     ])
 
-  def test_training_adult_from_disk_with_features(self):
+  def test_training_adult_from_file_with_features(self):
     # Path to dataset.
     dataset_directory = os.path.join(test_data_path(), "dataset")
     train_path = os.path.join(dataset_directory, "adult_train.csv")

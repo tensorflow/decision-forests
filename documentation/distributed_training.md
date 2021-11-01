@@ -16,15 +16,19 @@
 
 Distributed training makes it possible to train models quickly on larger
 datasets. Distributed training in TF-DF relies on the TensorFlow
-ParameterServerV2 distribution strategy. Only some of the TF-DF models support
-distributed training.
+ParameterServerV2 distribution strategy or the Yggdrasil Decision Forest GRPC
+distribute strategy. Only some of the TF-DF models support distributed training.
 
 See the
 [distributed training](https://github.com/google/yggdrasil-decision-forests/documentation/user_manual.md?#distributed-training)
 section in the Yggdrasil Decision Forests user manual for details about the
-available distributed training algorithms. When using distributed training in
-TF-DF, Yggdrasil Decision Forests is effectively running the `TF_DIST distribute
-implementation`.
+available distributed training algorithms. When using distributed training with
+TF Parameter Server in TF-DF, Yggdrasil Decision Forests is effectively running
+the `TF_DIST` distribute implementation.
+
+**Note:** Currently (Oct. 2021), the shared (i.e. != monolithic) OSS build of
+TF-DF does not support TF ParameterServer distribution strategy. Please use the
+Yggdrasil DF GRPC distribute strategy instead.
 
 ## Dataset
 
@@ -40,7 +44,8 @@ As of today ( Oct 2021), the following solutions are available for TF-DF:
     solution is the fastest and the one that gives the best results as it is
     currently the only one that guarantees that each example is read only once.
     The downside is that this solution does not support TensorFlow
-    pre-processing.
+    pre-processing. The "Yggdrasil DF GRPC distribute strategy" only support
+    this option for dataset reading.
 
 2.  To use **ParameterServerV2 distributed dataset** with dataset file sharding
     using TF-DF worker index. This solution is the most natural for TF users.
@@ -48,13 +53,11 @@ As of today ( Oct 2021), the following solutions are available for TF-DF:
 Currently, using ParameterServerV2 distributed dataset with context or
 tf.data.service are not compatible with TF-DF.
 
-Note that in all cases, ParameterServerV2 is used to distribute the computation.
-
 ## Examples
 
 Following are some examples of distributed training.
 
-### Distribution with Yggdrasil distributed dataset reading
+### Distribution with Yggdrasil distributed dataset reading and TF ParameterServerV2 strategy
 
 ```python
 import tensorflow_decision_forests as tfdf
@@ -78,7 +81,7 @@ See Yggdrasil Decision Forests
 [supported formats](https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/user_manual.md#dataset-path-and-format)
 for the possible values of `dataset_format`.
 
-### Distribution with ParameterServerV2 distributed dataset
+### Distribution with ParameterServerV2 distributed dataset and TF ParameterServerV2 strategy
 
 ```python
 import tensorflow_decision_forests as tfdf
@@ -149,3 +152,38 @@ model.fit(
 print("Trained model")
 model.summary()
 ```
+
+### Distribution with Yggdrasil distributed dataset reading and Yggdrasil DF GRPC distribute strategy
+
+```python
+import tensorflow_decision_forests as tfdf
+import tensorflow as tf
+
+deployment_config = tfdf.keras.core.YggdrasilDeploymentConfig()
+deployment_config.try_resume_training = True
+deployment_config.distribute.implementation_key = "GRPC"
+socket_addresses = deployment_config.distribute.Extensions[
+    tfdf.keras.core.grpc_pb2.grpc].socket_addresses
+
+# Socket addresses of ":grpc_worker_main" running instances.
+socket_addresses.addresses.add(ip="127.0.0.1", port=2001)
+socket_addresses.addresses.add(ip="127.0.0.2", port=2001)
+socket_addresses.addresses.add(ip="127.0.0.3", port=2001)
+socket_addresses.addresses.add(ip="127.0.0.4", port=2001)
+
+model = tfdf.keras.DistributedGradientBoostedTreesModel(
+    advanced_arguments=tfdf.keras.AdvancedArguments(
+        yggdrasil_deployment_config=deployment_config))
+
+model.fit_on_dataset_path(
+    train_path="/path/to/dataset@100000",
+    label_key="label_key",
+    dataset_format="tfrecord+tfe")
+
+print("Trained model")
+model.summary()
+```
+
+See Yggdrasil Decision Forests
+[supported formats](https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/user_manual.md#dataset-path-and-format)
+for the possible values of `dataset_format`.

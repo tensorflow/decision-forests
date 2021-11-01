@@ -148,7 +148,7 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
 #endif
 
     LOG(INFO) << "Train model";
-    std::optional<std::string> valid_dataset_path;
+    absl::optional<std::string> valid_dataset_path;
     if (!valid_dataset_path_.empty()) {
       valid_dataset_path = valid_dataset_path_;
     }

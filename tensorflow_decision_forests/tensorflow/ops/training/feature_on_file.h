@@ -31,6 +31,7 @@
 #ifndef TENSORFLOW_DECISION_FORESTS_TENSORFLOW_OPS_TRAINING_FEATURE_ON_FILE_H_
 #define TENSORFLOW_DECISION_FORESTS_TENSORFLOW_OPS_TRAINING_FEATURE_ON_FILE_H_
 
+#include "tensorflow/core/framework/device.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/resource_mgr.h"
 #include "tensorflow/core/platform/path.h"
@@ -205,7 +206,18 @@ class FeatureOnFileOp : public tensorflow::OpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("resource_id", &resource_id_));
 
     dataset_already_on_disk_ = HasDoneFile(dataset_path_);
-    worker_idx_ = ctx->device()->parsed_name().task;
+
+    // TODO(gbm): Use the following code when tf2.7 is released.
+    // worker_idx_ = ctx->device()->parsed_name().task;
+
+    auto* device = dynamic_cast<tensorflow::Device*>(ctx->device());
+    if (device == nullptr) {
+      OP_REQUIRES_OK(ctx,
+                     tensorflow::Status(tensorflow::error::INVALID_ARGUMENT,
+                                        "Cannot find the worker idx"));
+    }
+    worker_idx_ = device->parsed_name().task;
+
     if (dataset_already_on_disk_) {
       LOG(INFO) << "Already existing dataset cache for worker #" << worker_idx_
                 << " on device " << ctx->device()->name();

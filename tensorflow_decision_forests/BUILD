@@ -31,3 +31,14 @@ config_setting(
     name = "stop_training_on_interrupt",
     values = {"define": "stop_training_on_interrupt=1"},
 )
+
+# If "disable_tf_ps_distribution_strategy" is true, the TF Parameter Server
+# distribution strategy is not available for distributed training.
+#
+# Distribution with TF PS is currently NOT supported for OSS TF-DF with shared
+# build (monolithic build works however) and TF<2.7. In this case, the GRPC
+# Worker Server can be used instead.
+config_setting(
+    name = "disable_tf_ps_distribution_strategy",
+    values = {"define": "tf_ps_distribution_strategy=0"},
+)

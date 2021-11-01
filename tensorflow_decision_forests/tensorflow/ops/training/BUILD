@@ -33,6 +33,8 @@ tf_custom_op_library_external(
 cc_library(
     name = "dataset_formats",
     deps = [
+        "@ydf//yggdrasil_decision_forests/dataset:csv_example_reader",
+        "@ydf//yggdrasil_decision_forests/dataset:tf_example_io_tfrecord",
         "@ydf//yggdrasil_decision_forests/learner/distributed_decision_tree/dataset_cache:dataset_cache_reader",
     ],
     alwayslink = 1,

@@ -34,18 +34,22 @@ cc_library(
 # Available engines for distributed training.
 cc_library(
     name = "distribution_engines",
-    deps = [
-        # Distributed training with TF Parameter Server.
-        #
-        # If not registered, the following error will be raised
-        # when using distributed training with the TF PS and TF-DF:
-        # "Unknown item TF_DIST in class pool".
-        #
-        # Currently, this distribution engine is not available in custom
-        # non-core c++ ops in TF OSS (i.e. when TF-DF is compiled as a shared library).
-        # Either use monolithic build for TF+TF-DF, or use the GRPC distribution strategy.
-        "//tensorflow_decision_forests/tensorflow/distribute:tf_distribution",
-    ],
+    deps = ["@ydf//yggdrasil_decision_forests/utils/distribute"] +
+           select({
+               "//tensorflow_decision_forests:disable_tf_ps_distribution_strategy": [],
+               "//conditions:default": [
+                   # Distributed training with TF Parameter Server.
+                   #
+                   # If not registered, the following error will be raised
+                   # when using distributed training with the TF PS and TF-DF:
+                   # "Unknown item TF_DIST in class pool".
+                   #
+                   # Currently, this distribution engine is not available in custom
+                   # non-core c++ ops in TF OSS (i.e. when TF-DF is compiled as a shared library).
+                   # Either use monolithic build for TF+TF-DF, or use the GRPC distribution strategy.
+                   "//tensorflow_decision_forests/tensorflow/distribute:tf_distribution",
+               ],
+           }),
     alwayslink = 1,
 )
 
@@ -71,14 +75,18 @@ py_library(
         "@org_tensorflow//tensorflow/python/distribute:distribute_lib",
         "@org_tensorflow//tensorflow/python/distribute:parameter_server_strategy_v2",
         "@org_tensorflow//tensorflow/python/distribute/coordinator:cluster_coordinator",
-        "@org_tensorflow//tensorflow/python/distribute/coordinator:coordinator_context",
-        "//tensorflow_decision_forests/tensorflow/distribute:api_py",  # Compatibility with TF Parameter Server for distribution.
         "//tensorflow_decision_forests/tensorflow/distribute:tf_distribution_py_proto",
         "//tensorflow_decision_forests/tensorflow/ops/training:api_py",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
         "@ydf//yggdrasil_decision_forests/learner:abstract_learner_py_proto",
         "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
-    ],
+    ] + select({
+        "//tensorflow_decision_forests:disable_tf_ps_distribution_strategy": [],
+        "//conditions:default": [
+            "@org_tensorflow//tensorflow/python/distribute/coordinator:coordinator_context",
+            "//tensorflow_decision_forests/tensorflow/distribute:api_py",  # Compatibility with TF Parameter Server for distribution.
+        ],
+    }),
 )
 
 # Tests

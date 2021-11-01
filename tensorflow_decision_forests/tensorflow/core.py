@@ -31,13 +31,19 @@ import tensorflow as tf
 
 from tensorflow.python.distribute import distribute_lib
 from tensorflow.python.distribute import parameter_server_strategy_v2
-from tensorflow.python.distribute.coordinator import coordinator_context
 from tensorflow_decision_forests.tensorflow.distribute import tf_distribution_pb2
 from tensorflow_decision_forests.tensorflow.ops.training import api as training_op
-from tensorflow_decision_forests.tensorflow.distribute import api  # pylint: disable=unused-import
 from yggdrasil_decision_forests.dataset import data_spec_pb2
 from yggdrasil_decision_forests.learner import abstract_learner_pb2
 from yggdrasil_decision_forests.model import abstract_model_pb2
+
+try:
+  from tensorflow_decision_forests.tensorflow.distribute import api as distributed_api  # pytype: disable=import-error
+  from tensorflow.python.distribute.coordinator import coordinator_context  # pytype: disable=import-error
+except Exception as e:
+  distributed_api = None
+  coordinator_context = None
+  logging.warning("TF Parameter Server distributed training not available.")
 
 
 class Semantic(enum.Enum):
@@ -287,6 +293,14 @@ def get_worker_idx_and_num_workers(
     Return the index of the worker (tensor) and the total number of workers
     (integer).
   """
+
+  if coordinator_context is None:
+    raise ValueError(
+        "The library was compile without Parameter Server distributed training "
+        " support i.e. tf_ps_distribution_strategy=0. Either recompile it with "
+        "tf_ps_distribution_strategy=1,disable distributed training, or use "
+        "the Grpc Server distribution strategy. Note: TF-DF OSS release it "
+        "currently compiled without PS support.")
 
   # Not used for now.
   del context

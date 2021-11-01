@@ -75,6 +75,7 @@ py_library(
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
         "@ydf//yggdrasil_decision_forests/learner:abstract_learner_py_proto",
         "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
+        "@ydf//yggdrasil_decision_forests/utils/distribute/implementations/grpc:grpc_py_proto",
     ],
 )
 
@@ -112,13 +113,15 @@ py_test(
 
 # This test relies on the support of TF PS distribution strategy and TF-DF.
 # Note: TF PS distribution strategy and TF-DF are currently not compatible in non-monolithic build of TensorFlow+TFDF (e.g. OSS TFDF).
+#
+# This test is expected to fail TF PS distributed training is disabled (i.e.
+# enabling the ":disable_tf_ps_distribution_strategy" rule).
 py_test(
     name = "keras_distributed_test",
     size = "large",
     srcs = ["keras_distributed_test.py"],
     data = [
-        ":synthetic_dataset",
-        ":test_runner",
+        ":grpc_worker_main",
         "@ydf//yggdrasil_decision_forests/test_data",
     ],
     python_version = "PY3",
@@ -132,10 +135,10 @@ py_test(
         # absl/testing:parameterized dep,
         # numpy dep,
         # pandas dep,
-        "//third_party/py/portpicker",
+        # portpicker dep,
         "@org_tensorflow//tensorflow/python",
         "@org_tensorflow//tensorflow/python/distribute:distribute_lib",
-        "//third_party/tensorflow_decision_forests",
+        "//tensorflow_decision_forests",
     ],
 )
 
@@ -162,5 +165,14 @@ tf_cc_binary(
         "@org_tensorflow//tensorflow/core:framework",
         "@org_tensorflow//tensorflow/core:lib",
         "@ydf//yggdrasil_decision_forests/cli/utils:synthetic_dataset_lib_with_main",
+    ],
+)
+
+tf_cc_binary(
+    name = "grpc_worker_main",
+    deps = [
+        "@org_tensorflow//tensorflow/core:framework",
+        "@org_tensorflow//tensorflow/core:lib",
+        "@ydf//yggdrasil_decision_forests/utils/distribute/implementations/grpc:grpc_worker_lib_with_main",
     ],
 )

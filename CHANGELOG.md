@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 - ????
+## 0.2.0 - 2021-10-29
 
 ### Features
 
@@ -11,8 +11,10 @@
 -   Add support for permutation variable importance in the GBT learner with the
     `compute_permutation_variable_importance` parameter.
 -   Support for tf.int8 and tf.int16 values.
--   Support for distributed gradient boosted trees learning using the
-    ParameterServerStrategy distribution strategy.
+-   Support for distributed gradient boosted trees learning. Currently, the TF
+    ParameterServerStrategy distribution strategy is only available in
+    monolithic TF-DF builds. The Yggdrasil Decision Forest GRPC distribute
+    strategy can be used instead.
 -   Support for training from dataset stored on disk in CSV and RecordIO format
     (instead of creating a tensorflow dataset). This option is currently more
     efficient for distributed training (until the ParameterServerStrategy

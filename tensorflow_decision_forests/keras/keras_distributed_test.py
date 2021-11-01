@@ -17,7 +17,8 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-from typing import List
+import subprocess
+from typing import List, Tuple
 
 from absl import flags
 from absl import logging
@@ -44,7 +45,7 @@ def tmp_path() -> str:
   return flags.FLAGS.test_tmpdir
 
 
-def _create_in_process_cluster(num_workers, num_ps):
+def _create_in_process_tf_ps_cluster(num_workers, num_ps):
   """Create a cluster of TF workers and returns their addresses.
 
   Such cluster simulate the behavior of multiple TF parameter servers.
@@ -83,6 +84,32 @@ def _create_in_process_cluster(num_workers, num_ps):
 
   return tf.distribute.cluster_resolver.SimpleClusterResolver(
       cluster_spec, rpc_layer="grpc")
+
+
+def _create_in_process_grpc_worker_cluster(
+    num_workers) -> List[Tuple[str, int]]:
+  """Create a cluster of GRPC workers and returns their addresses.
+
+  Args:
+    num_workers: Number of workers..
+
+  Returns:
+    List of socket addresses.
+  """
+
+  worker_ports = [portpicker.pick_unused_port() for _ in range(num_workers)]
+  worker_ip = "localhost"
+  worker_addresses = []
+
+  for i in range(num_workers):
+    worker_addresses.append((worker_ip, worker_ports[i]))
+    args = [
+        "tensorflow_decision_forests/keras/grpc_worker_main",
+        "--alsologtostderr", "--port",
+        str(worker_ports[i])
+    ]
+    subprocess.Popen(args, stdout=subprocess.PIPE)
+  return worker_addresses
 
 
 class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
@@ -124,7 +151,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
       return dataset
 
     # Create the workers
-    cluster_resolver = _create_in_process_cluster(num_workers=4, num_ps=1)
+    cluster_resolver = _create_in_process_tf_ps_cluster(num_workers=4, num_ps=1)
 
     # Configure the model and datasets
     strategy = tf.distribute.experimental.ParameterServerStrategy(
@@ -191,7 +218,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
 
     dataset_creator = tf.keras.utils.experimental.DatasetCreator(dataset_fn)
 
-    cluster_resolver = _create_in_process_cluster(num_workers=2, num_ps=1)
+    cluster_resolver = _create_in_process_tf_ps_cluster(num_workers=2, num_ps=1)
 
     strategy = tf.distribute.experimental.ParameterServerStrategy(
         cluster_resolver)
@@ -288,7 +315,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
       return ds_dataset
 
     # Create the workers
-    cluster_resolver = _create_in_process_cluster(num_workers=5, num_ps=1)
+    cluster_resolver = _create_in_process_tf_ps_cluster(num_workers=5, num_ps=1)
 
     # Configure the model and datasets
     strategy = tf.distribute.experimental.ParameterServerStrategy(
@@ -335,7 +362,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     # at different speed, some examples can be repeated.
     self.assertAlmostEqual(evaluation["accuracy"], 0.8603476, delta=0.02)
 
-  def test_distributed_training_adult_from_disk(self):
+  def test_distributed_training_adult_from_file(self):
     # Path to dataset.
     dataset_directory = os.path.join(test_data_path(), "dataset")
     train_path = os.path.join(dataset_directory, "adult_train.csv")
@@ -344,7 +371,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     label = "income"
 
     # Create the workers
-    cluster_resolver = _create_in_process_cluster(num_workers=5, num_ps=1)
+    cluster_resolver = _create_in_process_tf_ps_cluster(num_workers=5, num_ps=1)
 
     # Configure the model and datasets
     strategy = tf.distribute.experimental.ParameterServerStrategy(
@@ -377,6 +404,47 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
         "marital_status", "occupation", "relationship", "race", "sex",
         "capital_gain", "capital_loss", "hours_per_week", "native_country"
     ])
+
+  def test_distributed_training_adult_from_file_with_grpc_worker(self):
+    # Path to dataset.
+    dataset_directory = os.path.join(test_data_path(), "dataset")
+    train_path = os.path.join(dataset_directory, "adult_train.csv")
+    test_path = os.path.join(dataset_directory, "adult_test.csv")
+
+    label = "income"
+
+    # Create GRPC Yggdrasil DF workers
+    worker_addresses = _create_in_process_grpc_worker_cluster(5)
+
+    # Specify the socket addresses of the worker to the manager.
+    deployment_config = tfdf.keras.core.YggdrasilDeploymentConfig()
+    deployment_config.try_resume_training = True
+    deployment_config.distribute.implementation_key = "GRPC"
+    socket_addresses = deployment_config.distribute.Extensions[
+        tfdf.keras.core.grpc_pb2.grpc].socket_addresses
+    for worker_ip, worker_port in worker_addresses:
+      socket_addresses.addresses.add(ip=worker_ip, port=worker_port)
+
+    model = tfdf.keras.DistributedGradientBoostedTreesModel(
+        advanced_arguments=tfdf.keras.AdvancedArguments(
+            yggdrasil_deployment_config=deployment_config))
+    model.compile(metrics=["accuracy"])
+
+    training_history = model.fit_on_dataset_path(
+        train_path=train_path,
+        label_key=label,
+        dataset_format="csv",
+        valid_path=test_path)
+    logging.info("Training history: %s", training_history.history)
+
+    logging.info("Trained model:")
+    model.summary()
+
+    test_df = pd.read_csv(test_path)
+    tf_test = tfdf.keras.pd_dataframe_to_tf_dataset(test_df, label)
+    evaluation = model.evaluate(tf_test, return_dict=True)
+    logging.info("Evaluation: %s", evaluation)
+    self.assertAlmostEqual(evaluation["accuracy"], 0.8703476, delta=0.01)
 
   def test_in_memory_not_supported(self):
 

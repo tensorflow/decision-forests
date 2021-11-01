@@ -1,9 +1,10 @@
 # Implementation of the Yggdrasil Distribute API using TensorFlow Distribution Strategies.
 #
+
 load("@ydf//yggdrasil_decision_forests/utils:compile.bzl", "all_proto_library")
 
 load("//tensorflow_decision_forests/tensorflow:utils.bzl", "tf_custom_op_library_external")
-load("@org_tensorflow//tensorflow:tensorflow.bzl","tf_cc_test")
+load("@org_tensorflow//tensorflow:tensorflow.bzl","tf_cc_test", "cc_header_only_library")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -54,14 +55,21 @@ all_proto_library(
 # =======
 
 # TODO(gbm): Split the functions exported and non-exported in tensorflow.so.
-TF_CC_API_DEP = [
-    "@org_tensorflow//tensorflow/cc:cc_ops",
-    "@org_tensorflow//tensorflow/cc:client_session",
-    "@org_tensorflow//tensorflow/cc:ops",
-    "@org_tensorflow//tensorflow/cc:scope",
-    "@org_tensorflow//tensorflow/core:protos_all_cc",
-    "@org_tensorflow//tensorflow/core/distributed_runtime/rpc:grpc_session",
-]
+
+cc_header_only_library(
+    name = "tf_ops_header_lib",
+    deps = [
+        "@org_tensorflow//tensorflow/cc:client_session",
+        "@org_tensorflow//tensorflow/cc:const_op",
+        "@org_tensorflow//tensorflow/cc:scope",
+        "@org_tensorflow//tensorflow/cc:cc_ops",
+        "@org_tensorflow//tensorflow/cc:ops",
+        "@org_tensorflow//tensorflow/core:protos_all_cc",
+        "@org_tensorflow//tensorflow/core/distributed_runtime/rpc:grpc_session",
+    ],
+)
+
+TF_CC_API_DEP = [":tf_ops_header_lib"]
 
 cc_library(
     name = "tf_distribution",

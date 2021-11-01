@@ -5,3 +5,4 @@ recursive-include * *.so
 recursive-include * *.so.[0-9]
 recursive-include * *.dylib
 recursive-include * *.dll
+recursive-include * grpc_worker_main

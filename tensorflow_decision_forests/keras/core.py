@@ -63,6 +63,7 @@ from tensorflow_decision_forests.tensorflow.ops.training import op as training_o
 from yggdrasil_decision_forests.dataset import data_spec_pb2
 from yggdrasil_decision_forests.learner import abstract_learner_pb2
 from yggdrasil_decision_forests.model import abstract_model_pb2  # pylint: disable=unused-import
+from yggdrasil_decision_forests.utils.distribute.implementations.grpc import grpc_pb2  # pylint: disable=unused-import
 
 layers = tf.keras.layers
 models = tf.keras.models

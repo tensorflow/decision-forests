@@ -28,32 +28,20 @@ BAZEL=bazel-3.7.2
 # TENSORFLOW_BAZELRC="${HOME}/git/tf_bazelrc"
 
 # Alternatively, download bazelrc:
-# .bazelrc of TF 2.6.0. This value should match the TF version in the "WORKSPACE" file.
+# .bazelrc of TF v2.7.0-rc1 This value should match the TF version in the "WORKSPACE" file.
 TENSORFLOW_BAZELRC="tensorflow_bazelrc"
-wget https://raw.githubusercontent.com/tensorflow/tensorflow/r2.6/.bazelrc -O ${TENSORFLOW_BAZELRC}
+wget https://raw.githubusercontent.com/tensorflow/tensorflow/v2.7.0-rc1/.bazelrc -O ${TENSORFLOW_BAZELRC}
 
 # copybara:strip_begin
 # First follow the instruction: go/tf-rbe-guide
 # copybara:strip_end
 
-FLAGS="--config=linux --config=rbe_cpu_linux --config=tensorflow_testing_rbe_linux --config=rbe_linux_py3"
-
-# Uncomment the following line to generate a sharable pip package.
-# You will also need to install the dockers described in:
-# https://github.com/tensorflow/custom-op
-#
-# For <TF2.7.0
-FLAGS="${FLAGS} --crosstool_top=//third_party/toolchains/preconfig/ubuntu16.04/gcc7_manylinux2010-nvcc-cuda10.1:toolchain"
-# For >=TF2.7.0
-# FLAGS="${FLAGS} --crosstool_top=@ubuntu18.04-gcc7_manylinux2010-cuda11.2-cudnn8.1-tensorrt7.2_config_cuda//crosstool:toolchain"
-
+FLAGS="--config=linux --config=rbe_cpu_linux --config=tensorflow_testing_rbe_linux --config=rbe_linux_py3 --define tf_ps_distribution_strategy=0"
 
 ${BAZEL} --bazelrc=${TENSORFLOW_BAZELRC} build \
   //tensorflow_decision_forests/...:all \
   ${FLAGS}
 
-# TEMPORARY: Tests do not pass with Cloud RBE because the wrong version of
-# pandas is installed.
-# ${BAZEL} --bazelrc=${TENSORFLOW_BAZELRC} test \
-#   //tensorflow_decision_forests/...:all \
-#   ${FLAGS}
+${BAZEL} --bazelrc=${TENSORFLOW_BAZELRC} test \
+  //tensorflow_decision_forests/...:all \
+  ${FLAGS}
