@@ -58,6 +58,7 @@ The following resources are available:
 -   [Yggdrasil documentation](https://github.com/google/yggdrasil-decision-forests)
     (for advanced users and C++ serving)
 -   [Tutorials](https://www.tensorflow.org/decision_forests/tutorials)
+-   [TF-DF in TensorFlow Serving](documentation/tensorflow_serving)
 
 ## Installation
 
