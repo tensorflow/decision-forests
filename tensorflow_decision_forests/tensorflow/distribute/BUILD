@@ -20,6 +20,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         "@org_tensorflow//tensorflow:tensorflow_py",
+        "//tensorflow_decision_forests/tensorflow:check_version",
     ],
 )
 

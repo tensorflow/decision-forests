@@ -16,9 +16,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from tensorflow_decision_forests.tensorflow import check_version  # pylint: disable=unused-import
 from tensorflow_decision_forests.tensorflow.ops.training.op import *
 
 import tensorflow as tf
 from tensorflow.python.framework import load_library
 from tensorflow.python.platform import resource_loader
-tf.load_op_library(resource_loader.get_path_to_datafile("training.so"))
+try:
+  tf.load_op_library(resource_loader.get_path_to_datafile("training.so"))
+except Exception as e:
+  check_version.info_fail_to_load_custom_op(e)
+  raise e

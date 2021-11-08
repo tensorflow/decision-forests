@@ -17,6 +17,7 @@ py_library(
     deps = [
         ":op_py",
         "@org_tensorflow//tensorflow:tensorflow_py",
+        "//tensorflow_decision_forests/tensorflow:check_version",
     ],
 )
 

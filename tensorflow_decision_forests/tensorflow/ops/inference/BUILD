@@ -24,6 +24,7 @@ py_library(
         "@org_tensorflow//tensorflow:tensorflow_py",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
         "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
+        "//tensorflow_decision_forests/tensorflow:check_version",
     ],
 )
 

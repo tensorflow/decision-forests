@@ -16,6 +16,7 @@ py_library(
         "//tensorflow_decision_forests/component/model_plotter",
         "//tensorflow_decision_forests/component/py_tree",
         "//tensorflow_decision_forests/keras",
+        "//tensorflow_decision_forests/tensorflow:check_version",
     ],
 )
 

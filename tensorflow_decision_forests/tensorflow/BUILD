@@ -89,6 +89,13 @@ py_library(
     }),
 )
 
+py_library(
+    name = "check_version",
+    srcs = ["check_version.py"],
+    srcs_version = "PY3",
+    deps = ["@org_tensorflow//tensorflow/python"],
+)
+
 # Tests
 # =====
 
@@ -102,5 +109,15 @@ py_test(
         # pandas dep,
         "@org_tensorflow//tensorflow/python",
         "@ydf//yggdrasil_decision_forests/learner:abstract_learner_py_proto",
+    ],
+)
+
+py_test(
+    name = "check_version_test",
+    srcs = ["check_version_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":check_version",
+        "@org_tensorflow//tensorflow/python",
     ],
 )

@@ -180,13 +180,19 @@ from tensorflow.python.training.tracking import base as trackable_base
 from tensorflow.python.training.tracking import tracking
 # pylint: enable=g-direct-tensorflow-import
 
+from tensorflow_decision_forests.tensorflow import check_version  # pylint: disable=unused-import
 from tensorflow_decision_forests.tensorflow.ops.inference import op
 from yggdrasil_decision_forests.dataset import data_spec_pb2
 from yggdrasil_decision_forests.model import abstract_model_pb2
 
+import tensorflow as tf
 from tensorflow.python.framework import load_library
 from tensorflow.python.platform import resource_loader
-tf.load_op_library(resource_loader.get_path_to_datafile("inference.so"))
+try:
+  tf.load_op_library(resource_loader.get_path_to_datafile("inference.so"))
+except Exception as e:
+  check_version.info_fail_to_load_custom_op(e)
+  raise e
 
 Tensor = Any
 InitOp = Tensor

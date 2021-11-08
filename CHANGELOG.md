@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 - 2021-11-05
+
+### Features
+
+-   Compatibility with TensorFlow 2.7.0.
+
 ## 0.2.0 - 2021-10-29
 
 ### Features

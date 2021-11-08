@@ -45,8 +45,14 @@ model.save("/tmp/my_saved_model")
 
 """
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 __author__ = "Mathieu Guillame-Bert"
+
+compatible_tf_versions = ["2.7.0"]
+
+from tensorflow_decision_forests.tensorflow import check_version
+
+check_version.check_version(__version__, compatible_tf_versions)
 
 from tensorflow_decision_forests import keras
 from tensorflow_decision_forests.component import py_tree
