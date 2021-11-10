@@ -45,8 +45,8 @@ upper_tabs:
         path: /decision_forests/tutorials/intermediate_colab
       - title: Inspect and debug
         path: /decision_forests/tutorials/advanced_colab
-      - title: Advanced modeling with the Functional API
-        path: /decision_forests/tutorials/model_composition
+      - title: Model composition with the Functional API
+        path: /decision_forests/tutorials/model_composition_colab
       - heading: Developer
       - title: Developer manual
         path: /decision_forests/developer_manual
