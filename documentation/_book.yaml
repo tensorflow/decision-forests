@@ -41,10 +41,12 @@ upper_tabs:
         path: /decision_forests/tutorials/index
       - title: Build, train and evaluate
         path: /decision_forests/tutorials/beginner_colab
-      - title: Combine with other models
+      - title: Text features and pre-trained embeddings
         path: /decision_forests/tutorials/intermediate_colab
       - title: Inspect and debug
         path: /decision_forests/tutorials/advanced_colab
+      - title: Advanced modeling with the Functional API
+        path: /decision_forests/tutorials/model_composition
       - heading: Developer
       - title: Developer manual
         path: /decision_forests/developer_manual
