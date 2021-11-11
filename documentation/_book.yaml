@@ -36,6 +36,8 @@ upper_tabs:
         path: /decision_forests/known_issues
       - title: TensorFlow Serving
         path: /decision_forests/tensorflow_serving
+      - title: Distributed Training
+        path: /decision_forests/distributed_training
       - heading: Tutorials
       - title: Overview
         path: /decision_forests/tutorials/index

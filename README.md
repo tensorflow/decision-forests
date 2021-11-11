@@ -49,7 +49,8 @@ The following resources are available:
 
 -   [TF-DF on TensorFlow.org](https://tensorflow.org/decision_forests) (with the
     API Reference and Tutorials)
--   [Colabs](documentation/tutorials)
+-   [Notebook tutorials (on Github)](documentation/tutorials)
+-   [Notebook tutorials (on tensorflow.org)](https://www.tensorflow.org/decision_forests/tutorials)
 -   [Migration guide from Neural Network to Decision Forests](documentation/migration.md)
 -   [Issue tracker](https://github.com/tensorflow/decision-forests/issues)
 -   [Known issues](documentation/known_issues.md)
@@ -57,7 +58,7 @@ The following resources are available:
 -   [Discuss on TensorFlow.Org](https://discuss.tensorflow.org)
 -   [Yggdrasil documentation](https://github.com/google/yggdrasil-decision-forests)
     (for advanced users and C++ serving)
--   [Tutorials](https://www.tensorflow.org/decision_forests/tutorials)
+-   [Distributed Training](documentation/distributed_training.md)
 -   [TF-DF in TensorFlow Serving](documentation/tensorflow_serving.md)
 
 ## Installation

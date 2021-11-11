@@ -20,7 +20,7 @@ ParameterServerV2 distribution strategy or the Yggdrasil Decision Forest GRPC
 distribute strategy. Only some of the TF-DF models support distributed training.
 
 See the
-[distributed training](https://github.com/google/yggdrasil-decision-forests/documentation/user_manual.md?#distributed-training)
+[distributed training](https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/user_manual.md#distributed-training)
 section in the Yggdrasil Decision Forests user manual for details about the
 available distributed training algorithms. When using distributed training with
 TF Parameter Server in TF-DF, Yggdrasil Decision Forests is effectively running
