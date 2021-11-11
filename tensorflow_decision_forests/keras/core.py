@@ -1246,15 +1246,16 @@ class CoreModel(models.Model):
 
     return []
 
+  # TODO(b/205971333): Use Trace Protocol For TF DF custom types to avoid
+  # clearing the cache.
   def _clear_function_cache(self):
     """Clear the @tf.function cache and force re-tracing.
 
-    TODO(gbm): Use a solution that rely on the public API when available.
     """
 
     # pylint: disable=protected-access
     if self.call._stateful_fn:
-      self.call._stateful_fn._function_cache.primary.clear()
+      self.call._stateful_fn._function_cache.clear()
     # pylint: enable=protected-access
 
   def _extract_sample(self, x):
