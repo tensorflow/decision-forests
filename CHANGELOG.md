@@ -1,5 +1,11 @@
 # Changelog
 
+## ??? - ???
+
+### Fixes
+
+-   `num_candidate_attributes` is not ignored anymore when `num_candidate_attributes_ratio=-1`.
+
 ## 0.2.1 - 2021-11-05
 
 ### Features
