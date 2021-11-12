@@ -157,7 +157,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     strategy = tf.distribute.experimental.ParameterServerStrategy(
         cluster_resolver)
     with strategy.scope():
-      model = tfdf.keras.DistributedGradientBoostedTreesModel()
+      model = tfdf.keras.DistributedGradientBoostedTreesModel(worker_logs=False)
       model.compile(metrics=["accuracy"])
       # Note: "tf.keras.utils.experimental.DatasetCreator" seems to also work.
       train_dataset_creator = strategy.distribute_datasets_from_function(
@@ -322,7 +322,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
         cluster_resolver)
 
     with strategy.scope():
-      model = tfdf.keras.DistributedGradientBoostedTreesModel()
+      model = tfdf.keras.DistributedGradientBoostedTreesModel(worker_logs=False)
       model.compile(metrics=["accuracy"])
 
       # Currently, if any of the workers runs out of training examples, the
@@ -378,7 +378,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
         cluster_resolver)
 
     with strategy.scope():
-      model = tfdf.keras.DistributedGradientBoostedTreesModel()
+      model = tfdf.keras.DistributedGradientBoostedTreesModel(worker_logs=False)
       model.compile(metrics=["accuracy"])
 
     training_history = model.fit_on_dataset_path(
@@ -426,6 +426,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
       socket_addresses.addresses.add(ip=worker_ip, port=worker_port)
 
     model = tfdf.keras.DistributedGradientBoostedTreesModel(
+        worker_logs=False,
         advanced_arguments=tfdf.keras.AdvancedArguments(
             yggdrasil_deployment_config=deployment_config))
     model.compile(metrics=["accuracy"])
@@ -446,6 +447,53 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     logging.info("Evaluation: %s", evaluation)
     self.assertAlmostEqual(evaluation["accuracy"], 0.8703476, delta=0.01)
 
+  def test_distributed_training_adult_from_file_forced_discretization(self):
+    # Path to dataset.
+    dataset_directory = os.path.join(test_data_path(), "dataset")
+    train_path = os.path.join(dataset_directory, "adult_train.csv")
+    test_path = os.path.join(dataset_directory, "adult_test.csv")
+
+    label = "income"
+
+    # Create the workers
+    cluster_resolver = _create_in_process_tf_ps_cluster(num_workers=5, num_ps=1)
+
+    # Configure the model and datasets
+    strategy = tf.distribute.experimental.ParameterServerStrategy(
+        cluster_resolver)
+
+    with strategy.scope():
+      model = tfdf.keras.DistributedGradientBoostedTreesModel(
+          worker_logs=False,
+          force_numerical_discretization=True,
+          max_unique_values_for_discretized_numerical=128,
+      )
+      model.compile(metrics=["accuracy"])
+
+    training_history = model.fit_on_dataset_path(
+        train_path=train_path,
+        label_key=label,
+        dataset_format="csv",
+        valid_path=test_path)
+    logging.info("Training history: %s", training_history.history)
+
+    logging.info("Trained model:")
+    model.summary()
+
+    model._distribution_strategy = None
+    test_df = pd.read_csv(test_path)
+    tf_test = tfdf.keras.pd_dataframe_to_tf_dataset(test_df, label)
+    evaluation = model.evaluate(tf_test, return_dict=True)
+    logging.info("Evaluation: %s", evaluation)
+    self.assertAlmostEqual(evaluation["accuracy"], 0.8703476, delta=0.01)
+
+    features = [feature.name for feature in model.make_inspector().features()]
+    self.assertEqual(features, [
+        "age", "workclass", "fnlwgt", "education", "education_num",
+        "marital_status", "occupation", "relationship", "race", "sex",
+        "capital_gain", "capital_loss", "hours_per_week", "native_country"
+    ])
+
   def test_in_memory_not_supported(self):
 
     dataframe = pd.DataFrame({
@@ -457,7 +505,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     })
     dataset = tfdf.keras.pd_dataframe_to_tf_dataset(dataframe, label="label")
 
-    model = tfdf.keras.DistributedGradientBoostedTreesModel()
+    model = tfdf.keras.DistributedGradientBoostedTreesModel(worker_logs=False)
 
     with self.assertRaisesRegex(
         tf.errors.UnknownError,
