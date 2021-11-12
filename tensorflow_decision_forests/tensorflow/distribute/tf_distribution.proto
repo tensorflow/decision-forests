@@ -26,13 +26,20 @@ import "yggdrasil_decision_forests/utils/distribute/distribute.proto";
 // ":tf_dist_py_worker" and "tensorflow_std_server".
 message TfDistribution {
   oneof worker_address {
-    // List of ip+port.
-    SocketAddresses socket_addresses = 1;
+    // List of network addresses.
+    Addresses addresses = 1;
 
     // Use the TF_CONFIG variable to configure the workers i.e. a serialized
     // JSON configuration. See
     // https://www.tensorflow.org/guide/distributed_training#setting_up_the_tf_config_environment_variable
     EnvironmentVariable environment_variable = 2;
+  }
+
+  message Addresses {
+    // Network addresses e.g. "127.0.0.1:1234"
+    // Support schema url notation to specify the protocol e.g.
+    // "grpc://bns_address".
+    repeated string addresses = 1;
   }
 
   // Configuration of the worker using the TF_CONFIG environment variable.

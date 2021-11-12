@@ -38,23 +38,23 @@ ManagerAndWorkers CreateTfDistManager(int parallel_execution_per_worker = 1) {
   config.set_verbosity(2);
   config.set_working_directory(
       file::JoinPath(test::TmpDirectory(), "work_dir"));
-  auto* addresses = config.MutableExtension(proto::tf_distribution)
-                        ->mutable_socket_addresses();
+  auto* addresses =
+      config.MutableExtension(proto::tf_distribution)->mutable_addresses();
   const int num_workers = 5;
 
   // Create the TF Server config in JSON format.
   std::string cluster_json = "\"cluster\": { \"worker\": [";
   for (int worker_idx = 0; worker_idx < num_workers; worker_idx++) {
     // Create address.
-    auto* address = addresses->add_addresses();
-    address->set_ip("localhost");
-    address->set_port(tensorflow::testing::PickUnusedPortOrDie());
-    CHECK_GT(address->port(), 0);
+    const int port = tensorflow::testing::PickUnusedPortOrDie();
+    CHECK_GT(port, 0);
+    const std::string address = absl::StrCat("localhost:", port);
+    addresses->add_addresses(absl::StrCat("grpc://", address));
+
     if (worker_idx > 0) {
       absl::StrAppend(&cluster_json, ",");
     }
-    absl::SubstituteAndAppend(&cluster_json, "\"$0:$1\"", address->ip(),
-                              address->port());
+    absl::SubstituteAndAppend(&cluster_json, "\"$0\"", address);
   }
   absl::StrAppend(&cluster_json, "]}");
 
@@ -98,15 +98,15 @@ TEST(TFDist, ParseEnv) {
 {
    "cluster":{
       "chief":[
-         "/chief/0"
+         "chief/0"
       ],
       "ps":[
-         "/ps/0"
+         "ps/0"
       ],
       "worker":[
-         "/worker/0",
-         "/worker/1",
-         "/worker/2"
+         "worker/0",
+         "worker/1",
+         "worker/2"
       ]
    },
    "environment":"google",
@@ -117,8 +117,10 @@ TEST(TFDist, ParseEnv) {
    }
 }
 )";
-  EXPECT_EQ(internal::JsonConfigToWorkers(content).value(),
-            std::vector<std::string>({"/worker/0", "/worker/1", "/worker/2"}));
+  EXPECT_EQ(
+      internal::JsonConfigToWorkers(content).value(),
+      std::vector<std::string>({"grpc+loas://worker/0", "grpc+loas://worker/1",
+                                "grpc+loas://worker/2"}));
 }
 
 TEST(TFDist, BlockingRequest) {

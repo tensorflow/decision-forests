@@ -159,11 +159,11 @@ class DistributionConfiguration(NamedTuple):
 
   Attributes:
     num_workers: Number of workers i.e. tf worker server with the task "worker".
-    workers_socket_addresses: Socket address (ip+port) of the workers.
+    workers_addresses: Network address of the workers e.g. grpc://127.0.0.1:1234
   """
 
   num_workers: int
-  workers_socket_addresses: Optional[List[Tuple[str, int]]]
+  workers_addresses: Optional[List[str]]
 
 
 def get_distribution_configuration(
@@ -185,25 +185,21 @@ def get_distribution_configuration(
   if isinstance(strategy,
                 parameter_server_strategy_v2.ParameterServerStrategyV2):
 
-    workers_socket_addresses = []
     cluster_spec = strategy._cluster_resolver.cluster_spec().as_dict()
+    rpc_layer = strategy._cluster_resolver.rpc_layer or "grpc"
+    workers_addresses = []
+    for worker_address in cluster_spec["worker"]:
+      workers_addresses.append(f"{rpc_layer}://{worker_address}")
 
-    try:
-      # TODO(gbm): Add support for BNS addresses.
-      for worker in cluster_spec["worker"]:
-        ip, port = worker.split(":")
-        workers_socket_addresses.append((ip, int(port)))
-
-    except ValueError as e:
+    if not workers_addresses:
       logging.warning(
-          "Cannot parse the socket address of the distribution "
-          "strategy as a socket address in:\n%s. Using TF_CONFIG instead."
-          "\nException: %s", cluster_spec, e)
-      workers_socket_addresses = None
+          "Empty worker network addresses in the distribution strategy. "
+          "Using TF_CONFIG instead. Cluster spec: %s", cluster_spec)
+      workers_addresses = None
 
     return DistributionConfiguration(
         num_workers=strategy._extended._num_workers,
-        workers_socket_addresses=workers_socket_addresses)
+        workers_addresses=workers_addresses)
   elif isinstance(strategy, distribute_lib._DefaultDistributionStrategy):
     return None
   # pylint:enable=protected-access
@@ -893,11 +889,10 @@ def train_on_file_dataset(
     deployment_config.try_resume_training = True
     deployment_config.distribute.implementation_key = "TF_DIST"
 
-    if distribution_config.workers_socket_addresses is not None:
-      socket_addresses = deployment_config.distribute.Extensions[
-          tf_distribution_pb2.tf_distribution].socket_addresses
-      for worker_ip, worker_port in distribution_config.workers_socket_addresses:
-        socket_addresses.addresses.add(ip=worker_ip, port=worker_port)
+    if distribution_config.workers_addresses is not None:
+      dst_addresses = deployment_config.distribute.Extensions[
+          tf_distribution_pb2.tf_distribution].addresses
+      dst_addresses.addresses[:] = distribution_config.workers_addresses
 
     else:
       # Assume the worker paths are provided through the env.

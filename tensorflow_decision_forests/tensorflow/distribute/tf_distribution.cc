@@ -46,8 +46,8 @@ utils::StatusOr<int> TfDistributionManager::NumWorkersInConfiguration(
   const auto& imp_config = config.GetExtension(proto::tf_distribution);
 
   switch (imp_config.worker_address_case()) {
-    case proto::TfDistribution::kSocketAddresses:
-      return imp_config.socket_addresses().addresses_size();
+    case proto::TfDistribution::kAddresses:
+      return imp_config.addresses().addresses_size();
     case proto::TfDistribution::kEnvironmentVariable: {
       const char* tf_config = std::getenv("TF_CONFIG");
       if (tf_config == nullptr) {
@@ -80,10 +80,9 @@ absl::Status TfDistributionManager::InitializeWorkers(
 
   std::vector<std::string> worker_addresses;
   switch (imp_config.worker_address_case()) {
-    case proto::TfDistribution::kSocketAddresses:
-      for (const auto& address : imp_config.socket_addresses().addresses()) {
-        worker_addresses.push_back(
-            absl::StrCat("grpc://", address.ip(), ":", address.port()));
+    case proto::TfDistribution::kAddresses:
+      for (const auto& address : imp_config.addresses().addresses()) {
+        worker_addresses.push_back(address);
       }
       break;
     case proto::TfDistribution::kEnvironmentVariable: {
@@ -407,6 +406,17 @@ utils::StatusOr<std::vector<std::string>> JsonConfigToWorkers(
     return absl::InvalidArgumentError(
         absl::StrCat("Invalid TF_CONFIG. No object found. json: ", json));
   }
+
+  std::string rpc_layer = "grpc";  // Default to GRPC.
+  auto rpc_layer_it = dom.GetObject().FindMember("rpc_layer");
+  if (rpc_layer_it != dom.GetObject().MemberEnd()) {
+    if (!rpc_layer_it->value.IsString()) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          "Invalid TF_CONFIG. rpc_layer is not a string. json: ", json));
+    }
+    rpc_layer = rpc_layer_it->value.GetString();
+  }
+
   auto cluster_it = dom.GetObject().FindMember("cluster");
   if (cluster_it == dom.GetObject().MemberEnd()) {
     return absl::InvalidArgumentError(
@@ -432,7 +442,8 @@ utils::StatusOr<std::vector<std::string>> JsonConfigToWorkers(
       return absl::InvalidArgumentError(absl::StrCat(
           "Invalid TF_CONFIG. worker item is not a string. json: ", json));
     }
-    workers.push_back(worker_item_it->GetString());
+    workers.push_back(
+        absl::StrCat(rpc_layer, "://", worker_item_it->GetString()));
   }
 
   return workers;
