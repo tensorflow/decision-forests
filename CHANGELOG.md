@@ -8,6 +8,9 @@
     `num_candidate_attributes_ratio=-1`.
 -   Use the median bucket split value strategy in the discretized numerical
     splitters (local and distributed).
+-   Surface the `max_num_scanned_rows_to_accumulate_statistics` parameter to
+    control how many examples are scanned to determine the feature statistics
+    when training from a file dataset with `fit_on_dataset_path`.
 
 ## 0.2.1 - 2021-11-05
 

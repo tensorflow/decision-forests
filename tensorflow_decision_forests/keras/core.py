@@ -988,13 +988,15 @@ class CoreModel(models.Model):
 
     return history
 
-  def fit_on_dataset_path(self,
-                          train_path: str,
-                          label_key: str,
-                          weight_key: Optional[str] = None,
-                          ranking_key: Optional[str] = None,
-                          valid_path: Optional[str] = None,
-                          dataset_format: Optional[str] = "csv"):
+  def fit_on_dataset_path(
+      self,
+      train_path: str,
+      label_key: str,
+      weight_key: Optional[str] = None,
+      ranking_key: Optional[str] = None,
+      valid_path: Optional[str] = None,
+      dataset_format: Optional[str] = "csv",
+      max_num_scanned_rows_to_accumulate_statistics: Optional[int] = 100_000):
     """Trains the model on a dataset stored on disk.
 
     This solution is generally more efficient and easier that loading the
@@ -1033,6 +1035,16 @@ class CoreModel(models.Model):
          https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/user_manual.md#dataset-path-and-format
            for more details). The format "csv" always available but it is
            generally only suited for small datasets.
+      max_num_scanned_rows_to_accumulate_statistics: Maximum number of examples
+        to scan to determine the statistics of the features (i.e. the dataspec,
+        e.g. mean value, dictionaries). (Currently) the "first" examples of the
+        dataset are scanned (e.g. the first examples of the dataset is a single
+        file). Therefore, it is important that the sampled dataset is relatively
+        uniformly sampled, notably the scanned examples should contains all the
+        possible categorical values (otherwise the not seen value will be
+        treated as out-of-vocabulary). If set to None, the entire dataset is
+        scanned. This parameter has no effect if the dataset is stored in a
+        format that already contains those values.
 
     Returns:
       A `History` object. Its `History.history` attribute is not yet
@@ -1054,7 +1066,9 @@ class CoreModel(models.Model):
 
     # Create the dataspec guide.
     guide = data_spec_pb2.DataSpecificationGuide(
-        ignore_columns_without_guides=self._exclude_non_specified)
+        ignore_columns_without_guides=self._exclude_non_specified,
+        max_num_scanned_rows_to_accumulate_statistics=max_num_scanned_rows_to_accumulate_statistics
+    )
     guide.default_column_guide.categorial.max_vocab_count = self._max_vocab_count
     self._normalized_input_keys = []
     for feature in self._features:
