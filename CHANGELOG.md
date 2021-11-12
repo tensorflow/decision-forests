@@ -4,7 +4,10 @@
 
 ### Fixes
 
--   `num_candidate_attributes` is not ignored anymore when `num_candidate_attributes_ratio=-1`.
+-   `num_candidate_attributes` is not ignored anymore when
+    `num_candidate_attributes_ratio=-1`.
+-   Use the median bucket split value strategy in the discretized numerical
+    splitters (local and distributed).
 
 ## 0.2.1 - 2021-11-05
 
