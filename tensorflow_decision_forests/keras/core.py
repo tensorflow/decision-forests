@@ -1091,8 +1091,8 @@ class CoreModel(models.Model):
       label_guide.type = data_spec_pb2.NUMERICAL
     else:
       raise ValueError(
-          "Non implemented task with \"fit_on_dataset_path\"."
-          f" Use a different task or train with \"fit\".", self._task)
+          f"Non implemented task {self._task} with \"fit_on_dataset_path\"."
+          " Use a different task or train with \"fit\".")
     guide.column_guides.append(label_guide)
 
     if ranking_key:
