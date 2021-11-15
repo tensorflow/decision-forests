@@ -56,6 +56,7 @@ py_library(
     deps = [
         ":core",
         "@org_tensorflow//tensorflow/python",
+        "@ydf//yggdrasil_decision_forests/learner:abstract_learner_py_proto",
         "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
     ],
 )

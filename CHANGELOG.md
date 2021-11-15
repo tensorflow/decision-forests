@@ -2,6 +2,11 @@
 
 ## ??? - ???
 
+### Features
+
+-   Surface the `validation_interval_in_trees`,
+    `keep_non_leaf_label_distribution` and 'random_seed' hyper-parameters.
+
 ### Fixes
 
 -   `num_candidate_attributes` is not ignored anymore when
