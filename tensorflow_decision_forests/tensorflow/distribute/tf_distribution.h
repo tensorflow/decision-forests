@@ -76,7 +76,7 @@ class RemoteConnection {
                            std::unique_ptr<RemoteConnection>* connection);
 
   // Run a task.
-  utils::StatusOr<Blob> RunTask(Blob&& input);
+  utils::StatusOr<Blob> RunTask(const Blob& input);
 
   // Stop the remote worker.
   absl::Status StopWorker(bool kill_worker_manager);
@@ -85,6 +85,8 @@ class RemoteConnection {
   tf::Status status;
   std::unique_ptr<tf::ClientSession> session;
   std::unique_ptr<tf::Scope> root;
+  std::string target;
+  absl::Mutex session_mutex;
 
   // Graph.
   std::unique_ptr<tf::ops::Placeholder> run_task_input;

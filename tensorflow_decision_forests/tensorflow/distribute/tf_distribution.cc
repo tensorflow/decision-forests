@@ -26,6 +26,7 @@
 #include "tensorflow/cc/ops/array_ops.h"
 #include "tensorflow/cc/ops/standard_ops.h"
 #include "tensorflow_decision_forests/tensorflow/distribute/tf_distribution.pb.h"
+#include "tensorflow_decision_forests/tensorflow/distribute/tf_distribution_common.h"
 #include "yggdrasil_decision_forests/utils/concurrency.h"
 #include "yggdrasil_decision_forests/utils/concurrency_channel.h"
 #include "yggdrasil_decision_forests/utils/distribute/distribute.pb.h"
@@ -132,12 +133,7 @@ absl::Status TfDistributionManager::InitializeWorkers(
 }
 
 void TfDistributionManager::WorkerRun(Blob blob, Worker* worker) {
-  auto result = worker->connection->RunTask(std::move(blob));
-
-  if (verbosity_ >= 1 && !result.ok()) {
-    LOG(WARNING) << "Session called failed with error: "
-                 << result.status().ToString();
-  }
+  auto result = worker->connection->RunTask(blob);
   async_pending_answers_.Push(std::move(result));
 }
 
@@ -170,7 +166,7 @@ utils::StatusOr<Blob> TfDistributionManager::BlockingRequest(Blob blob,
     worker_idx = next_auto_worker_idx_.fetch_add(1) % workers_.size();
   }
   auto* worker = workers_[worker_idx].get();
-  return worker->connection->RunTask(std::move(blob));
+  return worker->connection->RunTask(blob);
 }
 
 absl::Status TfDistributionManager::AsynchronousRequest(Blob blob,
@@ -255,15 +251,25 @@ absl::Status TfDistributionManager::Done(
     worker->async_pending_queries_.Close();
   }
 
+  if (verbosity_ >= 1) {
+    LOG(INFO) << "Joining workers";
+  }
   JoinWorkers();
+  if (verbosity_ >= 1) {
+    LOG(INFO) << "Joining workers done";
+  }
 
+  if (verbosity_ >= 1) {
+    LOG(INFO) << "Killing workers";
+  }
   // TODO: Run in parallel.
   for (auto& worker : workers_) {
     auto worker_shutdown =
         worker->connection->StopWorker(kill_worker_manager.value_or(false));
     if (!worker_shutdown.ok()) {
       // It is not a big deal if the worker crashes during shutdown.
-      LOG(WARNING) << worker_shutdown.message();
+      LOG(WARNING) << "Worker error during shutdown. "
+                   << worker_shutdown.message();
     }
   }
 
@@ -367,6 +373,7 @@ tf::Status RemoteConnection::Create(
     conn->stop_worker_op = tf::Operation(conn->stop_worker_node);
   }
 
+  conn->target = target;
   conn->session = absl::make_unique<tf::ClientSession>(*conn->root, target);
   *connection = std::move(conn);
   return (*connection)->root->status();
@@ -386,13 +393,45 @@ absl::Status RemoteConnection::StopWorker(const bool kill_worker_manager) {
       session->Run(options, feeds, {}, {stop_worker_op}, &outputs, nullptr));
 }
 
-utils::StatusOr<Blob> RemoteConnection::RunTask(Blob&& input) {
+utils::StatusOr<Blob> RemoteConnection::RunTask(const Blob& input) {
   tf::ClientSession::FeedType feeds;
   feeds.emplace(tf::Output(*run_task_input), tf::Input::Initializer(input));
   std::vector<tf::Tensor> outputs;
-  RETURN_IF_ERROR(
-      utils::ToUtilStatus(session->Run(feeds, {run_task_output}, &outputs)));
-  return outputs[0].flat<tf::tstring>()(0);
+
+  int num_re_emitting = 0;
+  while (true) {
+    absl::Status status;
+    {
+      absl::ReaderMutexLock lock(&session_mutex);
+      status =
+          utils::ToUtilStatus(session->Run(feeds, {run_task_output}, &outputs));
+    }
+
+    if (status.ok()) {
+      return outputs[0].flat<tf::tstring>()(0);
+    }
+
+    if (IsPermanentWorkerError(status)) {
+      LOG(WARNING) << "Session call failed with permanent error: "
+                   << status.ToString();
+      return status;
+    }
+    LOG(WARNING) << "Session call failed with non-permanent error: "
+                 << status.ToString();
+
+    if (num_re_emitting > 10) {
+      LOG(WARNING) << "Too much re-tries. Returning last error status";
+      return status;
+    }
+
+    num_re_emitting++;
+    LOG(WARNING) << "Re-emitting request (num_re_emitting:" << num_re_emitting
+                 << ")";
+    absl::SleepFor(absl::Seconds(10));
+
+    absl::WriterMutexLock lock(&session_mutex);
+    session = absl::make_unique<tf::ClientSession>(*root, target);
+  }
 }
 
 utils::StatusOr<std::vector<std::string>> JsonConfigToWorkers(

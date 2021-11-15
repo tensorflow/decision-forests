@@ -77,6 +77,7 @@ cc_library(
     srcs = ["tf_distribution.cc"],
     hdrs = ["tf_distribution.h"],
     deps = [
+        ":tf_distribution_common",
         ":tf_distribution_op",
         ":tf_distribution_cc_proto",
         "@com_google_absl//absl/synchronization",
@@ -93,6 +94,17 @@ cc_library(
         "@ydf//yggdrasil_decision_forests/utils/distribute:utils",
     ] + TF_CC_API_DEP,
     alwayslink = 1,
+)
+
+cc_library(
+    name = "tf_distribution_common",
+    srcs = ["tf_distribution_common.cc"],
+    hdrs = ["tf_distribution_common.h"],
+    deps = [
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@org_tensorflow//tensorflow/core/distributed_runtime:error_payloads",
+    ],
 )
 
 # TF Ops
@@ -127,6 +139,7 @@ cc_library(
     name = "tf_distribution_kernel",
     srcs = ["tf_distribution_kernel.cc"],
     deps = [
+        ":tf_distribution_common",
         ":tf_distribution_cc_proto",
         "@com_google_absl//absl/status",
         "@org_tensorflow//tensorflow/core:framework_headers_lib",

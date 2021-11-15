@@ -20,6 +20,7 @@
 #include "tensorflow/cc/ops/standard_ops.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/resource_mgr.h"
+#include "tensorflow_decision_forests/tensorflow/distribute/tf_distribution_common.h"
 #include "yggdrasil_decision_forests/utils/concurrency.h"
 #include "yggdrasil_decision_forests/utils/distribute/core.h"
 #include "yggdrasil_decision_forests/utils/distribute/distribute.pb.h"
@@ -52,7 +53,12 @@ class WorkerResource : public tf::ResourceBase {
     if (!worker_) {
       return absl::InternalError("Worker no set");
     }
-    return worker_->RunRequest(blob);
+    auto result = worker_->RunRequest(blob);
+    if (!result.ok()) {
+      LOG(WARNING) << "RunTask failed with error: "
+                   << result.status().ToString();
+    }
+    return result;
   }
 
   absl::Status ReadyWorker(const std::string& welcome_blob,
@@ -247,9 +253,42 @@ class WorkerResource : public tf::ResourceBase {
     feeds.emplace(tf::Output(*target_worker->run_task_input),
                   tf::Input::Initializer(blob));
     std::vector<tf::Tensor> outputs;
-    RETURN_IF_ERROR(utils::ToUtilStatus(target_worker->session->Run(
-        feeds, {target_worker->run_task_output}, &outputs)));
-    return outputs[0].flat<tf::tstring>()(0);
+
+    int num_re_emitting = 0;
+    while (true) {
+      absl::Status status;
+      {
+        absl::ReaderMutexLock lock(&target_worker->mutex);
+        status = utils::ToUtilStatus(target_worker->session->Run(
+            feeds, {target_worker->run_task_output}, &outputs));
+      }
+
+      if (status.ok()) {
+        return outputs[0].flat<tf::tstring>()(0);
+      }
+
+      if (IsPermanentWorkerError(status)) {
+        LOG(WARNING) << "Session call failed with permanent error: "
+                     << status.ToString();
+        return status;
+      }
+      LOG(WARNING) << "Session call failed with non-permanent error: "
+                   << status.ToString();
+
+      if (num_re_emitting > 10) {
+        LOG(WARNING) << "Too much re-tries. Returning last error status";
+        return status;
+      }
+
+      num_re_emitting++;
+      LOG(WARNING) << "Re-emitting request (num_re_emitting:" << num_re_emitting
+                   << ")";
+      absl::SleepFor(absl::Seconds(10));
+
+      absl::WriterMutexLock lock(&target_worker->mutex);
+      target_worker->session = absl::make_unique<tf::ClientSession>(
+          *target_worker->root, target_worker->socket_address);
+    }
   }
 
   // Loop for a thread processing inter worker requests.
@@ -266,6 +305,10 @@ class WorkerResource : public tf::ResourceBase {
       auto answer = BlockingInterWorkerRequest(
           std::move(pending_blob_or).value().second, target_worker);
 
+      if (!answer.ok()) {
+        LOG(WARNING) << "Inter worker communication failed with error: "
+                     << answer.status().error_message();
+      }
       intra_worker_communication_.pending_answers.Push(std::move(answer));
     }
   }
