@@ -466,8 +466,12 @@ $7
       to use. See `AdvancedArguments` for details.
     num_threads: Number of threads used to train the model. Different learning
       algorithms use multi-threading differently and with different degree of
-      efficiency. If specified, `num_threads` field of the
-      `advanced_arguments.yggdrasil_deployment_config` has priority.
+      efficiency. If `None`, `num_threads` will be automatically set to the
+      number of processors (up to a maximum of 32; or set to 6 if the number of
+      processors is not available).
+      Making `num_threads` significantly larger than the number of processors
+      can slow-down the training speed. The default value logic might change in
+      the future.
     name: The name of the model.
     max_vocab_count: Default maximum size of the vocabulary for CATEGORICAL and
       CATEGORICAL_SET features stored as strings. If more unique values exist,
@@ -489,7 +493,7 @@ $2
       verbose: Optional[bool] = True,
       hyperparameter_template: Optional[str] = None,
       advanced_arguments: Optional[AdvancedArguments] = None,
-      num_threads: Optional[int] = 6,
+      num_threads: Optional[int] = None,
       name: Optional[str] = None,
       max_vocab_count : Optional[int] = 2000,
 $3,

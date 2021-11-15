@@ -360,8 +360,11 @@ class CoreModel(models.Model):
       to use. See `AdvancedArguments` for details.
     num_threads: Number of threads used to train the model. Different learning
       algorithms use multi-threading differently and with different degree of
-      efficiency. If specified, `num_threads` field of the
-      `advanced_arguments.yggdrasil_deployment_config` has priority.
+      efficiency. If `None`, `num_threads` will be automatically set to the
+      number of processors (up to a maximum of 32; or set to 6 if the number of
+      processors is not available). Making `num_threads` significantly larger
+      than the number of processors can slow-down the training speed. The
+      default value logic might change in the future.
     name: The name of the model.
     max_vocab_count: Default maximum size of the vocabulary for CATEGORICAL and
       CATEGORICAL_SET features stored as strings. If more unique values exist,
@@ -382,7 +385,7 @@ class CoreModel(models.Model):
                temp_directory: Optional[str] = None,
                verbose: Optional[bool] = True,
                advanced_arguments: Optional[AdvancedArguments] = None,
-               num_threads: Optional[int] = 6,
+               num_threads: Optional[int] = None,
                name: Optional[str] = None,
                max_vocab_count: Optional[int] = 2000) -> None:
     super(CoreModel, self).__init__(name=name)
@@ -404,6 +407,28 @@ class CoreModel(models.Model):
     # triggered by providing validation data, should trigger the training
     # itself.
     self._train_on_evaluate: bool = False
+
+    # Determine the optimal number of threads.
+    if self._num_threads is None:
+      self._num_threads = os.cpu_count()
+      if self._num_threads is None:
+        if self._verbose:
+          logging.warning(
+              "Cannot determine the number of CPUs. Set num_threads=6")
+        self._num_threads = 6
+      else:
+        if self._verbose:
+
+          if self._num_threads >= 32:
+            logging.warning(
+                "The `num_threads` constructor argument is not set and the "
+                "number of CPU is os.cpu_count()=%d > 32. Setting num_threads "
+                "to 32. Set num_threads manually to use more than 32 cpus.",
+                self._num_threads)
+            self._num_threads = 32
+          else:
+            logging.info("Set num_threads = os.cpu_count() = %d",
+                         self._num_threads)
 
     if advanced_arguments is None:
       advanced_arguments = AdvancedArguments()
