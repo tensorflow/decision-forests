@@ -1263,9 +1263,7 @@ class CoreModel(models.Model):
   # TODO(b/205971333): Use Trace Protocol For TF DF custom types to avoid
   # clearing the cache.
   def _clear_function_cache(self):
-    """Clear the @tf.function cache and force re-tracing.
-
-    """
+    """Clear the @tf.function cache and force re-tracing."""
 
     # pylint: disable=protected-access
     if self.call._stateful_fn:
@@ -1508,13 +1506,15 @@ def _batch_size(inputs: Union[tf.Tensor, Dict[str, tf.Tensor]]) -> tf.Tensor:
     return tf.shape(inputs)[0]
 
 
-def pd_dataframe_to_tf_dataset(dataframe,
-                               label: Optional[str] = None,
-                               task: Optional[TaskType] = Task.CLASSIFICATION,
-                               max_num_classes: Optional[int] = 100,
-                               in_place: Optional[bool] = False,
-                               fix_feature_names: Optional[bool] = True,
-                               weight: Optional[str] = None) -> tf.data.Dataset:
+def pd_dataframe_to_tf_dataset(
+    dataframe,
+    label: Optional[str] = None,
+    task: Optional[TaskType] = Task.CLASSIFICATION,
+    max_num_classes: Optional[int] = 100,
+    in_place: Optional[bool] = False,
+    fix_feature_names: Optional[bool] = True,
+    weight: Optional[str] = None,
+    batch_size: Optional[int] = 1000) -> tf.data.Dataset:
   """Converts a Panda Dataframe into a TF Dataset compatible with Keras.
 
   Details:
@@ -1529,7 +1529,7 @@ def pd_dataframe_to_tf_dataset(dataframe,
       lexicographically. Warning: This logic won't work as expected if the
       training and testing dataset contains different label values. In such
       case, it is preferable to convert the label to integers beforehand while
-      making sure the same encoding is used for all the datasets.
+      making sure the same encoding is used for all the datasets. If "
     - Returns "tf.data.from_tensor_slices"
 
   Args:
@@ -1550,6 +1550,11 @@ def pd_dataframe_to_tf_dataset(dataframe,
       `model.save(...)`).
     weight: Optional name of a column in `dataframe` to use to weight the
       training.
+    batch_size: Number of examples in each batch. The size of the batches has no
+      impact on the TF-DF training algorithms. However, a small batch size can
+      lead to a large overhead when loading the dataset. Defaults to 1000, but
+      if `batch_size` is set to `None`, no batching is applied. Note: TF-DF
+        expects for the dataset to be batched.
 
   Returns:
     A TensorFlow Dataset.
@@ -1642,7 +1647,8 @@ def pd_dataframe_to_tf_dataset(dataframe,
     tf_dataset = tf.data.Dataset.from_tensor_slices(dict(dataframe))
 
   # The batch size does not impact the training of TF-DF.
-  tf_dataset = tf_dataset.batch(64)
+  if batch_size is not None:
+    tf_dataset = tf_dataset.batch(batch_size)
 
   setattr(tf_dataset, "_tfdf_task", task)
   return tf_dataset

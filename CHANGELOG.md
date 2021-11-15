@@ -6,6 +6,7 @@
 
 -   Surface the `validation_interval_in_trees`,
     `keep_non_leaf_label_distribution` and 'random_seed' hyper-parameters.
+-   Add the `batch_size` argument in the `pd_dataframe_to_tf_dataset` utility.
 
 ### Fixes
 
