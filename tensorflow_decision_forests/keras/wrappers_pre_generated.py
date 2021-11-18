@@ -102,8 +102,11 @@ class CartModel(core.CoreModel):
       to use. See `AdvancedArguments` for details.
     num_threads: Number of threads used to train the model. Different learning
       algorithms use multi-threading differently and with different degree of
-      efficiency. If specified, `num_threads` field of the
-      `advanced_arguments.yggdrasil_deployment_config` has priority.
+      efficiency. If `None`, `num_threads` will be automatically set to the
+      number of processors (up to a maximum of 32; or set to 6 if the number of
+      processors is not available). Making `num_threads` significantly larger
+      than the number of processors can slow-down the training speed. The
+      default value logic might change in the future.
     name: The name of the model.
     max_vocab_count: Default maximum size of the vocabulary for CATEGORICAL and
       CATEGORICAL_SET features stored as strings. If more unique values exist,
@@ -162,8 +165,9 @@ class CartModel(core.CoreModel):
     keep_non_leaf_label_distribution: Whether to keep the node value (i.e. the
       distribution of the labels of the training examples) of non-leaf nodes.
       This information is not used during serving, however it can be used for
-      model interpretation as well as hyper parameter tuning. In the worst
-      case, this can account for half of the model size. Default: True.
+      model interpretation as well as hyper parameter tuning. This can take
+      lots of space, sometimes accounting for half of the model size. Default:
+        True.
     max_depth: Maximum depth of the tree. `max_depth=1` means that all trees
       will be roots. Negative values are ignored. Default: 16.
     max_num_nodes: Maximum number of nodes in the tree. Set to -1 to disable
@@ -253,7 +257,7 @@ class CartModel(core.CoreModel):
                verbose: Optional[bool] = True,
                hyperparameter_template: Optional[str] = None,
                advanced_arguments: Optional[AdvancedArguments] = None,
-               num_threads: Optional[int] = 6,
+               num_threads: Optional[int] = None,
                name: Optional[str] = None,
                max_vocab_count: Optional[int] = 2000,
                allow_na_conditions: Optional[bool] = False,
@@ -425,8 +429,11 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
       to use. See `AdvancedArguments` for details.
     num_threads: Number of threads used to train the model. Different learning
       algorithms use multi-threading differently and with different degree of
-      efficiency. If specified, `num_threads` field of the
-      `advanced_arguments.yggdrasil_deployment_config` has priority.
+      efficiency. If `None`, `num_threads` will be automatically set to the
+      number of processors (up to a maximum of 32; or set to 6 if the number of
+      processors is not available). Making `num_threads` significantly larger
+      than the number of processors can slow-down the training speed. The
+      default value logic might change in the future.
     name: The name of the model.
     max_vocab_count: Default maximum size of the vocabulary for CATEGORICAL and
       CATEGORICAL_SET features stored as strings. If more unique values exist,
@@ -439,8 +446,21 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
       binary classification, the pre-link function
       output is a logic while the post-link function is a probability. Default:
         True.
+    force_numerical_discretization: If false, only the numerical column
+      safisfying "max_unique_values_for_discretized_numerical" will be
+      discretized. If true, all the numerical columns will be discretized.
+      Columns with more than "max_unique_values_for_discretized_numerical"
+      unique values will be approximated with
+      "max_unique_values_for_discretized_numerical" bins. This parameter will
+      impact the model training. Default: False.
     max_depth: Maximum depth of the tree. `max_depth=1` means that all trees
       will be roots. Negative values are ignored. Default: 6.
+    max_unique_values_for_discretized_numerical: Maximum number of unique value
+      of a numerical feature to allow its pre-discretization. In case of large
+      datasets, discretized numerical features with a small number of unique
+      values are more efficient to learn than classical / non-discretized
+      numerical features. This parameter does not impact the final model.
+      However, it can speed-up or slown the training. Default: 16000.
     maximum_model_size_in_memory_in_bytes: Limit the size of the model when
       stored in ram. Different algorithms can enforce this limit differently.
       Note that when models are compiled into an inference, the size of the
@@ -451,6 +471,18 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
       parameter at it sees fit. Enabling maximum training duration makes the
       model training non-deterministic. Default: -1.0.
     min_examples: Minimum number of examples in a node. Default: 5.
+    num_candidate_attributes: Number of unique valid attributes tested for each
+      node. An attribute is valid if it has at least a valid split. If
+      `num_candidate_attributes=0`, the value is set to the classical default
+      value for Random Forest: `sqrt(number of input attributes)` in case of
+        classification and `number_of_input_attributes / 3` in case of
+        regression. If `num_candidate_attributes=-1`, all the attributes are
+      tested. Default: -1.
+    num_candidate_attributes_ratio: Ratio of attributes tested at each node. If
+      set, it is equivalent to `num_candidate_attributes =
+      number_of_input_features x num_candidate_attributes_ratio`. The possible
+      values are between ]0, and 1] as well as -1. If not set or equal to -1,
+      the `num_candidate_attributes` is used. Default: -1.0.
     num_trees: Maximum number of decision trees. The effective number of
       trained tree can be smaller if early stopping is enabled. Default: 300.
     random_seed: Random seed for the training of the model. Learners are
@@ -462,45 +494,60 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
     use_hessian_gain: Use true, uses a formulation of split gain with a hessian
       term i.e. optimizes the splits to minimize the variance of "gradient /
       hessian. Available for all losses except regression. Default: False.
+    worker_logs: If true, workers will print training logs. Default: True.
   """
 
   @core._list_explicit_arguments
-  def __init__(self,
-               task: Optional[TaskType] = core.Task.CLASSIFICATION,
-               features: Optional[List[core.FeatureUsage]] = None,
-               exclude_non_specified_features: Optional[bool] = False,
-               preprocessing: Optional["tf.keras.models.Functional"] = None,
-               postprocessing: Optional["tf.keras.models.Functional"] = None,
-               ranking_group: Optional[str] = None,
-               temp_directory: Optional[str] = None,
-               verbose: Optional[bool] = True,
-               hyperparameter_template: Optional[str] = None,
-               advanced_arguments: Optional[AdvancedArguments] = None,
-               num_threads: Optional[int] = 6,
-               name: Optional[str] = None,
-               max_vocab_count: Optional[int] = 2000,
-               apply_link_function: Optional[bool] = True,
-               max_depth: Optional[int] = 6,
-               maximum_model_size_in_memory_in_bytes: Optional[float] = -1.0,
-               maximum_training_duration_seconds: Optional[float] = -1.0,
-               min_examples: Optional[int] = 5,
-               num_trees: Optional[int] = 300,
-               random_seed: Optional[int] = 123456,
-               shrinkage: Optional[float] = 0.1,
-               use_hessian_gain: Optional[bool] = False,
-               explicit_args: Optional[Set[str]] = None):
+  def __init__(
+      self,
+      task: Optional[TaskType] = core.Task.CLASSIFICATION,
+      features: Optional[List[core.FeatureUsage]] = None,
+      exclude_non_specified_features: Optional[bool] = False,
+      preprocessing: Optional["tf.keras.models.Functional"] = None,
+      postprocessing: Optional["tf.keras.models.Functional"] = None,
+      ranking_group: Optional[str] = None,
+      temp_directory: Optional[str] = None,
+      verbose: Optional[bool] = True,
+      hyperparameter_template: Optional[str] = None,
+      advanced_arguments: Optional[AdvancedArguments] = None,
+      num_threads: Optional[int] = None,
+      name: Optional[str] = None,
+      max_vocab_count: Optional[int] = 2000,
+      apply_link_function: Optional[bool] = True,
+      force_numerical_discretization: Optional[bool] = False,
+      max_depth: Optional[int] = 6,
+      max_unique_values_for_discretized_numerical: Optional[int] = 16000,
+      maximum_model_size_in_memory_in_bytes: Optional[float] = -1.0,
+      maximum_training_duration_seconds: Optional[float] = -1.0,
+      min_examples: Optional[int] = 5,
+      num_candidate_attributes: Optional[int] = -1,
+      num_candidate_attributes_ratio: Optional[float] = -1.0,
+      num_trees: Optional[int] = 300,
+      random_seed: Optional[int] = 123456,
+      shrinkage: Optional[float] = 0.1,
+      use_hessian_gain: Optional[bool] = False,
+      worker_logs: Optional[bool] = True,
+      explicit_args: Optional[Set[str]] = None):
 
     learner_params = {
         "apply_link_function":
             apply_link_function,
+        "force_numerical_discretization":
+            force_numerical_discretization,
         "max_depth":
             max_depth,
+        "max_unique_values_for_discretized_numerical":
+            max_unique_values_for_discretized_numerical,
         "maximum_model_size_in_memory_in_bytes":
             maximum_model_size_in_memory_in_bytes,
         "maximum_training_duration_seconds":
             maximum_training_duration_seconds,
         "min_examples":
             min_examples,
+        "num_candidate_attributes":
+            num_candidate_attributes,
+        "num_candidate_attributes_ratio":
+            num_candidate_attributes_ratio,
         "num_trees":
             num_trees,
         "random_seed":
@@ -509,6 +556,8 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
             shrinkage,
         "use_hessian_gain":
             use_hessian_gain,
+        "worker_logs":
+            worker_logs,
     }
 
     if hyperparameter_template is not None:
@@ -616,8 +665,11 @@ class GradientBoostedTreesModel(core.CoreModel):
       to use. See `AdvancedArguments` for details.
     num_threads: Number of threads used to train the model. Different learning
       algorithms use multi-threading differently and with different degree of
-      efficiency. If specified, `num_threads` field of the
-      `advanced_arguments.yggdrasil_deployment_config` has priority.
+      efficiency. If `None`, `num_threads` will be automatically set to the
+      number of processors (up to a maximum of 32; or set to 6 if the number of
+      processors is not available). Making `num_threads` significantly larger
+      than the number of processors can slow-down the training speed. The
+      default value logic might change in the future.
     name: The name of the model.
     max_vocab_count: Default maximum size of the vocabulary for CATEGORICAL and
       CATEGORICAL_SET features stored as strings. If more unique values exist,
@@ -717,8 +769,9 @@ class GradientBoostedTreesModel(core.CoreModel):
     keep_non_leaf_label_distribution: Whether to keep the node value (i.e. the
       distribution of the labels of the training examples) of non-leaf nodes.
       This information is not used during serving, however it can be used for
-      model interpretation as well as hyper parameter tuning. In the worst
-      case, this can account for half of the model size. Default: True.
+      model interpretation as well as hyper parameter tuning. This can take
+      lots of space, sometimes accounting for half of the model size. Default:
+        True.
     l1_regularization: L1 regularization applied to the training loss. Impact
       the tree structures and lead values. Default: 0.0.
     l2_categorical_regularization: L2 regularization applied to the training
@@ -847,7 +900,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       verbose: Optional[bool] = True,
       hyperparameter_template: Optional[str] = None,
       advanced_arguments: Optional[AdvancedArguments] = None,
-      num_threads: Optional[int] = 6,
+      num_threads: Optional[int] = None,
       name: Optional[str] = None,
       max_vocab_count: Optional[int] = 2000,
       adapt_subsample_for_maximum_training_duration: Optional[bool] = False,
@@ -1111,8 +1164,11 @@ class RandomForestModel(core.CoreModel):
       to use. See `AdvancedArguments` for details.
     num_threads: Number of threads used to train the model. Different learning
       algorithms use multi-threading differently and with different degree of
-      efficiency. If specified, `num_threads` field of the
-      `advanced_arguments.yggdrasil_deployment_config` has priority.
+      efficiency. If `None`, `num_threads` will be automatically set to the
+      number of processors (up to a maximum of 32; or set to 6 if the number of
+      processors is not available). Making `num_threads` significantly larger
+      than the number of processors can slow-down the training speed. The
+      default value logic might change in the future.
     name: The name of the model.
     max_vocab_count: Default maximum size of the vocabulary for CATEGORICAL and
       CATEGORICAL_SET features stored as strings. If more unique values exist,
@@ -1183,8 +1239,9 @@ class RandomForestModel(core.CoreModel):
     keep_non_leaf_label_distribution: Whether to keep the node value (i.e. the
       distribution of the labels of the training examples) of non-leaf nodes.
       This information is not used during serving, however it can be used for
-      model interpretation as well as hyper parameter tuning. In the worst
-      case, this can account for half of the model size. Default: True.
+      model interpretation as well as hyper parameter tuning. This can take
+      lots of space, sometimes accounting for half of the model size. Default:
+        True.
     max_depth: Maximum depth of the tree. `max_depth=1` means that all trees
       will be roots. Negative values are ignored. Default: 16.
     max_num_nodes: Maximum number of nodes in the tree. Set to -1 to disable
@@ -1279,7 +1336,7 @@ class RandomForestModel(core.CoreModel):
       verbose: Optional[bool] = True,
       hyperparameter_template: Optional[str] = None,
       advanced_arguments: Optional[AdvancedArguments] = None,
-      num_threads: Optional[int] = 6,
+      num_threads: Optional[int] = None,
       name: Optional[str] = None,
       max_vocab_count: Optional[int] = 2000,
       adapt_bootstrap_size_ratio_for_maximum_training_duration: Optional[
