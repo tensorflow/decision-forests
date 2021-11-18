@@ -1071,7 +1071,7 @@ def infer_semantic(
   for key in manual_semantics.keys():
     if key not in inputs:
       raise ValueError(
-          f"Manual semantic \"{key}\" was found amount the input features: "
+          f"Manual semantic \"{key}\" was not found among the input features: "
           f"{inputs.keys()}")
 
   semantics = {}
