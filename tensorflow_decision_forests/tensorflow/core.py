@@ -43,7 +43,9 @@ try:
 except Exception as e:
   distributed_api = None
   coordinator_context = None
-  logging.warning("TF Parameter Server distributed training not available.")
+  logging.warning(
+      "TF Parameter Server distributed training not available (this is "
+      "expected for the pre-build release).")
 
 
 class Semantic(enum.Enum):

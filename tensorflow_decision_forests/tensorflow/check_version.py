@@ -44,7 +44,9 @@ def check_version(tf_df_version,
   return True
 
 
-def info_fail_to_load_custom_op(exception):
-  logging.warning("Failure to load the custom c++ tensorflow ops. "
-                  "This error is likely caused the version of TensorFlow and "
-                  "TensorFlow Decision Forests are not compatible.")
+def info_fail_to_load_custom_op(exception, filename):
+  logging.warning(
+      "Failure to load the %s custom c++ tensorflow ops. "
+      "This error is likely caused the version of TensorFlow and "
+      "TensorFlow Decision Forests are not compatible. Full error:"
+      "%s", filename, exception)

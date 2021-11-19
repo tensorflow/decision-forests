@@ -21,8 +21,4 @@ from tensorflow_decision_forests.tensorflow import check_version  # pylint: disa
 import tensorflow as tf
 from tensorflow.python.framework import load_library
 from tensorflow.python.platform import resource_loader
-try:
-  tf.load_op_library(resource_loader.get_path_to_datafile("distribute.so"))
-except Exception as e:
-  check_version.info_fail_to_load_custom_op(e)
-  raise e
+tf.load_op_library(resource_loader.get_path_to_datafile("distribute.so"))

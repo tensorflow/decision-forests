@@ -191,7 +191,7 @@ from tensorflow.python.platform import resource_loader
 try:
   tf.load_op_library(resource_loader.get_path_to_datafile("inference.so"))
 except Exception as e:
-  check_version.info_fail_to_load_custom_op(e)
+  check_version.info_fail_to_load_custom_op(e, "inference.so")
   raise e
 
 Tensor = Any
