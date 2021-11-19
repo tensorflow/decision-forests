@@ -55,6 +55,9 @@ Dataset = collections.namedtuple(
 # Tf's tf.feature_column_FeatureColumn is not accessible.
 FeatureColumn = Any
 
+# Raise an exception if the datset check fails.
+core.ONLY_WARN_IF_DATASET_FAILS = False
+
 
 def data_root_path() -> str:
   return ""
@@ -773,8 +776,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     train_ds = tf.data.Dataset.from_tensor_slices((train_x, train_y))
     test_ds = tf.data.Dataset.from_tensor_slices((test_x, test_y))
 
-    train_ds = train_ds.shuffle(1024).batch(64)
-    test_ds = test_ds.batch(64)
+    train_ds = train_ds.shuffle(1024).batch(100)
+    test_ds = test_ds.batch(100)
 
     model = build_model(
         signature=Signature.AUTOMATIC_FEATURE_DISCOVERY, dataset=dataset)
@@ -982,9 +985,10 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     train_dataset = tf.data.TFRecordDataset(
         train_path,
-        compression_type="GZIP").map(parse).batch(50).map(preprocess)
+        compression_type="GZIP").map(parse).batch(500).map(preprocess)
     test_dataset = tf.data.TFRecordDataset(
-        test_path, compression_type="GZIP").map(parse).batch(50).map(preprocess)
+        test_path,
+        compression_type="GZIP").map(parse).batch(500).map(preprocess)
 
     features = []
 
@@ -1427,7 +1431,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
       hidden = features[:, 0] + 0.05 * np.random.uniform(size=num_examples)
       labels = (hidden >= features[:, 1]).astype(int) + (
           hidden >= features[:, 2]).astype(int)
-      return tf.data.Dataset.from_tensor_slices((features, labels)).batch(5)
+      return tf.data.Dataset.from_tensor_slices((features, labels)).batch(100)
 
     train_dataset = make_dataset()
     test_dataset = make_dataset()
@@ -1505,6 +1509,61 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     model.fit(x=x_train, y=y_train)
     predictions = model.predict(x_train)
     self.assertEqual(predictions.shape[1], 1)
+
+  def test_contains_repeat(self):
+    a = tf.data.Dataset.from_tensor_slices(range(10))
+    self.assertFalse(core._contains_repeat(a))
+    a = a.batch(5)
+    self.assertFalse(core._contains_repeat(a))
+    a = a.repeat(5)
+    self.assertTrue(core._contains_repeat(a))
+    a = a.batch(5)
+    self.assertTrue(core._contains_repeat(a))
+    a = a.map(lambda x: x + 1)
+    self.assertTrue(core._contains_repeat(a))
+    a = a.prefetch(5)
+    self.assertTrue(core._contains_repeat(a))
+
+  def test_contains_batch(self):
+    a = tf.data.Dataset.from_tensor_slices(range(10))
+    self.assertIsNone(core._contains_batch(a))
+    a = a.repeat(5)
+    self.assertIsNone(core._contains_batch(a))
+    a = a.map(lambda x: x + 1)
+    self.assertIsNone(core._contains_batch(a))
+    a = a.batch(5)
+    self.assertEqual(core._contains_batch(a), 5)
+    a = a.map(lambda x: x + 1)
+    self.assertEqual(core._contains_batch(a), 5)
+    a = a.prefetch(10)
+    self.assertEqual(core._contains_batch(a), 5)
+
+  def test_contains_shuffle(self):
+    a = tf.data.Dataset.from_tensor_slices(range(10))
+    self.assertFalse(core._contains_shuffle(a))
+    a = a.batch(5)
+    self.assertFalse(core._contains_shuffle(a))
+    a = a.repeat(5)
+    self.assertFalse(core._contains_shuffle(a))
+    a = a.shuffle(10)
+    self.assertTrue(core._contains_shuffle(a))
+    a = a.map(lambda x: x + 1)
+    self.assertTrue(core._contains_shuffle(a))
+    a = a.prefetch(5)
+    self.assertTrue(core._contains_shuffle(a))
+
+  def test_check_dataset(self):
+    a = tf.data.Dataset.from_tensor_slices(range(5000))
+    with self.assertRaises(ValueError):
+      core._check_dataset(a)
+    a = a.batch(5)
+    with self.assertRaises(ValueError):
+      core._check_dataset(a)
+    a = a.batch(200)
+    core._check_dataset(a)
+    a = a.repeat(5)
+    with self.assertRaises(ValueError):
+      core._check_dataset(a)
 
 
 if __name__ == "__main__":

@@ -478,6 +478,12 @@ $7
       only the most frequent values are kept, and the remaining values are
       considered as out-of-vocabulary. The value `max_vocab_count` defined in a
       `FeatureUsage` (if any) takes precedence.
+    check_dataset: If set to true, test if the dataset is well configured for
+      the training: (1) Check if the dataset does contains any `repeat`
+        operations, (2) Check if the dataset does contain a `batch` operation,
+        (3) Check if the dataset has a large enough batch size (min 100 if the
+        dataset contains more than 1k examples or if the number of examples is
+        not available) If set to false, do not run any test.
 $2
   """
 
@@ -496,6 +502,7 @@ $2
       num_threads: Optional[int] = None,
       name: Optional[str] = None,
       max_vocab_count : Optional[int] = 2000,
+      check_dataset: Optional[bool] = True,
 $3,
       explicit_args: Optional[Set[str]] = None):
 
@@ -521,7 +528,8 @@ $4
       advanced_arguments=advanced_arguments,
       num_threads=num_threads,
       name=name,
-      max_vocab_count=max_vocab_count)
+      max_vocab_count=max_vocab_count,
+      check_dataset=check_dataset)
 
   @staticmethod
   def predefined_hyperparameters() -> List[core.HyperParameterTemplate]:

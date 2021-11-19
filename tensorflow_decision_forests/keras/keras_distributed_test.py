@@ -119,7 +119,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     # https://www.tensorflow.org/tutorials/distribute/parameter_server_training
 
     # Create a distributed dataset.
-    global_batch_size = 20
+    global_batch_size = 100
     num_examples = 1000
     num_features = 2
 
@@ -229,7 +229,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
         ValueError,
         "does not support training with a TF Distribution strategy"):
       model.fit(
-          dataset_creator, steps_per_epoch=num_examples / global_batch_size)
+          dataset_creator, steps_per_epoch=num_examples // global_batch_size)
 
   def _shard_dataset(self, path, num_shards=20) -> List[str]:
     """Splits a csv dataset into multiple csv files."""
@@ -253,7 +253,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     sharded_train_paths = self._shard_dataset(train_path)
     logging.info("Num sharded paths: %d", len(sharded_train_paths))
 
-    global_batch_size = 20
+    global_batch_size = 100
     num_train_examples = pd.read_csv(train_path).shape[0]
     num_test_examples = pd.read_csv(test_path).shape[0]
     logging.info("num_train_examples: %d", num_train_examples)

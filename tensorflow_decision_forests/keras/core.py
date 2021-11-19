@@ -112,6 +112,13 @@ YggdrasilTrainingConfig = abstract_learner_pb2.TrainingConfig
 # Get the current worker index and total number of workers.
 get_worker_idx_and_num_workers = tf_core.get_worker_idx_and_num_workers
 
+# If true, a warning is printed is the dataset is detected to be poorly
+# configured (is `check_dataset=True` in the model constructor). If false, a
+# ValueException is raised instead.
+#
+# TODO(b/206981020): Set False on 18 Jan 2021.
+ONLY_WARN_IF_DATASET_FAILS = True
+
 
 class FeatureUsage(object):
   """Semantic and hyper-parameters for a single feature.
@@ -371,6 +378,12 @@ class CoreModel(models.Model):
       only the most frequent values are kept, and the remaining values are
       considered as out-of-vocabulary. The value `max_vocab_count` defined in a
       `FeatureUsage` (if any) takes precedence.
+    check_dataset: If set to true, test if the dataset is well configured for
+      the training: (1) Check if the dataset does contains any `repeat`
+        operations, (2) Check if the dataset does contain a `batch` operation,
+        (3) Check if the dataset has a large enough batch size (min 100 if the
+        dataset contains more than 1k examples or if the number of examples is
+        not available) If set to false, do not run any test.
   """
 
   def __init__(self,
@@ -387,7 +400,8 @@ class CoreModel(models.Model):
                advanced_arguments: Optional[AdvancedArguments] = None,
                num_threads: Optional[int] = None,
                name: Optional[str] = None,
-               max_vocab_count: Optional[int] = 2000) -> None:
+               max_vocab_count: Optional[int] = 2000,
+               check_dataset: Optional[bool] = True) -> None:
     super(CoreModel, self).__init__(name=name)
 
     self._task = task
@@ -402,6 +416,7 @@ class CoreModel(models.Model):
     self._verbose = verbose
     self._num_threads = num_threads
     self._max_vocab_count = max_vocab_count
+    self._check_dataset = check_dataset
 
     # Internal, indicates whether the first evaluation during training,
     # triggered by providing validation data, should trigger the training
@@ -984,6 +999,10 @@ class CoreModel(models.Model):
             f"The model's `task` attribute ({Task.Name(self._task)}) does "
             "not match the `task` attribute passed to "
             f"`pd_dataframe_to_tf_dataset` ({Task.Name(dataset_task)}).")
+
+    # Check the dataset.
+    if self._check_dataset and isinstance(x, tf.data.Dataset):
+      _check_dataset(x)
 
     # Call "compile" if the user forgot to do so.
     if not self._is_compiled:
@@ -1855,6 +1874,116 @@ def _check_feature_names(feature_names: List[str], raise_error: bool):
       if character in feature_name:
         problem(f"The feature name \"{feature_name}\" contains a forbidden "
                 "character ({_FORBIDDEN_FEATURE_CHARACTERS}).")
+
+
+def _check_dataset(x: tf.data.Dataset):
+  """Checks that the dataset is well configured for TF-DF.
+
+  Raise an exception otherwise.
+
+  Args:
+    x: A tf.data.Dataset.
+  """
+
+  def error(message):
+    message += (" Alternatively, you can disabled this check with the "
+                "constructor argument `check_dataset=False`. If this message "
+                "is a false positive, please let us know so we can improve "
+                "this dataset check logic.")
+    if ONLY_WARN_IF_DATASET_FAILS:
+      message += (
+          " This warning will be turned into an error on "
+          "[18 Jan. 2021]. Make sure to solve this issue before this date.")
+      logging.warning("%s", message)
+    else:
+      raise ValueError(message)
+
+  if _contains_repeat(x):
+    error(
+        "The dataset contain a 'repeat' operation. For maximum quality, TF-DF "
+        "models should be trained without repeat operations as the dataset "
+        "should only be read once. Remove the repeat operations to solve this "
+        "issue.")
+
+  if _contains_shuffle(x):
+    error(
+        "The dataset contain a 'shuffle' operation. For maximum quality, TF-DF "
+        "models should be trained without shuffle operations to make the "
+        "algorithm deterministic. To make the the algorithm non deterministic, "
+        "change the `random_seed` constructor argument instead. Remove the "
+        "shuffle operations to solve this issue.")
+
+  batch_size = _contains_batch(x)
+  if batch_size is None:
+    error("The dataset does not contain a 'batch' operation. TF-DF models "
+          "should be trained without batch operations. Add a batch operations "
+          "to solve this issue.")
+
+  num_examples = None
+  try:
+    num_examples = x.cardinality().numpy() * batch_size
+  except:  # pylint: disable=bare-except
+    pass
+
+  if (num_examples is None or
+      num_examples > 2000) and batch_size is not None and batch_size < 100:
+    error(f"The dataset has a small batch size ({batch_size}). TF-DF model "
+          "quality is not impacted by the batch size. However, a small batch "
+          "size slow down the dataset reading and training preparation. Use "
+          "a batch size of at least 100 (1000 if even better) for a "
+          "dataset with more than 2k examples to solve this issue.")
+
+
+def _contains_repeat(dataset) -> bool:
+  """Tests if a dataset contains a "repeat()" operation."""
+
+  try:
+    if not isinstance(dataset, tf.data.Dataset):
+      return False
+    if dataset.__class__.__name__ == "RepeatDataset":
+      return True
+    if hasattr(dataset, "_input_dataset"):
+      return _contains_repeat(dataset._input_dataset)  # pylint: disable=protected-access
+  except:  # pylint: disable=bare-except
+    pass
+  return False
+
+
+def _contains_shuffle(dataset) -> bool:
+  """Tests if a dataset contains a "shuffle()" operation."""
+
+  try:
+    if not isinstance(dataset, tf.data.Dataset):
+      return False
+    if dataset.__class__.__name__ == "ShuffleDataset":
+      return True
+    if hasattr(dataset, "_input_dataset"):
+      return _contains_repeat(dataset._input_dataset)  # pylint: disable=protected-access
+  except:  # pylint: disable=bare-except
+    pass
+  return False
+
+
+def _contains_batch(dataset) -> Optional[int]:
+  """Tests if a dataset contains a "batch()" operation.
+
+  Args:
+    dataset: A tf.data.Dataset.
+
+  Returns:
+    The batch size, or None if not batch operation was found.
+  """
+
+  try:
+    if not isinstance(dataset, tf.data.Dataset):
+      return None
+    if dataset.__class__.__name__ == "BatchDataset":
+      return dataset._batch_size  # pylint: disable=protected-access
+    if hasattr(dataset, "_input_dataset"):
+      return _contains_batch(dataset._input_dataset)  # pylint: disable=protected-access
+  except:  # pylint: disable=bare-except
+    pass
+  return None
 
 
 # The following section is a copy of internal Keras functions that are not
