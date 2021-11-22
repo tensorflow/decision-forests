@@ -935,20 +935,24 @@ class CoreModel(models.Model):
 
     return os.path.join(self._temp_directory, "partial_dataset_cache")
 
-  def compile(self, metrics=None):
+  def compile(self, metrics=None, weighted_metrics=None):
     """Configure the model for training.
 
     Unlike for most Keras model, calling "compile" is optional before calling
     "fit".
 
     Args:
-      metrics: Metrics to report during training.
+      metrics: List of metrics to be evaluated by the model during training and
+        testing.
+      weighted_metrics: List of metrics to be evaluated and weighted by
+        `sample_weight` or `class_weight` during training and testing.
 
     Raises:
       ValueError: Invalid arguments.
     """
 
-    super(CoreModel, self).compile(metrics=metrics)
+    super(CoreModel, self).compile(
+        metrics=metrics, weighted_metrics=weighted_metrics)
 
   def fit(self,
           x=None,
