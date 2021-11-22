@@ -1510,6 +1510,39 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     predictions = model.predict(x_train)
     self.assertEqual(predictions.shape[1], 1)
 
+  def test_resume_training(self):
+    # Path to dataset.
+    dataset_directory = os.path.join(test_data_path(), "dataset")
+    train_path = os.path.join(dataset_directory, "adult_train.csv")
+    test_path = os.path.join(dataset_directory, "adult_test.csv")
+
+    label = "income"
+
+    train_ds = keras.pd_dataframe_to_tf_dataset(
+        pd.read_csv(train_path), label=label)
+    test_ds = keras.pd_dataframe_to_tf_dataset(
+        pd.read_csv(test_path), label=label)
+
+    model = keras.GradientBoostedTreesModel(num_trees=50, validation_ratio=0.0)
+    model.compile("accuracy")
+
+    model.fit(train_ds)
+    eval_model_50t = model.evaluate(test_ds, return_dict=True)
+    self.assertEqual(model.make_inspector().num_trees(), 50)
+
+    model.learner_params["num_trees"] = 100
+    model.fit(train_ds)
+    self.assertEqual(model.make_inspector().num_trees(), 100)
+    eval_model_100t = model.evaluate(test_ds, return_dict=True)
+
+    logging.info("eval_model_50t: %s", eval_model_50t)
+    logging.info("eval_model_100t: %s", eval_model_100t)
+
+    self.assertGreater(eval_model_50t["accuracy"], 0.865)
+
+    self.assertGreater(eval_model_100t["accuracy"],
+                       eval_model_50t["accuracy"] + 0.001)
+
   def test_contains_repeat(self):
     a = tf.data.Dataset.from_tensor_slices(range(10))
     self.assertFalse(core._contains_repeat(a))

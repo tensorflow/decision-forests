@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
 import copy
 import enum
 import logging
@@ -731,7 +732,8 @@ def train(input_ids: List[str],
               abstract_learner_pb2.DeploymentConfig] = None,
           guide: Optional[data_spec_pb2.DataSpecificationGuide] = None,
           model_dir: Optional[str] = None,
-          keep_model_in_resource: Optional[bool] = True) -> tf.Operation:
+          keep_model_in_resource: Optional[bool] = True,
+          try_resume_training: Optional[bool] = False) -> tf.Operation:
   """Trains a model on the dataset accumulated by collect_training_examples.
 
   Args:
@@ -749,6 +751,9 @@ def train(input_ids: List[str],
     model_dir: If specified, export the trained model into this directory.
     keep_model_in_resource: If true, keep the model as a training model
       resource.
+    try_resume_training: Try to resume the training from the
+      "working_cache_path" directory. The the "working_cache_path" does not
+      contains any checkpoint, start the training from the start.
 
   Returns:
     The OP that trigger the training.
@@ -766,6 +771,10 @@ def train(input_ids: List[str],
     deployment_config = abstract_learner_pb2.DeploymentConfig()
   else:
     deployment_config = copy.deepcopy(deployment_config)
+
+  if try_resume_training:
+    deployment_config.cache_path = os.path.join(model_dir, "working_cache")
+    deployment_config.try_resume_training = True
 
   if guide is None:
     guide = data_spec_pb2.DataSpecificationGuide()
@@ -809,8 +818,8 @@ def train_on_file_dataset(
     model_dir: Optional[str] = None,
     keep_model_in_resource: Optional[bool] = True,
     working_cache_path: Optional[str] = None,
-    distribution_config: Optional[DistributionConfiguration] = None
-) -> tf.Operation:
+    distribution_config: Optional[DistributionConfiguration] = None,
+    try_resume_training: Optional[bool] = False) -> tf.Operation:
   """Trains a model on dataset stored on file.
 
   The input arguments and overall logic of this OP is similar to the ":train"
@@ -848,6 +857,9 @@ def train_on_file_dataset(
       cache.
     distribution_config: Socket addresses of the workers for distributed
       training.
+    try_resume_training: Try to resume the training from the
+      "working_cache_path" directory. The the "working_cache_path" does not
+      contains any checkpoint, start the training from the start.
 
   Returns:
     The OP that trigger the training.
@@ -886,6 +898,12 @@ def train_on_file_dataset(
 
   if working_cache_path is not None:
     deployment_config.cache_path = working_cache_path
+
+  if try_resume_training:
+    if working_cache_path is None:
+      raise ValueError("Cannot train a model with `try_resume_training=True` "
+                       "without a working cache directory.")
+    deployment_config.try_resume_training = True
 
   if distribution_config is not None:
     deployment_config.try_resume_training = True

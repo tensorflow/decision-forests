@@ -8,6 +8,8 @@
     `keep_non_leaf_label_distribution` and 'random_seed' hyper-parameters.
 -   Add the `batch_size` argument in the `pd_dataframe_to_tf_dataset` utility.
 -   Automatically determine the number of threads if `num_threads=None`.
+-   Add constructor argument `try_resume_training` to facilitate resuming
+    training.
 -   Check that the training dataset is well configured for TF-DF e.g. no repeat
     operation, has a large enough batch size, etc. The check can be disabled
     with `check_dataset=False`.

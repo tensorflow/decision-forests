@@ -478,6 +478,17 @@ $7
       only the most frequent values are kept, and the remaining values are
       considered as out-of-vocabulary. The value `max_vocab_count` defined in a
       `FeatureUsage` (if any) takes precedence.
+    try_resume_training: If true, the model training resumes from the checkpoint
+      stored in the `temp_directory` directory. If `temp_directory` does not
+      contain any model checkpoint, the training start from the beginning.
+      Resuming training is useful in the following situations: (1) The training
+        was interrupted by the user (e.g. ctrl+c or "stop" button in a
+        notebook). (2) the training job was interrupted (e.g. rescheduling), ond
+        (3) the hyper-parameter of the model were changed such that an initially
+        completed training is now incomplete (e.g. increasing the number of
+        trees).
+      Note: Training can only be resumed if the training datasets is exactly the
+        same (i.e. no reshuffle in the tf.data.Dataset).
     check_dataset: If set to true, test if the dataset is well configured for
       the training: (1) Check if the dataset does contains any `repeat`
         operations, (2) Check if the dataset does contain a `batch` operation,
@@ -502,6 +513,7 @@ $2
       num_threads: Optional[int] = None,
       name: Optional[str] = None,
       max_vocab_count : Optional[int] = 2000,
+      try_resume_training: Optional[bool] = True,
       check_dataset: Optional[bool] = True,
 $3,
       explicit_args: Optional[Set[str]] = None):
@@ -529,6 +541,7 @@ $4
       num_threads=num_threads,
       name=name,
       max_vocab_count=max_vocab_count,
+      try_resume_training=try_resume_training,
       check_dataset=check_dataset)
 
   @staticmethod

@@ -378,6 +378,17 @@ class CoreModel(models.Model):
       only the most frequent values are kept, and the remaining values are
       considered as out-of-vocabulary. The value `max_vocab_count` defined in a
       `FeatureUsage` (if any) takes precedence.
+    try_resume_training: If true, the model training resumes from the checkpoint
+      stored in the `temp_directory` directory. If `temp_directory` does not
+      contain any model checkpoint, the training start from the beginning.
+      Resuming training is useful in the following situations: (1) The training
+        was interrupted by the user (e.g. ctrl+c or "stop" button in a
+        notebook). (2) the training job was interrupted (e.g. rescheduling), ond
+        (3) the hyper-parameter of the model were changed such that an initially
+        completed training is now incomplete (e.g. increasing the number of
+        trees).
+      Note: Training can only be resumed if the training datasets is exactly the
+        same (i.e. no reshuffle in the tf.data.Dataset).
     check_dataset: If set to true, test if the dataset is well configured for
       the training: (1) Check if the dataset does contains any `repeat`
         operations, (2) Check if the dataset does contain a `batch` operation,
@@ -401,6 +412,7 @@ class CoreModel(models.Model):
                num_threads: Optional[int] = None,
                name: Optional[str] = None,
                max_vocab_count: Optional[int] = 2000,
+               try_resume_training: Optional[bool] = True,
                check_dataset: Optional[bool] = True) -> None:
     super(CoreModel, self).__init__(name=name)
 
@@ -416,6 +428,7 @@ class CoreModel(models.Model):
     self._verbose = verbose
     self._num_threads = num_threads
     self._max_vocab_count = max_vocab_count
+    self._try_resume_training = try_resume_training
     self._check_dataset = check_dataset
 
     # Internal, indicates whether the first evaluation during training,
@@ -492,6 +505,14 @@ class CoreModel(models.Model):
 
     # If the model is trained with weights.
     self._weighted_training = False
+
+  @property
+  def learner_params(self) -> Optional[HyperParameters]:
+    """Gets the dictionary of hyper-parameters passed in the model constructor.
+
+    Changing this dictionary will impact the training.
+    """
+    return self._learner_params
 
   def make_inspector(self) -> inspector_lib.AbstractInspector:
     """Creates an inspector to access the internal model structure.
@@ -1022,6 +1043,9 @@ class CoreModel(models.Model):
     # callbacks calls `evaluate()` before the end of the 1st epoch.
     self._train_on_evaluate = True
 
+    # Reset the training status.
+    self._is_trained.assign(False)
+
     try:
       history = super(CoreModel, self).fit(
           x=x, y=y, epochs=1, callbacks=callbacks, **kwargs)
@@ -1040,7 +1064,8 @@ class CoreModel(models.Model):
       ranking_key: Optional[str] = None,
       valid_path: Optional[str] = None,
       dataset_format: Optional[str] = "csv",
-      max_num_scanned_rows_to_accumulate_statistics: Optional[int] = 100_000):
+      max_num_scanned_rows_to_accumulate_statistics: Optional[int] = 100_000,
+      try_resume_training: Optional[bool] = True):
     """Trains the model on a dataset stored on disk.
 
     This solution is generally more efficient and easier that loading the
@@ -1089,6 +1114,14 @@ class CoreModel(models.Model):
         treated as out-of-vocabulary). If set to None, the entire dataset is
         scanned. This parameter has no effect if the dataset is stored in a
         format that already contains those values.
+      try_resume_training: If true, tries to resume training from the model
+        checkpoint stored in the `temp_directory` directory. If `temp_directory`
+        does not contain any model checkpoint, start the training from the
+        start. Works in the following three situations: (1) The training was
+          interrupted by the user (e.g. ctrl+c). (2) the training job was
+          interrupted (e.g. rescheduling), ond (3) the hyper-parameter of the
+          model were changed such that an initially completed training is now
+          incomplete (e.g. increasing the number of trees).
 
     Returns:
       A `History` object. Its `History.history` attribute is not yet
@@ -1192,7 +1225,8 @@ class CoreModel(models.Model):
         training_config=self._advanced_arguments.yggdrasil_training_config,
         deployment_config=deployment_config,
         working_cache_path=os.path.join(self._temp_directory, "working_cache"),
-        distribution_config=distribution_config)
+        distribution_config=distribution_config,
+        try_resume_training=try_resume_training)
 
     if self._verbose:
       logging.info("Training done. Finalizing the model.")
@@ -1415,7 +1449,7 @@ class CoreModel(models.Model):
           guide=guide,
           training_config=self._advanced_arguments.yggdrasil_training_config,
           deployment_config=deployment_config,
-      )
+          try_resume_training=self._try_resume_training)
 
     else:
       tf_core.finalize_distributed_dataset_collection(
@@ -1446,7 +1480,7 @@ class CoreModel(models.Model):
           working_cache_path=os.path.join(self._temp_directory,
                                           "working_cache"),
           distribution_config=distribution_config,
-      )
+          try_resume_training=self._try_resume_training)
 
     # Request and store a description of the model.
     self._description = training_op.SimpleMLShowModel(
