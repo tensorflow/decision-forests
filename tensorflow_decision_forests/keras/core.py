@@ -99,6 +99,7 @@ FeatureSemantic = tf_core.Semantic
 # Feature name placeholder.
 _LABEL = "__LABEL"
 _RANK_GROUP = "__RANK_GROUP"
+_UPLIFT_TREATMENT = "__UPLIFT_TREATMENT"
 _WEIGHTS = "__WEIGHTS"
 
 # This is the list of characters that should not be used as feature name as they
@@ -356,6 +357,9 @@ class CoreModel(models.Model):
       identifies queries in a query/document ranking task. The ranking group is
       not added automatically for the set of features if
       exclude_non_specified_features=false.
+    uplift_treatment: Only for task=Task.CATEGORICAL_UPLIFT. Name of an integer
+      feature that identifies the treatment in an uplift problem. The value 0 is
+      reserved for the control treatment.
     temp_directory: Temporary directory used to store the model Assets after the
       training, and possibly as a work directory during the training. This
       temporary directory is necessary for the model to be exported after
@@ -406,6 +410,7 @@ class CoreModel(models.Model):
                preprocessing: Optional["models.Functional"] = None,
                postprocessing: Optional["models.Functional"] = None,
                ranking_group: Optional[str] = None,
+               uplift_treatment: Optional[str] = None,
                temp_directory: Optional[str] = None,
                verbose: Optional[bool] = True,
                advanced_arguments: Optional[AdvancedArguments] = None,
@@ -424,6 +429,7 @@ class CoreModel(models.Model):
     self._preprocessing = preprocessing
     self._postprocessing = postprocessing
     self._ranking_group = ranking_group
+    self._uplift_treatment = uplift_treatment
     self._temp_directory = temp_directory
     self._verbose = verbose
     self._num_threads = num_threads
@@ -843,12 +849,17 @@ class CoreModel(models.Model):
         train_x, {feature.name: feature.semantic for feature in self._features},
         self._exclude_non_specified)
 
-    # The ranking group is not part of the features, unless specified
-    # explicitly.
+    # The ranking group and treatment are not part of the features unless
+    # specified explicitly.
     if (self._ranking_group is not None and
         self._ranking_group not in self._features and
         self._ranking_group in self._semantics):
       del self._semantics[self._ranking_group]
+
+    if (self._uplift_treatment is not None and
+        self._uplift_treatment not in self._features and
+        self._uplift_treatment in self._semantics):
+      del self._semantics[self._uplift_treatment]
 
     semantic_inputs = tf_core.combine_tensors_and_semantics(
         train_x, self._semantics)
@@ -893,6 +904,23 @@ class CoreModel(models.Model):
           tensor=tf.cast(train_x[self._ranking_group],
                          tf_core.NormalizedHashType),
           semantic=tf_core.Semantic.HASH)
+
+    elif self._task == Task.CATEGORICAL_UPLIFT:
+      normalized_semantic_inputs[_LABEL] = tf_core.SemanticTensor(
+          tensor=tf.cast(train_y, tf_core.NormalizedCategoricalIntType) +
+          tf_core.CATEGORICAL_INTEGER_OFFSET,
+          semantic=tf_core.Semantic.CATEGORICAL)
+
+      assert self._uplift_treatment is not None
+      if self._uplift_treatment not in train_x:
+        raise Exception(
+            "The uplift treatment key feature \"{}\" is not available as an input "
+            "feature.".format(self._uplift_treatment))
+      normalized_semantic_inputs[_UPLIFT_TREATMENT] = tf_core.SemanticTensor(
+          tensor=tf.cast(train_x[self._uplift_treatment],
+                         tf_core.NormalizedCategoricalIntType) +
+          tf_core.CATEGORICAL_INTEGER_OFFSET,
+          semantic=tf_core.Semantic.CATEGORICAL)
 
     else:
       raise Exception("Non supported task {}".format(self._task))
@@ -1449,6 +1477,8 @@ class CoreModel(models.Model):
           generic_hparms=tf_core.hparams_dict_to_generic_proto(
               self._learner_params),
           ranking_group=_RANK_GROUP if self._task == Task.RANKING else None,
+          uplift_treatment=_UPLIFT_TREATMENT
+          if self._task == Task.CATEGORICAL_UPLIFT else None,
           keep_model_in_resource=True,
           guide=guide,
           training_config=self._advanced_arguments.yggdrasil_training_config,
@@ -1477,6 +1507,8 @@ class CoreModel(models.Model):
           generic_hparms=tf_core.hparams_dict_to_generic_proto(
               self._learner_params),
           ranking_group=_RANK_GROUP if self._task == Task.RANKING else None,
+          uplift_treatment=_UPLIFT_TREATMENT
+          if self._task == Task.CATEGORICAL_UPLIFT else None,
           keep_model_in_resource=True,
           guide=guide,
           training_config=self._advanced_arguments.yggdrasil_training_config,

@@ -379,6 +379,29 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
               prediction.regression().value();
         } break;
 
+        case Task::RANKING: {
+          DCHECK_EQ(outputs->output_dim, 1);
+          DCHECK_EQ(outputs->dense_predictions.dimension(1), 1);
+          outputs->dense_predictions(example_idx, 0) =
+              prediction.ranking().relevance();
+        } break;
+
+        case Task::CATEGORICAL_UPLIFT: {
+          DCHECK_EQ(outputs->dense_predictions.dimension(1),
+                    outputs->output_dim);
+          const auto& pred = prediction.uplift();
+          if (outputs->dense_predictions.dimension(1) !=
+              pred.treatment_effect_size()) {
+            return tf::Status(tf::error::INTERNAL,
+                              "Wrong \"distribution\" shape.");
+          }
+          for (int uplift_idx = 0; uplift_idx < outputs->output_dim;
+               uplift_idx++) {
+            outputs->dense_predictions(example_idx, uplift_idx) =
+                pred.treatment_effect(uplift_idx);
+          }
+        } break;
+
         default:
           return tf::Status(tf::error::UNIMPLEMENTED,
                             absl::Substitute("Non supported task $0",

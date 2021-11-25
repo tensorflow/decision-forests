@@ -727,6 +727,7 @@ def train(input_ids: List[str],
           generic_hparms: Optional[
               abstract_learner_pb2.GenericHyperParameters] = None,
           ranking_group: Optional[str] = None,
+          uplift_treatment: Optional[str] = None,
           training_config: Optional[abstract_learner_pb2.TrainingConfig] = None,
           deployment_config: Optional[
               abstract_learner_pb2.DeploymentConfig] = None,
@@ -745,6 +746,7 @@ def train(input_ids: List[str],
     task: Task to solve.
     generic_hparms: Hyper-parameter of the learner.
     ranking_group: Id of the ranking group feature. Only for ranking.
+    uplift_treatment: Id of the uplift treatment feature. Only for uplift.
     training_config: Training configuration.
     deployment_config: Deployment configuration (e.g. where to train the model).
     guide: Dataset specification guide.
@@ -785,6 +787,10 @@ def train(input_ids: List[str],
     training_config.ranking_group = ranking_group
     feature_ids.append(_input_key_to_id(model_id, ranking_group))
 
+  if uplift_treatment is not None:
+    training_config.uplift_treatment = uplift_treatment
+    feature_ids.append(_input_key_to_id(model_id, uplift_treatment))
+
   return training_op.SimpleMLModelTrainer(
       feature_ids=",".join(feature_ids),
       label_id=_input_key_to_id(model_id, label_id),
@@ -812,6 +818,7 @@ def train_on_file_dataset(
     generic_hparms: Optional[
         abstract_learner_pb2.GenericHyperParameters] = None,
     ranking_group: Optional[str] = None,
+    uplift_treatment: Optional[str] = None,
     training_config: Optional[abstract_learner_pb2.TrainingConfig] = None,
     deployment_config: Optional[abstract_learner_pb2.DeploymentConfig] = None,
     guide: Optional[data_spec_pb2.DataSpecificationGuide] = None,
@@ -846,6 +853,7 @@ def train_on_file_dataset(
     task: Task to solve.
     generic_hparms: Hyper-parameter of the learner.
     ranking_group: Id of the ranking group feature. Only for ranking.
+    uplift_treatment: Id of the uplift treatment group feature. Only for uplift.
     training_config: Training configuration.
     deployment_config: Deployment configuration (e.g. where to train the model).
     guide: Dataset specification guide.
@@ -883,6 +891,9 @@ def train_on_file_dataset(
 
   if ranking_group is not None:
     training_config.ranking_group = ranking_group
+
+  if uplift_treatment is not None:
+    training_config.uplift_treatment = uplift_treatment
 
   # Set the method argument into the proto configs.
   training_config.learner = learner

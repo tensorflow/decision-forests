@@ -651,6 +651,8 @@ class _InferenceArgsBuilder(tracking.AutoTrackable):
       return 1
     elif self._header.task == Task.RANKING:
       return 1
+    elif self._header.task == Task.CATEGORICAL_UPLIFT:
+      return label_spec.categorical.number_of_unique_values - 2
     else:
       raise Exception("Non supported task {}.".format(
           Task.Name(self._header.task)))
@@ -840,7 +842,8 @@ class _CompiledSimpleMLModelResource(tracking.TrackableResource):
       self._resource_handle = self._create_resource()
 
     if (not context.executing_eagerly() and
-        tf.compat.v1.get_default_graph()._get_control_flow_context() is not None):  # pylint: disable=protected-access
+        tf.compat.v1.get_default_graph()._get_control_flow_context()
+        is not None):  # pylint: disable=protected-access
       with tf.init_scope():
         self._init_op = self._initialize()
     else:

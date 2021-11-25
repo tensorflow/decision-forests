@@ -425,7 +425,7 @@ class $0(core.CoreModel):
 
   Attributes:
     task: Task to solve (e.g. Task.CLASSIFICATION, Task.REGRESSION,
-      Task.RANKING).
+      Task.RANKING, Task.CATEGORICAL_UPLIFT).
     features: Specify the list and semantic of the input features of the model.
       If not specified, all the available features will be used. If specified
       and if `exclude_non_specified_features=True`, only the features in
@@ -446,6 +446,9 @@ class $0(core.CoreModel):
       identifies queries in a query/document ranking task. The ranking group
       is not added automatically for the set of features if
       `exclude_non_specified_features=false`.
+    uplift_treatment: Only for task=Task.CATEGORICAL_UPLIFT. Name of an integer
+      feature that identifies the treatment in an uplift problem. The value 0 is
+      reserved for the control treatment.
     temp_directory: Temporary directory used to store the model Assets after the
       training, and possibly as a work directory during the training. This
       temporary directory is necessary for the model to be exported after
@@ -506,6 +509,7 @@ $2
       preprocessing: Optional["tf.keras.models.Functional"] = None,
       postprocessing: Optional["tf.keras.models.Functional"] = None,
       ranking_group: Optional[str] = None,
+      uplift_treatment: Optional[str] = None,
       temp_directory: Optional[str] = None,
       verbose: Optional[bool] = True,
       hyperparameter_template: Optional[str] = None,
@@ -535,6 +539,7 @@ $4
       preprocessing=preprocessing,
       postprocessing=postprocessing,
       ranking_group=ranking_group,
+      uplift_treatment=uplift_treatment,
       temp_directory=temp_directory,
       verbose=verbose,
       advanced_arguments=advanced_arguments,
