@@ -56,6 +56,7 @@ Returns a type-less OP that loads the model when called.
 
 REGISTER_OP("SimpleMLLoadModelFromPathWithHandle")
     .SetIsStateful()
+    .Attr("output_types: list(string) = []")
     .Input("model_handle: resource")
     .Input("path: string")
     .Doc(R"(
@@ -63,9 +64,17 @@ Applies a model and returns its predictions.
 
 Similar to "SimpleMLLoadModelFromPath", but takes a resource handle instead of
 a resource name.
+
+output_types: A list of keywords describing what the model can do. The possible
+  values are: LEAVES: Support getting the active leaves indices i.e.
+  SimpleMLInferenceLeafIndexOpWithHandle. There is no need to specify anything
+  for classical model prediction. Adding output_type constraints might lead to
+  the selection of a slower model inference logic.
+
 )");
 
-Status SimpleMLInferenceOpSetShape(shape_inference::InferenceContext* c) {
+Status SimpleMLInferenceOpSetShapeGeneric(shape_inference::InferenceContext* c,
+                                          const bool output_leaves) {
   // Check the rank of the input features.
   ::tensorflow::shape_inference::ShapeHandle tmp_shape;
   TF_RETURN_IF_ERROR(c->WithRank(c->input(0), 2, &tmp_shape));
@@ -80,7 +89,7 @@ Status SimpleMLInferenceOpSetShape(shape_inference::InferenceContext* c) {
   // value (0 for all inputs; except for input 5 with value 1) are ignored.
   shape_inference::DimensionOrConstant batch_size(0);
   bool batch_size_was_found = false;
-  // Last known batch size. Use to ensure that, if the batch size size known
+  // Last known batch size. Use to ensure that, if the batch size is known
   // (at graph construction time), it is consistent in between the input
   // features.
   int known_batch_size = -1;
@@ -110,28 +119,39 @@ Status SimpleMLInferenceOpSetShape(shape_inference::InferenceContext* c) {
       batch_size_was_found = true;
     }
   }
+  if (output_leaves) {
+    TF_RETURN_IF_ERROR(
+        c->set_output("leaves", {c->Matrix(batch_size, c->UnknownDim())}));
+  } else {
+    int dense_output_dim;
+    TF_RETURN_IF_ERROR(c->GetAttr("dense_output_dim", &dense_output_dim));
 
-  int dense_output_dim;
-  TF_RETURN_IF_ERROR(c->GetAttr("dense_output_dim", &dense_output_dim));
-
-  // Check the tensor shapes.
-  TF_RETURN_IF_ERROR(c->set_output("dense_predictions",
-                                   {c->Matrix(batch_size, dense_output_dim)}));
-  TF_RETURN_IF_ERROR(
-      c->set_output("dense_col_representation", {c->Vector(dense_output_dim)}));
+    // Check the tensor shapes.
+    TF_RETURN_IF_ERROR(c->set_output(
+        "dense_predictions", {c->Matrix(batch_size, dense_output_dim)}));
+    TF_RETURN_IF_ERROR(c->set_output("dense_col_representation",
+                                     {c->Vector(dense_output_dim)}));
+  }
   return Status::OK();
 }
+
+Status SimpleMLInferenceOpSetShape(shape_inference::InferenceContext* c) {
+  return SimpleMLInferenceOpSetShapeGeneric(c, /*output_leaves=*/false);
+}
+
+#define INPUT_FEATURES()                                             \
+  Input("numerical_features: float")                                 \
+      .Input("boolean_features: float")                              \
+      .Input("categorical_int_features: int32")                      \
+      .Input("categorical_set_int_features_values: int32")           \
+      .Input("categorical_set_int_features_row_splits_dim_1: int64") \
+      .Input("categorical_set_int_features_row_splits_dim_2: int64")
 
 REGISTER_OP("SimpleMLInferenceOp")
     .SetIsStateful()
     .Attr("model_identifier: string")
     .Attr("dense_output_dim: int >= 1")
-    .Input("numerical_features: float")
-    .Input("boolean_features: float")
-    .Input("categorical_int_features: int32")
-    .Input("categorical_set_int_features_values: int32")
-    .Input("categorical_set_int_features_row_splits_dim_1: int64")
-    .Input("categorical_set_int_features_row_splits_dim_2: int64")
+    .INPUT_FEATURES()
     .Output("dense_predictions: float")
     .Output("dense_col_representation: string")
     .SetShapeFn(SimpleMLInferenceOpSetShape)
@@ -185,16 +205,25 @@ dense_col_representation: Tensor of shape [dense_output_dim] of type bytes.
 REGISTER_OP("SimpleMLInferenceOpWithHandle")
     .SetIsStateful()
     .Attr("dense_output_dim: int >= 1")
-    .Input("numerical_features: float")
-    .Input("boolean_features: float")
-    .Input("categorical_int_features: int32")
-    .Input("categorical_set_int_features_values: int32")
-    .Input("categorical_set_int_features_row_splits_dim_1: int64")
-    .Input("categorical_set_int_features_row_splits_dim_2: int64")
+    .INPUT_FEATURES()
     .Input("model_handle: resource")
     .Output("dense_predictions: float")
     .Output("dense_col_representation: string")
     .SetShapeFn(SimpleMLInferenceOpSetShape);
+
+Status SimpleMLInferenceOpSetShapeLeafIndex(
+    shape_inference::InferenceContext* c) {
+  return SimpleMLInferenceOpSetShapeGeneric(c, /*output_leaves=*/true);
+}
+
+// Similar to "SimpleMLInferenceOpWithHandle", but returns the index of the
+// active leaves instead of probabilities.
+REGISTER_OP("SimpleMLInferenceLeafIndexOpWithHandle")
+    .SetIsStateful()
+    .INPUT_FEATURES()
+    .Input("model_handle: resource")
+    .Output("leaves: int32")
+    .SetShapeFn(SimpleMLInferenceOpSetShapeLeafIndex);
 
 Status ScalarOutput(shape_inference::InferenceContext* c) {
   c->set_output(0, c->Scalar());

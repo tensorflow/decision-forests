@@ -59,11 +59,12 @@ class AbstractNode(object):
 class LeafNode(AbstractNode):
   """A leaf node i.e. the node containing a prediction/value/output."""
 
-  def __init__(self, value: AbstractValue):
+  def __init__(self, value: AbstractValue, leaf_idx: Optional[int] = None):
     self._value = value
+    self._leaf_idx = leaf_idx
 
   def __repr__(self):
-    return f"LeafNode(value={self._value})"
+    return f"LeafNode(value={self._value}, idx={self._leaf_idx})"
 
   @property
   def value(self):
@@ -72,6 +73,16 @@ class LeafNode(AbstractNode):
   @value.setter
   def value(self, value):
     self._value = value
+
+  @property
+  def leaf_idx(self) -> Optional[int]:
+    """Index of the leaf in the tree in a depth first exploration."""
+
+    return self._leaf_idx
+
+  @value.setter
+  def leaf_idx(self, leaf_idx):
+    self._leaf_idx = leaf_idx
 
 
 class NonLeafNode(AbstractNode):

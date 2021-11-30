@@ -514,6 +514,11 @@ class CoreModel(models.Model):
     # The compiled Yggdrasil model.
     self._model: Optional[tf_op.ModelV2] = None
 
+    # Compiled Yggdrasil model specialized for returning the active leaves.
+    # This model is initialized at the first call to "call_get_leaves" or
+    # "predict_get_leaves".
+    self._model_get_leaves: Optional[tf_op.ModelV2] = None
+
     # Semantic of the input features.
     # Also defines what are the input features of the model.
     self._semantics: Optional[Dict[Text, FeatureSemantic]] = None
@@ -709,28 +714,17 @@ class CoreModel(models.Model):
       return test_function_not_trained
 
   @tf.function(experimental_relax_shapes=True)
-  def call(self, inputs, training=False):
-    """Inference of the model.
+  def _build_normalized_inputs(self, inputs) -> Dict[str, tf_core.AnyTensor]:
+    """Computes the normalized input of the model.
 
-    This method is used for prediction and evaluation of a trained model.
+    The normalized inputs are inputs compatible with the Yggdrasil model.
 
     Args:
       inputs: Input tensors.
-      training: Is the model being trained. Always False.
 
     Returns:
-      Model predictions.
+      Normalized inputs.
     """
-
-    del training
-
-    if self._semantics is None:
-      logging.warning(
-          "The model was called directly (i.e. using `model(data)` instead of "
-          "using `model.predict(data)`) before being trained. The model will "
-          "only return zeros until trained. The output shape might change "
-          "after training %s", inputs)
-      return tf.zeros([_batch_size(inputs), 1])
 
     assert self._semantics is not None
     assert self._model is not None
@@ -760,6 +754,34 @@ class CoreModel(models.Model):
     normalized_inputs, _ = tf_core.decombine_tensors_and_semantics(
         normalized_semantic_inputs)
 
+    return normalized_inputs
+
+  @tf.function(experimental_relax_shapes=True)
+  def call(self, inputs, training=False):
+    """Inference of the model.
+
+    This method is used for prediction and evaluation of a trained model.
+
+    Args:
+      inputs: Input tensors.
+      training: Is the model being trained. Always False.
+
+    Returns:
+      Model predictions.
+    """
+
+    del training
+
+    if self._semantics is None:
+      logging.warning(
+          "The model was called directly (i.e. using `model(data)` instead of "
+          "using `model.predict(data)`) before being trained. The model will "
+          "only return zeros until trained. The output shape might change "
+          "after training %s", inputs)
+      return tf.zeros([_batch_size(inputs), 1])
+
+    normalized_inputs = self._build_normalized_inputs(inputs)
+
     # Apply the model.
     predictions = self._model.apply(normalized_inputs)
 
@@ -778,6 +800,90 @@ class CoreModel(models.Model):
       predictions = self._postprocessing(predictions)
 
     return predictions
+
+  @tf.function(experimental_relax_shapes=True)
+  def call_get_leaves(self, inputs):
+    """Computes the index of the active leaf in each tree.
+
+    The active leaf is the leave that that receive the example during inference.
+
+    The returned value "leaves[i,j]" is the index of the active leave for the
+    i-th example and the j-th tree. Leaves are indexed by depth first
+    exploration with the negative child visited before the positive one
+    (similarly as "iterate_on_nodes()" iteration). Leaf indices are also
+    available with LeafNode.leaf_idx.
+
+    Args:
+      inputs: Input tensors. Same signature as the model's "call(inputs)".
+
+    Returns:
+      Index of the active leaf for each tree in the model.
+    """
+
+    if self._semantics is None:
+      logging.warning(
+          "The model was called directly using `call_get_leaves` before "
+          "being trained. This method will "
+          "only return zeros until trained. The output shape might change "
+          "after training %s", inputs)
+      return tf.zeros([_batch_size(inputs), 1])
+
+    self._ensure_model_get_leaves_ready()
+    normalized_inputs = self._build_normalized_inputs(inputs)
+    return self._model_get_leaves.apply_get_leaves(normalized_inputs)
+
+  def predict_get_leaves(self, x):
+    """Gets the index of the active leaf of each tree.
+
+    The active leaf is the leave that that receive the example during inference.
+
+    The returned value "leaves[i,j]" is the index of the active leave for the
+    i-th example and the j-th tree. Leaves are indexed by depth first
+    exploration with the negative child visited before the positive one
+    (similarly as "iterate_on_nodes()" iteration). Leaf indices are also
+    available with LeafNode.leaf_idx.
+
+    Args:
+      x: Input samples as a tf.data.Dataset.
+
+    Returns:
+      Index of the active leaf for each tree in the model.
+    """
+
+    # TODO(gbm): Use get_data_handler when Keras makes it public.
+
+    self._ensure_model_get_leaves_ready()
+
+    batch_outputs = None
+    outputs = None
+
+    for row in x:
+      if isinstance(row, tuple):
+        # Remove the label and weight.
+        row = row[0]
+      batch_outputs = self.call_get_leaves(row)
+
+      if outputs is None:
+        outputs = tf.nest.map_structure(lambda batch_output: [batch_output],
+                                        batch_outputs)
+      else:
+        tf.__internal__.nest.map_structure_up_to(
+            batch_outputs,
+            lambda output, batch_output: output.append(batch_output), outputs,
+            batch_outputs)
+
+    return batch_outputs
+
+  def _ensure_model_get_leaves_ready(self):
+    """Ensures that the model that generates the leaves is available."""
+
+    # TODO(gbm): Re-use "_model" if it supports the get-leaves inference.
+
+    if self._model_get_leaves is None:
+      self._model_get_leaves = tf_op.ModelV2(
+          model_path=self.yggdrasil_model_path_tensor().numpy().decode("utf-8"),
+          verbose=False,
+          output_types=["LEAVES"])
 
   # This function should not be serialized in the SavedModel.
   @base_tracking.no_automatic_dependency_tracking

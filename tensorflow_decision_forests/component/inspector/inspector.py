@@ -459,6 +459,7 @@ class _AbstractDecisionForestInspector(AbstractInspector):
     tree_idx = 0
     # Sequence of positive/negative branches to the current node.
     branch: List[bool] = []
+    next_leaf_idx = 0
 
     for shard_idx in range(num_shards):
       shard_path = os.path.join(
@@ -469,6 +470,11 @@ class _AbstractDecisionForestInspector(AbstractInspector):
           self.specialized_header().node_format, shard_path):
         core_node = decision_tree_pb2.Node.FromString(serialized_node)
         node = py_tree.node.core_node_to_node(core_node, self._dataspec)
+
+        if isinstance(node, py_tree.node.LeafNode):
+          node.leaf_idx = next_leaf_idx
+          next_leaf_idx += 1
+
         yield IterNodeResult(node=node, depth=len(branch), tree_idx=tree_idx)
 
         if isinstance(node, py_tree.node.NonLeafNode):
@@ -482,6 +488,7 @@ class _AbstractDecisionForestInspector(AbstractInspector):
           if not branch:
             # New tree
             tree_idx += 1
+            next_leaf_idx = 0
           else:
             branch[-1] = True
 

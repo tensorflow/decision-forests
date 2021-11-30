@@ -1674,6 +1674,22 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     tensorboard_logs = os.path.join(tmp_path(), "tensorboard_logs")
     inspector.export_to_tensorboard(tensorboard_logs)
 
+  def test_get_leaves(self):
+
+    dataset_directory = os.path.join(test_data_path(), "dataset")
+    train_path = os.path.join(dataset_directory, "adult_train.csv")
+    label = "income"
+
+    train_ds = keras.pd_dataframe_to_tf_dataset(
+        pd.read_csv(train_path), label=label)
+    model = keras.RandomForestModel(num_trees=20)
+    model.fit(train_ds)
+
+    leaves = model.predict_get_leaves(train_ds)
+    logging.info("Leaves: %s", leaves)
+
+    self.assertEqual(leaves.shape, (792, 20))
+
 
 if __name__ == "__main__":
   tf.test.main()

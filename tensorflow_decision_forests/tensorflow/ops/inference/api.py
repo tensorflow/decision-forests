@@ -309,7 +309,10 @@ class ModelV2(tracking.AutoTrackable):
   For TensorFlow V2.
   """
 
-  def __init__(self, model_path: Text, verbose: Optional[bool] = True):
+  def __init__(self,
+               model_path: Text,
+               verbose: Optional[bool] = True,
+               output_types: Optional[List[str]] = []):
     """Initialize the model.
 
     The model content will be serialized as an asset if necessary.
@@ -317,13 +320,38 @@ class ModelV2(tracking.AutoTrackable):
     Args:
       model_path: Path to the Yggdrasil model.
       verbose: Should details about the calls be printed.
+      output_types: List of special outputs of the model. Can be: LEAVES.
     """
 
     super(ModelV2).__init__()
     self._input_builder = _InferenceArgsBuilder(verbose)
     self._input_builder.build_from_model_path(model_path)
     self._compiled_model = _CompiledSimpleMLModelResource(
-        _DiskModelLoader(model_path))
+        _DiskModelLoader(model_path, output_types))
+
+  def apply_get_leaves(self, features: Dict[Text, Tensor]) -> Any:
+    """Applies the model and returns the active leaves.
+
+    Only works with decision tree based models.
+
+    Args:
+      features: Dictionary of input features of the model. All the input
+        features of the model should be available. Features not used by the
+        model are ignored.
+
+    Returns:
+      Active leaves of the model in shape [batch_size, num_trees].
+    """
+
+    inference_args = self._input_builder.build_inference_op_args(
+        features, output_leaves=True)
+
+    leaves = op.SimpleMLInferenceLeafIndexOpWithHandle(
+        model_handle=self._compiled_model.resource_handle,
+        name="inference_op_leaves",
+        **inference_args)
+
+    return leaves
 
   def apply(self, features: Dict[Text, Tensor]) -> ModelOutput:
     """Applies the model.
@@ -427,14 +455,18 @@ class _InferenceArgsBuilder(tracking.AutoTrackable):
     else:
       return tf.no_op()
 
-  def build_inference_op_args(self, features: Dict[Text,
-                                                   Tensor]) -> Dict[Text, Any]:
+  def build_inference_op_args(
+      self,
+      features: Dict[Text, Tensor],
+      output_leaves: Optional[bool] = False) -> Dict[Text, Any]:
     """Creates the arguments of the SimpleMLInferenceOp.
 
     Args:
       features: Dictionary of input features of the model. All the input
         features of the model should be available. Features not used by the
         model are ignored.
+      output_leaves: If true, the model is expected to output leaves. If false,
+        the model is expected to output predictions.
 
     Returns:
       Op constructor arguments.
@@ -507,9 +539,10 @@ class _InferenceArgsBuilder(tracking.AutoTrackable):
             categorical_set_int_features.values.row_splits,
         "categorical_set_int_features_row_splits_dim_2":
             categorical_set_int_features.row_splits,
-        "dense_output_dim":
-            self._dense_output_dim,
     }
+
+    if not output_leaves:
+      args["dense_output_dim"] = self._dense_output_dim
 
     if self._verbose:
       logging.info("Inference op arguments:\n%s", args)
@@ -531,7 +564,7 @@ class _InferenceArgsBuilder(tracking.AutoTrackable):
 
     feature_idx = self._feature_name_to_idx.get(name)
     if feature_idx is None:
-      logging.warn("Registering feature \"%s\" not used by the model.", name)
+      logging.warning("Registering feature \"%s\" not used by the model.", name)
       return
 
     if feature_idx in self._all_feature_idxs(feature_maps):
@@ -864,12 +897,13 @@ class _DiskModelLoader(_AbstractModelLoader, tracking.AutoTrackable):
     google3/third_party/tensorflow/python/ops/lookup_ops.py
   """
 
-  def __init__(self, model_path):
+  def __init__(self, model_path, output_types: List[str]):
 
     super(_DiskModelLoader).__init__()
     if not isinstance(model_path, tf.Tensor) and not model_path:
       raise ValueError("Filename required")
 
+    self._output_types = output_types
     self._all_files = []
     self._done_file = None
     for directory, _, filenames in tf.io.gfile.walk(model_path):
@@ -892,7 +926,9 @@ class _DiskModelLoader(_AbstractModelLoader, tracking.AutoTrackable):
     with ops.name_scope("simple_ml", "load_model_from_disk",
                         (model.resource_handle,)):
       init_op = op.SimpleMLLoadModelFromPathWithHandle(
-          model_handle=model.resource_handle, path=model_path)
+          model_handle=model.resource_handle,
+          path=model_path,
+          output_types=self._output_types)
 
     ops.add_to_collection(ops.GraphKeys.TABLE_INITIALIZERS, init_op)
     return init_op

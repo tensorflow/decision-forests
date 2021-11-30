@@ -119,6 +119,7 @@ cc_library(
         "@ydf//yggdrasil_decision_forests/dataset:vertical_dataset",
         "@ydf//yggdrasil_decision_forests/model:abstract_model",
         "@ydf//yggdrasil_decision_forests/model:model_library",
+        "@ydf//yggdrasil_decision_forests/model/decision_tree:decision_forest_interface",
         "@ydf//yggdrasil_decision_forests/utils:compatibility",
         "@ydf//yggdrasil_decision_forests/utils:distribution_cc_proto",
         "@ydf//yggdrasil_decision_forests/utils:status_macros",
