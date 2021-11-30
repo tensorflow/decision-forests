@@ -1624,7 +1624,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     test_ds = keras.pd_dataframe_to_tf_dataset(
         test_df, label=outcome_key, task=task)
 
-    model = keras.RandomForestModel(task=task, uplift_treatment=treatment_key)
+    model = keras.RandomForestModel(
+        task=task, uplift_treatment=treatment_key, uplift_split_score="ED")
     model.fit(train_ds)
 
     logging.info("Trained model:")
