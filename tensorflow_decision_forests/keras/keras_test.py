@@ -55,7 +55,7 @@ Dataset = collections.namedtuple(
 # Tf's tf.feature_column_FeatureColumn is not accessible.
 FeatureColumn = Any
 
-# Raise an exception if the datset check fails.
+# Raise an exception if the dataset check fails.
 core.ONLY_WARN_IF_DATASET_FAILS = False
 
 

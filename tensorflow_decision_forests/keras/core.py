@@ -44,6 +44,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from datetime import datetime
+from datetime import timedelta
 import copy
 from functools import partial  # pylint: disable=g-importing-member
 import inspect
@@ -511,6 +513,11 @@ class CoreModel(models.Model):
 
     # If the model is trained with weights.
     self._weighted_training = False
+
+    self._time_begin_data_feed: Optional[datetime] = None
+    self._time_end_data_feed: Optional[datetime] = None
+    self._time_begin_training: Optional[datetime] = None
+    self._time_end_training: Optional[datetime] = None
 
   @property
   def learner_params(self) -> Optional[HyperParameters]:
@@ -1161,6 +1168,8 @@ class CoreModel(models.Model):
       All other fields are filled as usual for `Keras.Mode.fit()`.
     """
 
+    self._time_begin_training = datetime.now()
+
     if self._verbose:
       logging.info("Training on dataset %s", train_path)
 
@@ -1284,6 +1293,11 @@ class CoreModel(models.Model):
           history.on_epoch_end(src_logs.num_trees,
                                src_logs.evaluation.to_dict())
     self.history = history
+
+    self._time_end_training = datetime.now()
+    if self._verbose:
+      self._print_timer_training()
+
     return self.history
 
   def save(self, filepath: str, overwrite: Optional[bool] = True, **kwargs):
@@ -1443,6 +1457,13 @@ class CoreModel(models.Model):
     if self._normalized_input_keys is None:
       raise Exception("The training graph was not built.")
 
+    self._time_end_data_feed = datetime.now()
+    if self._verbose:
+      self._print_timer_feed_data()
+      logging.info("Starting training the model")
+
+    self._time_begin_training = datetime.now()
+
     train_model_path = self._temp_directory
     model_path = os.path.join(train_model_path, "model")
 
@@ -1528,6 +1549,10 @@ class CoreModel(models.Model):
 
     self._is_trained.assign(True)
 
+    self._time_end_training = datetime.now()
+    if self._verbose:
+      self._print_timer_training()
+
     # Load and optimize the model in memory.
     # Register the model as a SavedModel asset.
     self._model = tf_op.ModelV2(model_path=model_path, verbose=False)
@@ -1583,12 +1608,50 @@ class CoreModel(models.Model):
 
     return abstract_learner_pb2.LearnerCapabilities()
 
+  def _print_timer_feed_data(self):
+
+    if self._time_end_data_feed and self._time_begin_data_feed:
+      logging.info("Read training dataset in %s",
+                   self._time_end_data_feed - self._time_begin_data_feed)
+
+  def _print_timer_training(self):
+
+    if self._time_end_training and self._time_begin_training:
+      logging.info("Training model in %s",
+                   self._time_end_training - self._time_begin_training)
+
+      # Comparison to data feed stage.
+      if self._time_end_data_feed and self._time_begin_data_feed:
+        duration_training = self._time_end_training - self._time_begin_training
+        duration_data_feed = self._time_end_data_feed - self._time_begin_data_feed
+        # Note: The tf tracing takes ~5s with 20 features.
+        warning_offset = timedelta(seconds=5.0)
+        if duration_training >= timedelta(seconds=0.1):
+          ratio = duration_data_feed / (
+              duration_data_feed + duration_training + warning_offset)
+          if ratio > 0.5:
+            logging.warning(
+                "Tracing the TF graph and reading the dataset took more than "
+                "50%% of the time to effectively train the model "
+                "(tracing+dataset reading: %s, training: %s). This might "
+                "indicates that the dataset reading operation e.g. "
+                "tf.data.Dataset is not well configured. "
+                "In mose cases, this ratio should be <<10%%.",
+                duration_data_feed, duration_training)
+
 
 class _TrainerCallBack(tf.keras.callbacks.Callback):
   """Callback that trains the model at the end of the first epoch."""
 
   def __init__(self, model: CoreModel):
     self._model = model
+
+  def on_epoch_begin(self, epoch, logs=None):
+    del logs
+    if epoch == 0 and not self._model._is_trained.numpy():
+      if self._model._verbose:
+        logging.info("Starting reading the dataset")
+      self._model._time_begin_data_feed = datetime.now()
 
   def on_epoch_end(self, epoch, logs=None):
     del logs
@@ -1766,6 +1829,9 @@ def pd_dataframe_to_tf_dataset(
   # The batch size does not impact the training of TF-DF.
   if batch_size is not None:
     tf_dataset = tf_dataset.batch(batch_size)
+
+  # Seems to provide a small (measured as ~4% on a 32k rows dataset) speed-up.
+  tf_dataset = tf_dataset.prefetch(tf.data.AUTOTUNE)
 
   setattr(tf_dataset, "_tfdf_task", task)
   return tf_dataset
