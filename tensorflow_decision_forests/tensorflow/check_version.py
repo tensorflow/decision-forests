@@ -29,6 +29,7 @@ def check_version(tf_df_version,
   """
 
   if not external_logic:
+    pass
 
   if tf_version is None:
     tf_version = tf.__version__

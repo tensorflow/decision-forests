@@ -16,16 +16,24 @@
 #include "tensorflow_decision_forests/tensorflow/distribute/tf_distribution_common.h"
 
 #include "absl/strings/match.h"
-#include "tensorflow/core/distributed_runtime/error_payloads.h"
+
+// TODO(gbm): Use payload on next TF release (introduced on 2021-11-02)
+// #include "tensorflow/core/distributed_runtime/error_payloads.h"
 
 namespace yggdrasil_decision_forests {
 namespace distribute {
 
 bool IsPermanentWorkerError(const absl::Status& status) {
-  if (status.GetPayload(tensorflow::kWorkerPossiblyRestarted).has_value()) {
-    // Example: "TensorFlow: ABORTED: Session 87b71b3d46e250c7 is not found".
+  // TODO(gbm): Use payload on next TF release (introduced on 2021-11-02)
+  //  if (status.GetPayload(tensorflow::kWorkerPossiblyRestarted).has_value()) {
+  //    // Example: "TensorFlow: ABORTED: Session 87b71b3d46e250c7 is not
+  //    found". return false;
+  //  }
+
+  if (absl::StrContains(status.message(), "is not found")) {
     return false;
   }
+
   return true;
 }
 

@@ -99,7 +99,7 @@ function test_package() {
   PACKAGE="$1"; shift
 
   pip3 install --upgrade pip
-  pip3 install dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-linux_x86_64.whl --force-reinstall
+  pip3 install dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-linux_x86_64.whl
   pip3 list
   pip3 show tensorflow_decision_forests -f
   $PYTHON examples/minimal.py

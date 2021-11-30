@@ -307,7 +307,7 @@ class WorkerResource : public tf::ResourceBase {
 
       if (!answer.ok()) {
         LOG(WARNING) << "Inter worker communication failed with error: "
-                     << answer.status().error_message();
+                     << answer.status().message();
       }
       intra_worker_communication_.pending_answers.Push(std::move(answer));
     }

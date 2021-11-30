@@ -1377,7 +1377,10 @@ class CoreModel(models.Model):
 
     # pylint: disable=protected-access
     if self.call._stateful_fn:
-      self.call._stateful_fn._function_cache.clear()
+      if hasattr(self.call._stateful_fn._function_cache, "primary"):
+        self.call._stateful_fn._function_cache.primary.clear()
+      else:
+        self.call._stateful_fn._function_cache.clear()
     # pylint: enable=protected-access
 
   def _extract_sample(self, x):

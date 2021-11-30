@@ -22,8 +22,8 @@ build --nocheck_visibility
 # Yggdrasil uses tensorflow for IO.
 build --define=use_tensorflow_io=1
 
-# Pre-compiled wrappers.
-build --define=use_precompiled_wrappers=1
+# If 1, use the pre-compiled wrappers.
+build --define=use_precompiled_wrappers=0
 
 # The user can stop the training with Ctrl+C.
 build --define=stop_training_on_interrupt=1
