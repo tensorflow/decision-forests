@@ -711,14 +711,16 @@ def _gbt_log_entry_to_evaluation(logs: gradient_boosted_trees_pb2.TrainingLogs,
   final_log = logs.entries[entry_idx]
   evaluation = Evaluation(loss=final_log.validation_loss)
 
-  for metric_idx, metric_key in enumerate(logs.secondary_metric_names):
-    value = final_log.validation_secondary_metrics[metric_idx]
-    if metric_key == "accuracy":
-      evaluation = evaluation._replace(accuracy=value)
-    elif metric_key == "NDCG@5":
-      evaluation = evaluation._replace(ndcg=value)
-    elif metric_key == "rmse":
-      evaluation = evaluation._replace(rmse=value)
+  # If no validation dataset was used, there are not validation metrics.
+  if final_log.validation_secondary_metrics:
+    for metric_idx, metric_key in enumerate(logs.secondary_metric_names):
+      value = final_log.validation_secondary_metrics[metric_idx]
+      if metric_key == "accuracy":
+        evaluation = evaluation._replace(accuracy=value)
+      elif metric_key == "NDCG@5":
+        evaluation = evaluation._replace(ndcg=value)
+      elif metric_key == "rmse":
+        evaluation = evaluation._replace(rmse=value)
 
   return evaluation
 

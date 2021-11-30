@@ -1661,6 +1661,19 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     logging.info("Metadata:\n%s", inspector.metadata)
     self.assertEqual(inspector.metadata.framework, "TF Keras")
 
+  def test_no_validation_data(self):
+
+    x_train = [0, 1, 2, 3] * 10
+    y_train = [0, 1, 0, 1] * 10
+
+    model = keras.GradientBoostedTreesModel(validation_ratio=0.0)
+    model.fit(x=x_train, y=y_train)
+
+    inspector = model.make_inspector()
+
+    tensorboard_logs = os.path.join(tmp_path(), "tensorboard_logs")
+    inspector.export_to_tensorboard(tensorboard_logs)
+
 
 if __name__ == "__main__":
   tf.test.main()
