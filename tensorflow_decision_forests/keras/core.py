@@ -270,6 +270,9 @@ class AdvancedArguments(NamedTuple):
       class (value=1). If false, the prediction of a binary class model is a
       tensor of shape [None, num_classes=2] containing the probability of the
       complementary classes.
+    metadata_framework: Metadata describing the framework used to train the
+      model.
+    metadata_owner: Metadata describing who trained the model.
   """
 
   infer_prediction_signature: Optional[bool] = True
@@ -279,6 +282,8 @@ class AdvancedArguments(NamedTuple):
       YggdrasilDeploymentConfig] = abstract_learner_pb2.DeploymentConfig()
   fail_on_non_keras_compatible_feature_name: Optional[bool] = True
   predict_single_probability_for_binary_classification: Optional[bool] = True
+  metadata_framework: Optional[str] = "TF Keras"
+  metadata_owner: Optional[str] = None
 
 
 class CoreModel(models.Model):
@@ -467,8 +472,18 @@ class CoreModel(models.Model):
                          self._num_threads)
 
     if advanced_arguments is None:
-      advanced_arguments = AdvancedArguments()
-    self._advanced_arguments = advanced_arguments
+      self._advanced_arguments = AdvancedArguments()
+    else:
+      self._advanced_arguments = copy.deepcopy(advanced_arguments)
+
+    # Copy the metadata
+    if (not self._advanced_arguments.yggdrasil_training_config.metadata
+        .HasField("framework") and self._advanced_arguments.metadata_framework):
+      self._advanced_arguments.yggdrasil_training_config.metadata.framework = self._advanced_arguments.metadata_framework
+
+    if (not self._advanced_arguments.yggdrasil_training_config.metadata
+        .HasField("owner") and self._advanced_arguments.metadata_owner):
+      self._advanced_arguments.yggdrasil_training_config.metadata.owner = self._advanced_arguments.metadata_owner
 
     if not self._features and exclude_non_specified_features:
       raise ValueError(

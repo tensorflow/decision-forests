@@ -378,6 +378,18 @@ class AbstractInspector(object):
 
     return self._dataspec
 
+  @property
+  def header(self) -> abstract_model_pb2.AbstractModel:
+    """Gets the generic model header."""
+
+    return self._header
+
+  @property
+  def metadata(self) -> abstract_model_pb2.Metadata:
+    """Gets the model's metadata."""
+
+    return self._header.metadata
+
   def _make_simple_column_spec(
       self, col_idx: int) -> py_tree.dataspec.SimpleColumnSpec:
     """Creates a SimpleColumnSpec using the model's dataspec."""

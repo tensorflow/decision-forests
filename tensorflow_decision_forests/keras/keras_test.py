@@ -1636,6 +1636,31 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     # TODO(gbm): Evaluate with the Uplift framework.
 
+  def test_metadata(self):
+
+    x_train = [0, 1, 2, 3] * 10
+    y_train = [0, 1, 0, 1] * 10
+
+    model_1 = keras.RandomForestModel(
+        advanced_arguments=keras.AdvancedArguments(
+            metadata_owner="some owner", metadata_framework="some framework"))
+    model_1.fit(x=x_train, y=y_train)
+
+    inspector = model_1.make_inspector()
+    logging.info("Metadata:\n%s", inspector.metadata)
+
+    self.assertEqual(inspector.metadata.owner, "some owner")
+    self.assertEqual(inspector.metadata.framework, "some framework")
+    self.assertGreater(inspector.metadata.created_date, 1)
+    self.assertGreater(inspector.metadata.uid, 1)
+
+    model_2 = keras.RandomForestModel()
+    model_2.fit(x=x_train, y=y_train)
+
+    inspector = model_2.make_inspector()
+    logging.info("Metadata:\n%s", inspector.metadata)
+    self.assertEqual(inspector.metadata.framework, "TF Keras")
+
 
 if __name__ == "__main__":
   tf.test.main()
