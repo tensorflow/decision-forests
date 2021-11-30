@@ -13,6 +13,11 @@
 -   Check that the training dataset is well configured for TF-DF e.g. no repeat
     operation, has a large enough batch size, etc. The check can be disabled
     with `check_dataset=False`.
+-   When a model is created manually with the model builder, and if the dataspec
+    is not provided, tries to adapt the dataspec so that the model looks as if
+    it was trained with the global imputation strategy for missing values (i.e.
+    missing_value_policy: GLOBAL_IMPUTATION). This makes manually created models
+    more likely to be compatible with the fast inference engines.
 
 ### Fixes
 

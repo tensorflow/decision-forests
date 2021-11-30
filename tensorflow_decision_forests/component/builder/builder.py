@@ -108,6 +108,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import math
+import numpy as np
 import abc
 from enum import Enum  # pylint: disable=g-importing-member
 import os
@@ -499,6 +501,8 @@ class AbstractDecisionForestBuilder(AbstractBuilder):
 
     assert self.specialized_header().num_trees == len(self._trees)
 
+    self._finalize_dataspec()
+
     for tree in self._trees:
       self._write_branch(tree.root)
     self._trees = []
@@ -595,6 +599,60 @@ class AbstractDecisionForestBuilder(AbstractBuilder):
     if isinstance(node, py_tree.node.NonLeafNode):
       self._write_branch(node.neg_child)
       self._write_branch(node.pos_child)
+
+  def _finalize_dataspec(self):
+    """Finalizes the creation of the dataspec.
+
+    Details:
+      - For each numerical feature, if the mean numerical values is not set in
+      the dataspec, set it (if possible) such that the model look to have been
+      trained with global imputation.
+    """
+
+    conditions = py_tree.node.ConditionValueAndDefaultEvaluation()
+    for tree in self._trees:
+      tree.root.collect_condition_parameter_and_default_evaluation(conditions)
+
+    for column in self._dataspec.columns:
+
+      if (column.type == ColumnType.NUMERICAL and
+          not column.numerical.HasField("mean")):
+        condition_values = conditions.numerical_higher_than[column.name]
+        if not condition_values:
+          continue
+
+        # Determine the maximum threshold of default true conditions, and the
+        # minimum threshold of default false conditions.
+        max_true_default = None
+        min_false_default = None
+        for threshold, default_eval in condition_values:
+          if default_eval:
+            if max_true_default is None or max_true_default < threshold:
+              max_true_default = threshold
+          else:
+            if min_false_default is None or min_false_default > threshold:
+              min_false_default = threshold
+
+        if max_true_default is None and min_false_default is None:
+          # The feature is not used.
+          continue
+
+        if max_true_default is None:
+          # There are not default true conditions.
+          max_true_default = min_false_default - 1.0
+          if (math.isinf(max_true_default) or
+              max_true_default == min_false_default):
+            max_true_default = np.nextafter(min_false_default, -np.inf)
+
+        if min_false_default is None:
+          # There are not default false conditions.
+          min_false_default = max_true_default + 1.0
+          if (math.isinf(min_false_default) or
+              max_true_default == min_false_default):
+            min_false_default = np.nextafter(max_true_default, np.inf)
+
+        if max_true_default < min_false_default:
+          column.numerical.mean = (max_true_default + min_false_default) / 2
 
 
 class RandomForestBuilder(AbstractDecisionForestBuilder):

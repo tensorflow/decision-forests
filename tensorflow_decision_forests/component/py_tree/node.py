@@ -15,7 +15,8 @@
 """Nodes (leaf and non-leafs) in a tree."""
 
 import abc
-from typing import Optional
+from typing import Optional, List, Tuple, Dict
+from collections import defaultdict
 
 import six
 
@@ -28,9 +29,31 @@ AbstractCondition = condition_lib.AbstractCondition
 AbstractValue = value_lib.AbstractValue
 
 
+class ConditionValueAndDefaultEvaluation(object):
+  """Set of condition values and default evaluations per features.
+
+  Attributes:
+    numerical_higher_than: List of (threshold, default_eval) for the conditions
+      of the shape "a>=t". Indexed by feature name.
+  """
+
+  def __init__(self):
+    self._numerical_higher_than: Dict[str, List[Tuple[
+        float, bool]]] = defaultdict(lambda: [])
+
+  @property
+  def numerical_higher_than(self):
+    return self._numerical_higher_than
+
+
 @six.add_metaclass(abc.ABCMeta)
 class AbstractNode(object):
   """A decision tree node."""
+
+  def collect_condition_parameter_and_default_evaluation(
+      self, conditions: ConditionValueAndDefaultEvaluation):
+    """Extracts the condition values and default evaluations."""
+    pass
 
 
 class LeafNode(AbstractNode):
@@ -107,6 +130,22 @@ class NonLeafNode(AbstractNode):
   def value(self, value):
     self._value = value
 
+  def collect_condition_parameter_and_default_evaluation(
+      self, conditions: ConditionValueAndDefaultEvaluation):
+    """Extracts the condition values and default evaluations."""
+
+    if isinstance(self._condition, condition_lib.NumericalHigherThanCondition):
+      conditions.numerical_higher_than[self._condition.feature.name].append(
+          (self._condition.threshold, self._condition.missing_evaluation))
+
+    if self._pos_child is not None:
+      self._pos_child.collect_condition_parameter_and_default_evaluation(
+          conditions)
+
+    if self._neg_child is not None:
+      self._neg_child.collect_condition_parameter_and_default_evaluation(
+          conditions)
+
   def __repr__(self):
     text = "NonLeafNode(condition=" + str(self._condition)
     if self._pos_child is not None:
@@ -158,6 +197,7 @@ def node_to_core_node(
     value_lib.set_core_node(node.value, core_node)
 
   else:
-    raise NotImplementedError()
+    raise ValueError(
+        f"Expecting a LeafNode or a NonLeafNode. Got {node} instead")
 
   return core_node

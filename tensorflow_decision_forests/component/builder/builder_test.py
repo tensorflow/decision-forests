@@ -18,6 +18,7 @@ from __future__ import print_function
 
 import math
 import os
+import re
 
 from absl import flags
 from absl import logging
@@ -533,6 +534,79 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
     predictions = truncated_model.predict(
         dataset.map(cast_numerical_to_float32))
     self.assertEqual(predictions.shape, (9769, 1))
+
+  def test_fast_serving_with_custom_numerical_default_evaluation(self):
+    model_path = os.path.join(tmp_path(), "regression_gbt")
+    logging.info("Create model in %s", model_path)
+    builder = builder_lib.GradientBoostedTreeBuilder(
+        path=model_path,
+        bias=0.0,
+        model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
+        objective=py_tree.objective.RegressionObjective(label="label"))
+
+    # f1>=-1.0 (default: false)
+    #   │
+    #   ├─f1>=2.0 (default: false)
+    #   │    │
+    #   │    ├─1
+    #   │    └─2
+    #   └─f2>=-3.0 (default: true)
+    #        │
+    #        ├─f2>=4.0 (default: false)
+    #        │    │
+    #        │    ├─3
+    #        │    └─4
+    #        └─5
+
+    def condition(feature, threshold, missing_evaluation, pos, neg):
+      return NonLeafNode(
+          condition=NumericalHigherThanCondition(
+              feature=SimpleColumnSpec(
+                  name=feature, type=py_tree.dataspec.ColumnType.NUMERICAL),
+              threshold=threshold,
+              missing_evaluation=missing_evaluation),
+          pos_child=pos,
+          neg_child=neg)
+
+    def leaf(value):
+      return LeafNode(RegressionValue(value=value, num_examples=1))
+
+    builder.add_tree(
+        Tree(
+            condition(
+                "f1", -1.0, False, condition("f1", 2.0, False, leaf(1),
+                                             leaf(2)),
+                condition(
+                    "f2",
+                    -3.0,
+                    True,
+                    condition("f2", 4.0, False, leaf(3), leaf(4)),
+                    leaf(5),
+                ))))
+    builder.close()
+
+    logging.info("Loading model")
+
+    # There is no easy way to assert that an optimized inference engine was
+    # chosen. If checking manually, make sure the "Use fast generic engine"
+    # string is present (instead of the "Use slow generic engine" string).
+    #
+    # TODO(gbm):: Add API to check which inference engine is used.
+
+    loaded_model = tf.keras.models.load_model(model_path)
+
+    logging.info("Make predictions")
+    tf_dataset = tf.data.Dataset.from_tensor_slices({
+        "f1": [math.nan, 1.0, -2.0],
+        "f2": [-4.0, -4.0, math.nan],
+    }).batch(2)
+    predictions = loaded_model.predict(tf_dataset)
+    self.assertAllClose(predictions, [[5.0], [2.0], [4.0]])
+
+    inspector = inspector_lib.make_inspector(os.path.join(model_path, "assets"))
+    self.assertEquals(inspector.dataspec.columns[1].numerical.mean, -1.0 - 0.5)
+    self.assertEquals(inspector.dataspec.columns[2].numerical.mean,
+                      (4.0 - 3.0) / 2.0)
 
 
 if __name__ == "__main__":

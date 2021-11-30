@@ -12,6 +12,7 @@ py_library(
     srcs = ["builder.py"],
     srcs_version = "PY3",
     deps = [
+        # numpy dep,
         # six dep,
         "@org_tensorflow//tensorflow/python",
         "//tensorflow_decision_forests/component/inspector",
