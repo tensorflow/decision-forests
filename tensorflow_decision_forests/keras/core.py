@@ -115,12 +115,17 @@ YggdrasilTrainingConfig = abstract_learner_pb2.TrainingConfig
 # Get the current worker index and total number of workers.
 get_worker_idx_and_num_workers = tf_core.get_worker_idx_and_num_workers
 
-# If true, a warning is printed is the dataset is detected to be poorly
-# configured (is `check_dataset=True` in the model constructor). If false, a
-# ValueException is raised instead.
+# check_dataset=True in model constructors enable checks on the dataset
+# For example, the dataset should not contain repeat operations and the batch
+# size should be large enougth (depending on the number of examples). See the
+# "check_dataset" argument documentation for the exact definition.
 #
-# TODO(b/206981020): Set False on 18 Jan 2021.
-ONLY_WARN_IF_DATASET_FAILS = True
+# If the check fails, and if ONLY_WARN_ON_DATASET_CONFIGURATION_ISSUES=If true,
+# a warning is printed. Instead, if
+# ONLY_WARN_ON_DATASET_CONFIGURATION_ISSUES=false, a ValueException is raised.
+#
+# TODO(b/206981020): Set False on 18 Jan 2022.
+ONLY_WARN_ON_DATASET_CONFIGURATION_ISSUES = True
 
 
 class FeatureUsage(object):
@@ -854,25 +859,15 @@ class CoreModel(models.Model):
 
     self._ensure_model_get_leaves_ready()
 
-    batch_outputs = None
-    outputs = None
+    leaves = []
 
     for row in x:
       if isinstance(row, tuple):
         # Remove the label and weight.
         row = row[0]
-      batch_outputs = self.call_get_leaves(row)
+      leaves.append(self.call_get_leaves(row))
 
-      if outputs is None:
-        outputs = tf.nest.map_structure(lambda batch_output: [batch_output],
-                                        batch_outputs)
-      else:
-        tf.__internal__.nest.map_structure_up_to(
-            batch_outputs,
-            lambda output, batch_output: output.append(batch_output), outputs,
-            batch_outputs)
-
-    return batch_outputs
+    return tf.concat(leaves, axis=0).numpy()
 
   def _ensure_model_get_leaves_ready(self):
     """Ensures that the model that generates the leaves is available."""
@@ -2150,10 +2145,10 @@ def _check_dataset(x: tf.data.Dataset):
                 "constructor argument `check_dataset=False`. If this message "
                 "is a false positive, please let us know so we can improve "
                 "this dataset check logic.")
-    if ONLY_WARN_IF_DATASET_FAILS:
+    if ONLY_WARN_ON_DATASET_CONFIGURATION_ISSUES:
       message += (
           " This warning will be turned into an error on "
-          "[18 Jan. 2021]. Make sure to solve this issue before this date.")
+          "[18 Jan. 2022]. Make sure to solve this issue before this date.")
       logging.warning("%s", message)
     else:
       raise ValueError(message)

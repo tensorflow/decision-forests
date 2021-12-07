@@ -56,7 +56,7 @@ Dataset = collections.namedtuple(
 FeatureColumn = Any
 
 # Raise an exception if the dataset check fails.
-core.ONLY_WARN_IF_DATASET_FAILS = False
+core.ONLY_WARN_ON_DATASET_CONFIGURATION_ISSUES = False
 
 
 def data_root_path() -> str:
@@ -1681,14 +1681,15 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     label = "income"
 
     train_ds = keras.pd_dataframe_to_tf_dataset(
-        pd.read_csv(train_path), label=label)
-    model = keras.RandomForestModel(num_trees=20)
+        pd.read_csv(train_path), label=label, batch_size=20)
+
+    model = keras.RandomForestModel(num_trees=20, check_dataset=False)
     model.fit(train_ds)
 
     leaves = model.predict_get_leaves(train_ds)
     logging.info("Leaves: %s", leaves)
 
-    self.assertEqual(leaves.shape, (792, 20))
+    self.assertEqual(leaves.shape, (22792, 20))
 
 
 if __name__ == "__main__":
