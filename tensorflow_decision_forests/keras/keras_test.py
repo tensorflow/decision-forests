@@ -40,6 +40,7 @@ from tensorflow_decision_forests.tensorflow import core as tf_core
 from yggdrasil_decision_forests.dataset import synthetic_dataset_pb2
 from yggdrasil_decision_forests.learner.decision_tree import decision_tree_pb2
 from yggdrasil_decision_forests.learner.random_forest import random_forest_pb2
+from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
 
 layers = tf.keras.layers
 models = tf.keras.models
@@ -1716,6 +1717,43 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     # ~10% of the training example are used for the internal validation.
     self.assertLess(
         inspector_without_valid.extract_tree(0).root.value.num_examples, 40)
+
+  def test_gbt_loss(self):
+
+    x_train = [0, 1, 2, 3] * 10
+    y_train = [0, 1, 0, 1] * 10
+
+    default_model = keras.GradientBoostedTreesModel(
+        validation_ratio=0.0, loss="DEFAULT")
+    default_model.fit(x=x_train, y=y_train)
+
+    binom_model = keras.GradientBoostedTreesModel(
+        validation_ratio=0.0, loss="BINOMIAL_LOG_LIKELIHOOD")
+    binom_model.fit(x=x_train, y=y_train)
+
+    mse_model = keras.GradientBoostedTreesModel(
+        validation_ratio=0.0, loss="SQUARED_ERROR", task=keras.Task.REGRESSION)
+    mse_model.fit(x=x_train, y=y_train)
+
+    multinom_model = keras.GradientBoostedTreesModel(
+        validation_ratio=0.0, loss="MULTINOMIAL_LOG_LIKELIHOOD")
+    multinom_model.fit(x=x_train, y=y_train)
+
+    self.assertEqual(
+        default_model.make_inspector().loss,
+        inspector_lib.gradient_boosted_trees_pb2.Loss.BINOMIAL_LOG_LIKELIHOOD)
+
+    self.assertEqual(
+        binom_model.make_inspector().loss,
+        inspector_lib.gradient_boosted_trees_pb2.Loss.BINOMIAL_LOG_LIKELIHOOD)
+
+    self.assertEqual(
+        mse_model.make_inspector().loss,
+        inspector_lib.gradient_boosted_trees_pb2.Loss.SQUARED_ERROR)
+
+    self.assertEqual(
+        multinom_model.make_inspector().loss, inspector_lib
+        .gradient_boosted_trees_pb2.Loss.MULTINOMIAL_LOG_LIKELIHOOD)
 
 
 if __name__ == "__main__":

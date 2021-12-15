@@ -21,6 +21,7 @@
 -   TF-DF models `fit` method now passes the `validation_data` to the Yggdrasil
     learners. This is used for example for early stopping in the case of GBT
     model.
+-   Add the "loss" parameter of the GBT model directly in the model constructor.
 
 ### Fixes
 

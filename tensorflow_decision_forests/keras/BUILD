@@ -104,6 +104,7 @@ py_test(
         # numpy dep,
         # pandas dep,
         "@org_tensorflow//tensorflow/python",
+        "//tensorflow_decision_forests/component/inspector",
         "//tensorflow_decision_forests/component/model_plotter",
         "//tensorflow_decision_forests/tensorflow:core",
         "@ydf//yggdrasil_decision_forests/dataset:synthetic_dataset_py_proto",

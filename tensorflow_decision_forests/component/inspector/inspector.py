@@ -627,6 +627,12 @@ class _GradientBoostedTreeInspector(_AbstractDecisionForestInspector):
 
     return self.specialized_header().num_trees_per_iter
 
+  @property
+  def loss(self) -> gradient_boosted_trees_pb2.Loss:
+    """Loss of the model."""
+
+    return self.specialized_header().loss
+
   def evaluation(self) -> Optional[Evaluation]:
     if not self._specialized_header.HasField("training_logs"):
       return Evaluation(loss=self._specialized_header.validation_loss)
