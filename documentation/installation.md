@@ -12,8 +12,6 @@
     *   [Build from source](#build-from-source)
     *   [Troubleshooting](#troubleshooting)
 
-<!-- Added by: gbm, at: Mon 31 May 2021 06:16:21 PM CEST -->
-
 <!--te-->
 
 <!-- docs_infra:strip_end -->

@@ -58,8 +58,6 @@ This doc assumes familiarity with the
                 {Classifier/Regressor/Estimator}](#migrating-from-tfestimatorboostedtrees-classifierregressorestimator)
     *   [For Yggdrasil users](#for-yggdrasil-users)
 
-<!-- Added by: gbm, at: Mon 31 May 2021 06:16:21 PM CEST -->
-
 <!--te-->
 
 <!-- docs_infra:strip_end -->
