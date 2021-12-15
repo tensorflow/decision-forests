@@ -51,7 +51,7 @@ from functools import partial  # pylint: disable=g-importing-member
 import inspect
 import os
 import tempfile
-from typing import Optional, List, Dict, Any, Union, Text, Tuple, NamedTuple, Set
+from typing import Optional, List, Dict, Any, Union, Text, Tuple, NamedTuple, Set, Callable
 import uuid
 
 from absl import logging
@@ -1220,7 +1220,9 @@ class CoreModel(models.Model):
       valid_path: Optional[str] = None,
       dataset_format: Optional[str] = "csv",
       max_num_scanned_rows_to_accumulate_statistics: Optional[int] = 100_000,
-      try_resume_training: Optional[bool] = True):
+      try_resume_training: Optional[bool] = True,
+      input_model_signature_fn: Optional[tf_core.InputModelSignatureFn] = (
+          tf_core.build_default_input_model_signature)):
     """Trains the model on a dataset stored on disk.
 
     This solution is generally more efficient and easier that loading the
@@ -1277,6 +1279,14 @@ class CoreModel(models.Model):
           interrupted (e.g. rescheduling), ond (3) the hyper-parameter of the
           model were changed such that an initially completed training is now
           incomplete (e.g. increasing the number of trees).
+      input_model_signature_fn: A lambda that returns the
+        (Dense,Sparse,Ragged)TensorSpec (or structure of TensorSpec e.g.
+        dictionary, list) corresponding to input signature of the model. If not
+        specified, the input model signature is created by
+        "build_default_input_model_signature". For example, specify
+        "input_model_signature_fn" if an numerical input feature (which is
+        consumed as DenseTensorSpec(float32) by default) will be feed
+        differently (e.g. RaggedTensor(int64)).
 
     Returns:
       A `History` object. Its `History.history` attribute is not yet
@@ -1395,7 +1405,10 @@ class CoreModel(models.Model):
 
     # Build the model's graph.
     inspector = inspector_lib.make_inspector(model_path)
-    self._set_from_yggdrasil_model(inspector, model_path)
+    self._set_from_yggdrasil_model(
+        inspector,
+        model_path,
+        input_model_signature_fn=input_model_signature_fn)
 
     # Build the model history.
     history = tf.keras.callbacks.History()
@@ -1675,7 +1688,10 @@ class CoreModel(models.Model):
 
   def _set_from_yggdrasil_model(self,
                                 inspector: inspector_lib.AbstractInspector,
-                                path: str):
+                                path: str,
+                                input_model_signature_fn: Optional[
+                                    tf_core.InputModelSignatureFn] = tf_core
+                                .build_default_input_model_signature):
 
     if not self._is_compiled:
       self.compile()
@@ -1691,32 +1707,19 @@ class CoreModel(models.Model):
     self._is_trained.assign(True)
     self._model = tf_op.ModelV2(model_path=path, verbose=False)
 
-    # Creates a toy batch to initialize the Keras model. The values are not
-    # used.
-    examples = {}
-    for feature in features:
-      if feature.type == data_spec_pb2.ColumnType.NUMERICAL:
-        examples[feature.name] = tf.constant([1.0, 2.0])
-      elif feature.type == data_spec_pb2.ColumnType.CATEGORICAL:
-        if inspector.dataspec.columns[
-            feature.col_idx].categorical.is_already_integerized:
-          examples[feature.name] = tf.constant([1, 2])
-        else:
-          examples[feature.name] = tf.constant(["a", "b"])
-      elif feature.type == data_spec_pb2.ColumnType.CATEGORICAL_SET:
-        if inspector.dataspec.columns[
-            feature.col_idx].categorical.is_already_integerized:
-          examples[feature.name] = tf.ragged.constant([[1, 2], [3]],
-                                                      dtype=tf.int32)
-        else:
-          examples[feature.name] = tf.ragged.constant([["a", "b"], ["c"]],
-                                                      dtype=tf.string)
-      elif feature.type == data_spec_pb2.ColumnType.BOOLEAN:
-        examples[feature.name] = tf.constant([0.0, 1.0])
-      else:
-        raise ValueError("Non supported feature type")
+    # Instantiate the model's graph
+    input_model_signature = input_model_signature_fn(inspector)
 
-    self.predict(tf.data.Dataset.from_tensor_slices(examples).batch(2))
+    @tf.function
+    def f(x):
+      return self(x)
+
+    # Force the tracing of the function (i.e. build the tf-graph) according to
+    # the input signature. When a model is serialized (model.save(path)), only
+    # the traced functions are exported.
+    #
+    # https://www.tensorflow.org/guide/function
+    _ = f.get_concrete_function(input_model_signature)
 
   @staticmethod
   def capabilities() -> abstract_learner_pb2.LearnerCapabilities:
@@ -1953,8 +1956,25 @@ def pd_dataframe_to_tf_dataset(
   return tf_dataset
 
 
-def yggdrasil_model_to_keras_model(src_path: str, dst_path: str):
-  """Converts an Yggdrasil model into a Keras model."""
+def yggdrasil_model_to_keras_model(
+    src_path: str,
+    dst_path: str,
+    input_model_signature_fn: Optional[tf_core.InputModelSignatureFn] = tf_core
+    .build_default_input_model_signature):
+  """Converts an Yggdrasil model into a Keras model.
+
+  Args:
+    src_path: Path to input Yggdrasil Decision Forests model.
+    dst_path: Path to output TensorFlow Decision Forests SavedModel model.
+    input_model_signature_fn: A lambda that returns the
+      (Dense,Sparse,Ragged)TensorSpec (or structure of TensorSpec e.g.
+      dictionary, list) corresponding to input signature of the model. If not
+      specified, the input model signature is created by
+      "build_default_input_model_signature". For example, specify
+      "input_model_signature_fn" if an numerical input feature (which is
+      consumed as DenseTensorSpec(float32) by default) will be feed differently
+      (e.g. RaggedTensor(int64)).
+  """
 
   inspector = inspector_lib.make_inspector(src_path)
   objective = inspector.objective()
@@ -1965,7 +1985,10 @@ def yggdrasil_model_to_keras_model(src_path: str, dst_path: str):
       ranking_group=objective.group
       if objective.task == inspector_lib.Task.RANKING else None)
 
-  model._set_from_yggdrasil_model(inspector, src_path)  # pylint: disable=protected-access
+  model._set_from_yggdrasil_model(  # pylint: disable=protected-access
+      inspector,
+      src_path,
+      input_model_signature_fn=input_model_signature_fn)
 
   model.save(dst_path)
 

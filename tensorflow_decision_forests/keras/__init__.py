@@ -87,3 +87,5 @@ def get_all_models() -> List[Callable[[], CoreModel]]:
 # Utilities
 pd_dataframe_to_tf_dataset = core.pd_dataframe_to_tf_dataset
 get_worker_idx_and_num_workers = core.get_worker_idx_and_num_workers
+build_default_input_model_signature = core.tf_core.build_default_input_model_signature
+build_default_feature_signature = core.tf_core.build_default_feature_signature

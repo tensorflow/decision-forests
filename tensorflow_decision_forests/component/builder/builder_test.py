@@ -497,13 +497,24 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
     inspector = inspector_lib.make_inspector(src_model_path)
 
     # Extract a piece of this model
+    def custom_model_input_signature(
+        inspector: inspector_lib.AbstractInspector):
+      input_spec = keras.build_default_input_model_signature(inspector)
+      # Those features are stored as int64 in the dataset.
+      for feature_name in [
+          "age", "fnlwgt", "capital_gain", "capital_loss", "hours_per_week"
+      ]:
+        input_spec[feature_name] = tf.TensorSpec(shape=[None], dtype=tf.int64)
+      return input_spec
+
     dst_model_path = os.path.join(tmp_path(), "model")
     builder = builder_lib.RandomForestBuilder(
         path=dst_model_path,
         objective=inspector.objective(),
         # Make sure the features and feature dictionaries are the same as in the
         # original model.
-        import_dataspec=inspector.dataspec)
+        import_dataspec=inspector.dataspec,
+        input_signature_example_fn=custom_model_input_signature)
 
     # Extract the first 5 trees
     for i in range(5):
@@ -513,26 +524,7 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
     builder.close()
 
     truncated_model = tf.keras.models.load_model(dst_model_path)
-
-    # By default, the model builder export numerical features as float32. In
-    # this dataset, some numerical features are stored as int64. Therefore,
-    # we need to apply a cast.
-    #
-    # TODO(gbm): Allow the user to specify the signature in a model builder.
-    numerical_features = []
-    for feature in inspector.features():
-      if feature.type == keras.FeatureSemantic.NUMERICAL.value:
-        numerical_features.append(feature)
-
-    # Cast all the numerical features to floats.
-    def cast_numerical_to_float32(features, labels):
-      for numerical_feature in numerical_features:
-        features[numerical_feature.name] = tf.cast(
-            features[numerical_feature.name], tf.float32)
-      return features, labels
-
-    predictions = truncated_model.predict(
-        dataset.map(cast_numerical_to_float32))
+    predictions = truncated_model.predict(dataset)
     self.assertEqual(predictions.shape, (9769, 1))
 
   def test_fast_serving_with_custom_numerical_default_evaluation(self):

@@ -37,6 +37,8 @@ from tensorflow_decision_forests.tensorflow.ops.training import api as training_
 from yggdrasil_decision_forests.dataset import data_spec_pb2
 from yggdrasil_decision_forests.learner import abstract_learner_pb2
 from yggdrasil_decision_forests.model import abstract_model_pb2
+from tensorflow_decision_forests.component import py_tree
+from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
 
 try:
   from tensorflow_decision_forests.tensorflow.distribute import api as distributed_api  # pytype: disable=import-error
@@ -155,6 +157,30 @@ HyperParameters = Dict[str, Union[int, float, str]]
 # The task of a model e.g. classification, regression, ranking.
 Task = abstract_model_pb2.Task
 TaskType = "abstract_model_pb2.Task"  # pylint: disable=invalid-name
+
+# "InputModelSignatureFn" is a lambda that returns the
+# (Dense,Sparse,Ragged)TensorSpec (or structure of TensorSpec e.g. dictionary,
+# list) corresponding to input signature of the model.
+#
+# This is used when creating a model manually or when training with the
+# "fit_on_file" method i.e. when no examples represent as tensors are available.
+#
+# If not specified, input model signatures are created with
+# "build_default_input_model_signature".
+#
+# Overriding the input model signature is useful, for example, if a numerical
+# input feature (which is consumed as DenseTensorSpec(float32) by default) is
+# expected to be feed differently (e.g. RaggedTensor(int64)).
+#
+# The signature is as follow:
+#
+# def custom_model_input_signature(inspector):
+#   input_spec = tfdf.keras.build_default_input_model_signature(inspector)
+#   # "f1" is provided as an int64 (instead of a float32).
+#   input_spec["f1"] = tf.TensorSpec(shape=[None], dtype=tf.int64)
+#   return input_spec
+#
+InputModelSignatureFn = Callable[[inspector_lib.AbstractInspector], Any]
 
 
 class DistributionConfiguration(NamedTuple):
@@ -1194,3 +1220,56 @@ def column_type_to_semantic(col_type: data_spec_pb2.ColumnType) -> Semantic:
     return Semantic.BOOLEAN
 
   raise ValueError(f"Non conversion available for {col_type}")
+
+
+def build_default_input_model_signature(
+    inspector: inspector_lib.AbstractInspector) -> Any:
+
+  tensor_specs = {}
+  for feature in inspector.features():
+    tensor_specs[feature.name] = build_default_feature_signature(
+        feature.name, inspector.dataspec.columns[feature.col_idx])
+
+  return tensor_specs
+
+
+def build_default_feature_signature(
+    feature_name: str, dataspec_column: data_spec_pb2.Column) -> Any:
+  """Gets an example of feature values for the default model signature.
+
+  When a model is trained without having tensor examples (e.g. the model is
+  build manually or converted from the Yggdrasil format), the output of this
+  function is used to instantiate the tf graph of the model. The feature value
+  should represent 2 or more examples.
+
+  Follow "InputModelSignatureFn".
+
+  Args:
+    feature_name: Name of the feature.
+    dataspec_column: Yggdrasil column dataspec for the feature.
+
+  Returns:
+    An example of tensor value.
+  """
+
+  if dataspec_column.type == data_spec_pb2.ColumnType.NUMERICAL:
+    return tf.TensorSpec(shape=[None], dtype=tf.float32)
+
+  elif dataspec_column.type == data_spec_pb2.ColumnType.CATEGORICAL:
+    if dataspec_column.categorical.is_already_integerized:
+      return tf.TensorSpec(shape=[None], dtype=tf.int64)
+    else:
+      return tf.TensorSpec(shape=[None], dtype=tf.string)
+
+  elif dataspec_column.type == data_spec_pb2.ColumnType.CATEGORICAL_SET:
+    if dataspec_column.categorical.is_already_integerized:
+      return tf.RaggedTensorSpec(shape=[None, None], dtype=tf.int64)
+    else:
+      return tf.RaggedTensorSpec(shape=[None, None], dtype=tf.string)
+
+  elif dataspec_column.type == data_spec_pb2.ColumnType.BOOLEAN:
+    return tf.TensorSpec(shape=[None], dtype=tf.float32)
+
+  else:
+    raise ValueError(
+        f"Non supported feature type {feature_name}:{dataspec_column}")

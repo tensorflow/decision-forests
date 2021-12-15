@@ -122,6 +122,7 @@ from tensorflow_decision_forests.component import py_tree
 from tensorflow_decision_forests.component.inspector import blob_sequence
 from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
 from tensorflow_decision_forests.keras import core as keras_core
+from tensorflow_decision_forests.tensorflow import core as tf_core
 from yggdrasil_decision_forests.dataset import data_spec_pb2
 from yggdrasil_decision_forests.model import abstract_model_pb2
 from yggdrasil_decision_forests.model.gradient_boosted_trees import gradient_boosted_trees_pb2
@@ -146,9 +147,11 @@ class ModelFormat(Enum):
 class AbstractBuilder(object):
   """Generic model builder."""
 
-  def __init__(self, path: str, objective: py_tree.objective.AbstractObjective,
-               model_format: Optional[ModelFormat],
-               import_dataspec: Optional[data_spec_pb2.DataSpecification]):
+  def __init__(
+      self, path: str, objective: py_tree.objective.AbstractObjective,
+      model_format: Optional[ModelFormat],
+      import_dataspec: Optional[data_spec_pb2.DataSpecification],
+      input_model_signature_fn: Optional[tf_core.InputModelSignatureFn]):
 
     if not path:
       raise ValueError("The path cannot be empty")
@@ -159,6 +162,7 @@ class AbstractBuilder(object):
     self._header = abstract_model_pb2.AbstractModel()
     self._dataspec = data_spec_pb2.DataSpecification()
     self._closed = False
+    self._input_model_signature_fn = input_model_signature_fn
 
     self._header.name = self.model_type()
     self._header.task = objective.task
@@ -215,8 +219,10 @@ class AbstractBuilder(object):
 
     if self._model_format == ModelFormat.TENSORFLOW_SAVED_MODEL:
       # Wrap the Yggdrasil model into a tensorflow Saved Model.
-      keras_core.yggdrasil_model_to_keras_model(self.yggdrasil_model_path(),
-                                                self._path)
+      keras_core.yggdrasil_model_to_keras_model(
+          self.yggdrasil_model_path(),
+          self._path,
+          input_model_signature_fn=self._input_model_signature_fn)
       tf.io.gfile.rmtree(self.yggdrasil_model_path())
 
   def yggdrasil_model_path(self):
@@ -479,12 +485,18 @@ class AbstractBuilder(object):
 class AbstractDecisionForestBuilder(AbstractBuilder):
   """Generic decision forest model builder."""
 
-  def __init__(self, path: str, objective: py_tree.objective.AbstractObjective,
+  def __init__(self,
+               path: str,
+               objective: py_tree.objective.AbstractObjective,
                model_format: Optional[ModelFormat],
-               import_dataspec: Optional[data_spec_pb2.DataSpecification]):
+               import_dataspec: Optional[data_spec_pb2.DataSpecification],
+               input_signature_example_fn: Optional[
+                   tf_core.InputModelSignatureFn] = tf_core
+               .build_default_input_model_signature):
 
     super(AbstractDecisionForestBuilder,
-          self).__init__(path, objective, model_format, import_dataspec)
+          self).__init__(path, objective, model_format, import_dataspec,
+                         input_signature_example_fn)
 
     self._trees = []
 
@@ -664,13 +676,17 @@ class RandomForestBuilder(AbstractDecisionForestBuilder):
       objective: py_tree.objective.AbstractObjective,
       model_format: Optional[ModelFormat] = ModelFormat.TENSORFLOW_SAVED_MODEL,
       winner_take_all: Optional[bool] = False,
-      import_dataspec: Optional[data_spec_pb2.DataSpecification] = None):
+      import_dataspec: Optional[data_spec_pb2.DataSpecification] = None,
+      input_signature_example_fn: Optional[
+          tf_core.InputModelSignatureFn] = tf_core
+      .build_default_input_model_signature):
     self._specialized_header = random_forest_pb2.Header(
         winner_take_all_inference=winner_take_all)
 
     # Should be called last.
-    super(RandomForestBuilder, self).__init__(path, objective, model_format,
-                                              import_dataspec)
+    super(RandomForestBuilder,
+          self).__init__(path, objective, model_format, import_dataspec,
+                         input_signature_example_fn)
 
   def model_type(self) -> str:
     return "RANDOM_FOREST"
@@ -732,7 +748,10 @@ class GradientBoostedTreeBuilder(AbstractDecisionForestBuilder):
       objective: py_tree.objective.AbstractObjective,
       bias: Optional[float] = 0.0,
       model_format: Optional[ModelFormat] = ModelFormat.TENSORFLOW_SAVED_MODEL,
-      import_dataspec: Optional[data_spec_pb2.DataSpecification] = None):
+      import_dataspec: Optional[data_spec_pb2.DataSpecification] = None,
+      input_signature_example_fn: Optional[
+          tf_core.InputModelSignatureFn] = tf_core
+      .build_default_input_model_signature):
 
     # Compute the number of tree per iterations and loss.
     #
@@ -779,7 +798,8 @@ class GradientBoostedTreeBuilder(AbstractDecisionForestBuilder):
 
     # Should be called last.
     super(GradientBoostedTreeBuilder,
-          self).__init__(path, objective, model_format, import_dataspec)
+          self).__init__(path, objective, model_format, import_dataspec,
+                         input_signature_example_fn)
 
   def model_type(self) -> str:
     return "GRADIENT_BOOSTED_TREES"

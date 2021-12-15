@@ -75,6 +75,8 @@ py_library(
         "@org_tensorflow//tensorflow/python/distribute:distribute_lib",
         "@org_tensorflow//tensorflow/python/distribute:parameter_server_strategy_v2",
         "@org_tensorflow//tensorflow/python/distribute/coordinator:cluster_coordinator",
+        "//tensorflow_decision_forests/component/py_tree",
+        "//tensorflow_decision_forests/component/inspector",
         "//tensorflow_decision_forests/tensorflow/distribute:tf_distribution_py_proto",
         "//tensorflow_decision_forests/tensorflow/ops/training:api_py",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
@@ -106,8 +108,10 @@ py_test(
     python_version = "PY3",
     deps = [
         ":core",
+        # absl/logging dep,
         # pandas dep,
         "@org_tensorflow//tensorflow/python",
+        "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
         "@ydf//yggdrasil_decision_forests/learner:abstract_learner_py_proto",
     ],
 )
