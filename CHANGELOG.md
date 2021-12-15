@@ -18,6 +18,9 @@
     it was trained with the global imputation strategy for missing values (i.e.
     missing_value_policy: GLOBAL_IMPUTATION). This makes manually created models
     more likely to be compatible with the fast inference engines.
+-   TF-DF models `fit` method now passes the `validation_data` to the Yggdrasil
+    learners. This is used for example for early stopping in the case of GBT
+    model.
 
 ### Fixes
 

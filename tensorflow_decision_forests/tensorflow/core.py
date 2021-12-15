@@ -50,6 +50,12 @@ except Exception as e:
       "TF Parameter Server distributed training not available (this is "
       "expected for the pre-build release).")
 
+# Suffix added to the name of the tf resource to hold the validation
+# dataset for the feature, when present. For example, if a column with id
+# "ABC" has a validation dataset, its TF resources will be named "ABC" and
+# "ABC__VALIDATION". See "_input_key_to_id".
+_FEATURE_RESOURCE_VALIDATION_SUFFIX = "__VALIDATION"
+
 
 class Semantic(enum.Enum):
   """Semantic (e.g.
@@ -351,8 +357,10 @@ def get_worker_idx_and_num_workers(
       worker_idx=worker_index, num_workers=get_num_distribution_workers())
 
 
-def collect_training_examples(inputs: Dict[str, SemanticTensor],
-                              model_id: str) -> tf.Operation:
+def collect_training_examples(
+    inputs: Dict[str, SemanticTensor],
+    model_id: str,
+    collect_training_data: Optional[bool] = True) -> tf.Operation:
   """Collects a batch of training examples.
 
   The features values are append to a set of column-wise in-memory accumulators
@@ -362,6 +370,7 @@ def collect_training_examples(inputs: Dict[str, SemanticTensor],
   Args:
     inputs: Features to collect.
     model_id: Id of the model.
+    collect_training_data: Indicate if the examples are used for training.
 
   Returns:
     Op triggering the collection.
@@ -375,7 +384,7 @@ def collect_training_examples(inputs: Dict[str, SemanticTensor],
           "Non supported tensor dtype {} and semantic {} for feature {}".format(
               semantic_tensor.tensor.dtype, semantic_tensor.semantic, key))  # pylint: disable=cell-var-from-loop
 
-    input_id = _input_key_to_id(model_id, key)
+    input_id = _input_key_to_id(model_id, key, collect_training_data)
     if semantic_tensor.semantic == Semantic.NUMERICAL:
       if semantic_tensor.tensor.dtype == NormalizedNumericalType:
         ops.append(
@@ -464,7 +473,7 @@ def collect_distributed_training_examples(inputs: Dict[str, SemanticTensor],
           "distributed  training")
       # pylint: enable=cell-var-from-loop
 
-    resource_id = _input_key_to_id(model_id, feature_name)
+    resource_id = _input_key_to_id(model_id, feature_name, training_column=True)
     if semantic_tensor.semantic == Semantic.NUMERICAL:
       if semantic_tensor.tensor.dtype == NormalizedNumericalType:
         ops.append(
@@ -760,7 +769,8 @@ def train(input_ids: List[str],
           guide: Optional[data_spec_pb2.DataSpecificationGuide] = None,
           model_dir: Optional[str] = None,
           keep_model_in_resource: Optional[bool] = True,
-          try_resume_training: Optional[bool] = False) -> tf.Operation:
+          try_resume_training: Optional[bool] = False,
+          has_validation_dataset: Optional[bool] = False) -> tf.Operation:
   """Trains a model on the dataset accumulated by collect_training_examples.
 
   Args:
@@ -782,6 +792,8 @@ def train(input_ids: List[str],
     try_resume_training: Try to resume the training from the
       "working_cache_path" directory. The the "working_cache_path" does not
       contains any checkpoint, start the training from the start.
+    has_validation_dataset: True if a validation dataset is available (in
+      addition to the training dataset).
 
   Returns:
     The OP that trigger the training.
@@ -807,21 +819,26 @@ def train(input_ids: List[str],
   if guide is None:
     guide = data_spec_pb2.DataSpecificationGuide()
 
-  feature_ids = [_input_key_to_id(model_id, x) for x in sorted(input_ids)]
+  feature_ids = [
+      _input_key_to_id(model_id, x, training_column=True)
+      for x in sorted(input_ids)
+  ]
 
   if ranking_group is not None:
     training_config.ranking_group = ranking_group
-    feature_ids.append(_input_key_to_id(model_id, ranking_group))
+    feature_ids.append(
+        _input_key_to_id(model_id, ranking_group, training_column=True))
 
   if uplift_treatment is not None:
     training_config.uplift_treatment = uplift_treatment
-    feature_ids.append(_input_key_to_id(model_id, uplift_treatment))
+    feature_ids.append(
+        _input_key_to_id(model_id, uplift_treatment, training_column=True))
 
   return training_op.SimpleMLModelTrainer(
       feature_ids=",".join(feature_ids),
-      label_id=_input_key_to_id(model_id, label_id),
+      label_id=_input_key_to_id(model_id, label_id, training_column=True),
       weight_id="" if weight_id is None else _input_key_to_id(
-          model_id, weight_id),
+          model_id, weight_id, training_column=True),
       model_id=model_id if keep_model_in_resource else "",
       model_dir=model_dir or "",
       learner=learner,
@@ -829,7 +846,8 @@ def train(input_ids: List[str],
       task=task,
       training_config=training_config.SerializeToString(),
       deployment_config=deployment_config.SerializeToString(),
-      guide=guide.SerializeToString())
+      guide=guide.SerializeToString(),
+      has_validation_dataset=has_validation_dataset)
 
 
 def train_on_file_dataset(
@@ -982,7 +1000,8 @@ def finalize_distributed_dataset_collection(cluster_coordinator,
 
   sorted_input_ids = sorted(input_ids)
   feature_resource_ids = [
-      _input_key_to_id(model_id, x) for x in sorted_input_ids
+      _input_key_to_id(model_id, x, training_column=True)
+      for x in sorted_input_ids
   ]
 
   def worker_fn():
@@ -1011,7 +1030,7 @@ def _execute_function_on_each_worker(cluster_coordinator, call_fn):
   # pylint: enable=protected-access
 
 
-def _input_key_to_id(model_id: str, key: str) -> str:
+def _input_key_to_id(model_id: str, key: str, training_column: bool) -> str:
   """Gets the name of the feature accumulator resource."""
 
   # Escape the commas that are used to separate the column resource id.
@@ -1022,6 +1041,8 @@ def _input_key_to_id(model_id: str, key: str) -> str:
   input_id = model_id + "_" + key.replace("|", "||").replace(",", "|c")
   if "," in input_id:
     raise ValueError(f"Internal error: Found comma in input_id {input_id}")
+  if not training_column:
+    input_id += _FEATURE_RESOURCE_VALIDATION_SUFFIX
   return input_id
 
 

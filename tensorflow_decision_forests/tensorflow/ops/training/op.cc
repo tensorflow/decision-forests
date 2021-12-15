@@ -181,6 +181,9 @@ REGISTER_OP("SimpleMLChiefFinalizeFeatureOnFile")
 //     locally using 6 threads.
 //   guide: Serialized DataSpecificationGuide proto (See
 //     //third_party/yggdrasil_decision_forests/dataset/data_spec.proto).
+//   has_validation_dataset: If true, a validation dataset is available. The
+//     name of the tf resources containing the data are similar to the one of
+//     the training dataset with the "__VALIDATION" postfix.
 //
 // Output:
 //   success: True iif. the training succeeded. The op can fail if: There are
@@ -198,6 +201,7 @@ REGISTER_OP("SimpleMLModelTrainer")
     .Attr("training_config: string")
     .Attr("deployment_config: string")
     .Attr("guide: string = ''")
+    .Attr("has_validation_dataset: bool = false")
     .Output("success: bool");
 
 // Trains a model on a dataset stored on file.

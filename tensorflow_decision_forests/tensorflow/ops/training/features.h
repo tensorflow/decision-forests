@@ -31,6 +31,9 @@ namespace ops {
 
 constexpr char kModelContainer[] = "decision_forests";
 
+// The function of a dataset.
+enum class DatasetType { kTraining, kValidation };
+
 // Container of feature values.
 class AbstractFeatureResource : public ::tensorflow::ResourceBase {
  public:
@@ -356,12 +359,13 @@ class FeatureSet {
   //  weight_id: Optional id to the weight feature accumulator.
   //  existing_dataspec: Optional existing dataspec to use as guide for the
   //    dataspec feature idx.
-  tensorflow::Status Link(tensorflow::OpKernelContext* ctx,
-                          const std::string& concat_feature_ids,
-                          const std::string& label_id,
-                          const std::string& weight_id,
-                          const ::yggdrasil_decision_forests::dataset::proto::
-                              DataSpecification* const existing_dataspec);
+  //  dataset_type: The function of the dataset.
+  tensorflow::Status Link(
+      tensorflow::OpKernelContext* ctx, const std::string& concat_feature_ids,
+      const std::string& label_id, const std::string& weight_id,
+      const ::yggdrasil_decision_forests::dataset::proto::
+          DataSpecification* const existing_dataspec,
+      const DatasetType dataset_type = DatasetType::kTraining);
 
   tensorflow::Status Unlink();
 

@@ -539,6 +539,9 @@ class CoreModel(models.Model):
     # If the model is trained with weights.
     self._weighted_training = False
 
+    # True if the user provides a validation dataset to `fit`.
+    self._has_validation_dataset = False
+
     self._time_begin_data_feed: Optional[datetime] = None
     self._time_end_data_feed: Optional[datetime] = None
     self._time_begin_training: Optional[datetime] = None
@@ -883,8 +886,25 @@ class CoreModel(models.Model):
   # This function should not be serialized in the SavedModel.
   @base_tracking.no_automatic_dependency_tracking
   @tf.function(experimental_relax_shapes=True)
+  def valid_step(self, data):
+    """Collects validation examples."""
+
+    tf.print("Validation data:", data)
+    return self.collect_data_step(data, is_training_example=False)
+
+  # This function should not be serialized in the SavedModel.
+  @base_tracking.no_automatic_dependency_tracking
+  @tf.function(experimental_relax_shapes=True)
   def train_step(self, data):
     """Collects training examples."""
+
+    return self.collect_data_step(data, is_training_example=True)
+
+  # This function should not be serialized in the SavedModel.
+  @base_tracking.no_automatic_dependency_tracking
+  @tf.function(experimental_relax_shapes=True)
+  def collect_data_step(self, data, is_training_example):
+    """Collect examples e.g. training or validation."""
 
     if isinstance(data, dict):
       raise ValueError("No label received for training. If you used "
@@ -913,7 +933,7 @@ class CoreModel(models.Model):
       if self._verbose:
         logging.info("Applying preprocessing on inputs. Result: %s", train_x)
       if isinstance(train_x, list) and self._features:
-        logging.warn(
+        logging.warning(
             "Using \"features\" with a pre-processing stage returning a list "
             "is not recommended. Use a pre-processing stage that returns a "
             "dictionary instead.")
@@ -967,8 +987,7 @@ class CoreModel(models.Model):
             "Invalid shape %s." % train_weights.shape)
 
     # List the input features and their semantics.
-    assert self._semantics is None, "The model is already trained"
-    self._semantics = tf_core.infer_semantic(
+    semantics = tf_core.infer_semantic(
         train_x, {feature.name: feature.semantic for feature in self._features},
         self._exclude_non_specified)
 
@@ -976,24 +995,40 @@ class CoreModel(models.Model):
     # specified explicitly.
     if (self._ranking_group is not None and
         self._ranking_group not in self._features and
-        self._ranking_group in self._semantics):
-      del self._semantics[self._ranking_group]
+        self._ranking_group in semantics):
+      del semantics[self._ranking_group]
 
     if (self._uplift_treatment is not None and
         self._uplift_treatment not in self._features and
-        self._uplift_treatment in self._semantics):
-      del self._semantics[self._uplift_treatment]
+        self._uplift_treatment in semantics):
+      del semantics[self._uplift_treatment]
 
-    semantic_inputs = tf_core.combine_tensors_and_semantics(
-        train_x, self._semantics)
+    if is_training_example:
+      if self._semantics is not None:
+        raise ValueError("The model is already trained")
+      self._semantics = semantics
+    else:
+      self._has_validation_dataset = True
+      if self._semantics is None:
+        raise ValueError(
+            "The validation should be collected after the training")
+
+      if semantics != self._semantics:
+        raise ValueError(
+            "The validation dataset does not have the same "
+            "semantic as the training dataset.\nTraining:\n{}\nValidation:\n{}"
+            .format(self._semantics, semantics))
+
+    semantic_inputs = tf_core.combine_tensors_and_semantics(train_x, semantics)
 
     normalized_semantic_inputs = tf_core.normalize_inputs(semantic_inputs)
 
     if self._verbose:
       logging.info("Normalized features: %s", normalized_semantic_inputs)
 
-    self._normalized_input_keys = sorted(
-        list(normalized_semantic_inputs.keys()))
+    if is_training_example:
+      self._normalized_input_keys = sorted(
+          list(normalized_semantic_inputs.keys()))
 
     # Add the weights
     if self._weighted_training:
@@ -1055,10 +1090,19 @@ class CoreModel(models.Model):
           self.distribute_strategy)
       if distribution_config is None:
         # No distribution strategy. Collecting examples in memory.
-        tf_core.collect_training_examples(normalized_semantic_inputs,
-                                          self._training_model_id)
+        tf_core.collect_training_examples(
+            normalized_semantic_inputs,
+            self._training_model_id,
+            collect_training_data=is_training_example)
 
       else:
+
+        if not is_training_example:
+          logging.warning(
+              "The validation dataset given to `fit` is not used to help "
+              "training (e.g. early stopping) in the case of distributed "
+              "training. If you want to use a validation dataset use "
+              "non-distributed training or use `fit_from_file` instead.")
 
         # Each worker collects a part of the dataset.
         if not self.capabilities().support_partial_cache_dataset_format:
@@ -1477,6 +1521,11 @@ class CoreModel(models.Model):
     """
     if self._train_on_evaluate:
       if not self._is_trained.numpy():
+
+        if tf_core.get_distribution_configuration(
+            self.distribute_strategy) is None:
+          self._collect_validation_data()
+
         self._train_model()
       else:
         raise ValueError(
@@ -1580,6 +1629,33 @@ class CoreModel(models.Model):
       if sample is not None:
         self.predict(sample)
 
+  def _collect_validation_data(self):
+    """Collects the user provided validation dataset."""
+    if getattr(self, "_eval_data_handler", None) is None:
+      raise ValueError(
+          "eval_data_handler not available. "
+          "_collect_validation_data should be called by the 'evaluate' "
+          "method in 'fit'.")
+
+    @tf.function(experimental_relax_shapes=True)
+    def collect_validation(model, ds_iterator):
+
+      def run_step(ds_data):
+        return model.valid_step(ds_data)
+
+      ds_data = next(ds_iterator)
+      outputs = model.distribute_strategy.run(run_step, args=(ds_data,))
+      outputs = _reduce_per_replica(
+          outputs, self.distribute_strategy, reduction="first")
+      return outputs
+
+    data_handler = self._eval_data_handler
+    for _, iterator in data_handler.enumerate_epochs():
+      self.reset_metrics()
+      with data_handler.catch_stop_iteration():
+        for _ in data_handler.steps():
+          collect_validation(self, iterator)
+
   def _train_model(self):
     """Effectively train the model."""
 
@@ -1636,7 +1712,9 @@ class CoreModel(models.Model):
           guide=guide,
           training_config=self._advanced_arguments.yggdrasil_training_config,
           deployment_config=deployment_config,
-          try_resume_training=self._try_resume_training)
+          try_resume_training=self._try_resume_training,
+          has_validation_dataset=self._has_validation_dataset,
+      )
 
     else:
       tf_core.finalize_distributed_dataset_collection(

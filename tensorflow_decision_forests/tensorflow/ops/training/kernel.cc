@@ -131,8 +131,10 @@ const std::vector<std::string>& FeatureSet::input_features() const {
 tf::Status FeatureSet::Link(
     tf::OpKernelContext* ctx, const std::string& concat_feature_ids,
     const std::string& label_id, const std::string& weight_id,
-    const dataset::proto::DataSpecification* const existing_dataspec) {
+    const dataset::proto::DataSpecification* const existing_dataspec,
+    const DatasetType dataset_type) {
   std::vector<std::string> feature_ids;
+
   if (!concat_feature_ids.empty()) {
     feature_ids = absl::StrSplit(concat_feature_ids, ',');
     std::sort(feature_ids.begin(), feature_ids.end());
@@ -147,10 +149,20 @@ tf::Status FeatureSet::Link(
   }
 
   for (const auto& feature_id : feature_ids) {
+    std::string resource_id = feature_id;
+    switch (dataset_type) {
+      case DatasetType::kTraining:
+        break;
+      case DatasetType::kValidation:
+        // See "_FEATURE_RESOURCE_VALIDATION_SUFFIX" in "core.py".
+        absl::StrAppend(&resource_id, "__VALIDATION");
+        break;
+    }
+
     AbstractFeatureResource* feature;
     TF_RETURN_IF_ERROR(
         ctx->resource_manager()->Lookup<AbstractFeatureResource, true>(
-            kModelContainer, feature_id, &feature));
+            kModelContainer, resource_id, &feature));
 
     const int feature_idx =
         existing_dataspec ? dataset::GetColumnIdxFromName(
@@ -728,6 +740,9 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
                             "Cannot de-serialize deployment_config proto."));
       }
     }
+
+    OP_REQUIRES_OK(
+        ctx, ctx->GetAttr("has_validation_dataset", &has_validation_dataset_));
   }
 
   ~SimpleMLModelTrainer() override = default;
@@ -753,11 +768,54 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
     std::string weight_feature;
     std::vector<std::string> input_features;
     OP_REQUIRES_OK(ctx, CreateTrainingDatasetFromFeatures(
-                            ctx, &dataset, &label_feature, &weight_feature,
-                            &input_features));
+                            ctx, DatasetType::kTraining, &dataset,
+                            &label_feature, &weight_feature, &input_features));
 
-    LOG(INFO) << "Dataset:\n"
+    LOG(INFO) << "Training dataset:\n"
               << dataset::PrintHumanReadable(dataset.data_spec(), false);
+
+    std::unique_ptr<dataset::VerticalDataset> valid_dataset;
+    if (has_validation_dataset_) {
+      LOG(INFO) << "Collect validation dataset";
+      valid_dataset = absl::make_unique<dataset::VerticalDataset>();
+
+      std::string valid_label_feature;
+      std::string valid_weight_feature;
+      std::vector<std::string> valid_input_features;
+      OP_REQUIRES_OK(ctx, CreateTrainingDatasetFromFeatures(
+                              ctx, DatasetType::kValidation,
+                              valid_dataset.get(), &valid_label_feature,
+                              &valid_weight_feature, &valid_input_features));
+
+      LOG(INFO) << "Validation dataset:\n"
+                << dataset::PrintHumanReadable(valid_dataset->data_spec(),
+                                               false);
+
+      if (valid_label_feature != label_feature) {
+        OP_REQUIRES_OK(
+            ctx, tf::Status(tf::error::INVALID_ARGUMENT,
+                            absl::StrCat("Different label in the training and "
+                                         "validation dataset: \"",
+                                         label_feature, "\" vs \"",
+                                         valid_label_feature, "\"")));
+      }
+
+      if (valid_weight_feature != weight_feature) {
+        OP_REQUIRES_OK(
+            ctx,
+            tf::Status(
+                tf::error::INVALID_ARGUMENT,
+                "Different weights in the training and validation dataset."));
+      }
+
+      if (valid_input_features != input_features) {
+        OP_REQUIRES_OK(
+            ctx,
+            tf::Status(
+                tf::error::INVALID_ARGUMENT,
+                "Different features in the training and validation dataset."));
+      }
+    }
 
     LOG(INFO) << "Configure learner";
     model::proto::TrainingConfig config = training_config_;
@@ -792,7 +850,8 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
     // The following commented code snippet exports the dataset and training
     // configuration so it can be run easily in a debugger by running:
     //
-    // bazel run -c opt //third_party/yggdrasil_decision_forests/cli:train -- \
+    // bazel run -c opt //third_party/yggdrasil_decision_forests/cli:train --
+    // \
     //   --alsologtostderr --output=/tmp/model \
     //   --dataset=tfrecord+tfe:/tmp/dataset.tfe \
     //   --dataspec=/tmp/dataspec.pbtxt \
@@ -806,7 +865,8 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
     CHECK_OK(file::SetTextProto("/tmp/dataspec.pbtxt", dataset.data_spec(),
                                 file::Defaults()));
     CHECK_OK(file::SetTextProto("/tmp/train_config.pbtxt",
-                                learner->training_config(), file::Defaults()));
+                                learner->training_config(),
+    file::Defaults()));
     */
 
 #ifdef TFDF_STOP_TRAINING_ON_INTERRUPT
@@ -815,7 +875,12 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
 #endif
 
     LOG(INFO) << "Train model";
-    auto model = learner->TrainWithStatus(dataset);
+    utils::StatusOr<std::unique_ptr<model::AbstractModel>> model;
+    if (valid_dataset) {
+      model = learner->TrainWithStatus(dataset, *valid_dataset);
+    } else {
+      model = learner->TrainWithStatus(dataset);
+    }
 
 #ifdef TFDF_STOP_TRAINING_ON_INTERRUPT
     OP_REQUIRES_OK(ctx, interruption::DisableUserInterruption());
@@ -843,12 +908,12 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
 
  private:
   tf::Status CreateTrainingDatasetFromFeatures(
-      tf::OpKernelContext* ctx, dataset::VerticalDataset* dataset,
-      std::string* label_feature, std::string* weight_feature,
-      std::vector<std::string>* input_features) {
+      tf::OpKernelContext* ctx, const DatasetType dataset_type,
+      dataset::VerticalDataset* dataset, std::string* label_feature,
+      std::string* weight_feature, std::vector<std::string>* input_features) {
     FeatureSet feature_set;
-    TF_RETURN_IF_ERROR(
-        feature_set.Link(ctx, feature_ids_, label_id_, weight_id_, nullptr));
+    TF_RETURN_IF_ERROR(feature_set.Link(ctx, feature_ids_, label_id_,
+                                        weight_id_, nullptr, dataset_type));
     TF_RETURN_IF_ERROR(
         feature_set.InitializeDatasetFromFeatures(ctx, guide_, dataset));
     TF_RETURN_IF_ERROR(
@@ -881,6 +946,7 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
   model::proto::TrainingConfig training_config_;
   model::proto::DeploymentConfig deployment_config_;
   dataset::proto::DataSpecificationGuide guide_;
+  bool has_validation_dataset_;
 };
 
 REGISTER_KERNEL_BUILDER(Name("SimpleMLModelTrainer").Device(tf::DEVICE_CPU),

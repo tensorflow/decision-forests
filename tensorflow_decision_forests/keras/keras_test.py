@@ -1691,6 +1691,32 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     self.assertEqual(leaves.shape, (22792, 20))
 
+  def test_validation_dataset(self):
+    # 40 examples in training, and 10 examples in validation.
+    train_ds = tf.data.Dataset.from_tensor_slices(
+        ([1, 2] * 20, [0, 1] * 20)).batch(100)
+    valid_ds = tf.data.Dataset.from_tensor_slices(
+        ([1, 2] * 10, [0, 1] * 10)).batch(100)
+
+    model_with_valid = keras.GradientBoostedTreesModel()
+    model_with_valid.fit(train_ds, validation_data=valid_ds)
+
+    model_without_valid = keras.GradientBoostedTreesModel()
+    model_without_valid.fit(train_ds)
+
+    # 40 examples in the training dataset.
+    inspector_with_valid = model_with_valid.make_inspector()
+    inspector_without_valid = model_without_valid.make_inspector()
+
+    self.assertEqual(inspector_with_valid.dataspec.created_num_rows, 40)
+    self.assertEqual(
+        inspector_with_valid.extract_tree(0).root.value.num_examples, 40)
+
+    self.assertEqual(inspector_without_valid.dataspec.created_num_rows, 40)
+    # ~10% of the training example are used for the internal validation.
+    self.assertLess(
+        inspector_without_valid.extract_tree(0).root.value.num_examples, 40)
+
 
 if __name__ == "__main__":
   tf.test.main()
