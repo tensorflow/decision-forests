@@ -32,6 +32,7 @@ REQUIRED_PACKAGES = [
     "six",
     "absl_py",
     "wheel",
+    "wurlitzer",
 ]
 
 
