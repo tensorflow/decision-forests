@@ -184,6 +184,9 @@ class InspectorTest(parameterized.TestCase, tf.test.TestCase):
     # It is very unlikely that the model contains less than 10 trees.
     self.assertGreater(inspector.num_trees(), 10)
 
+    self.assertAlmostEqual(inspector.bias, -0.023836, delta=0.0001)
+    self.assertEqual(inspector.num_trees_per_iter, 1)
+
     matching_log = [
         log for log in inspector.training_logs()
         if log.num_trees == inspector.num_trees()

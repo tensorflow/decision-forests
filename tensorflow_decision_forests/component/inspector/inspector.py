@@ -603,6 +603,30 @@ class _GradientBoostedTreeInspector(_AbstractDecisionForestInspector):
   def specialized_header(self):
     return self._specialized_header
 
+  @property
+  def bias(self) -> Tuple[float, List[float]]:
+    """Initial prediction of the model (before any tree).
+
+    Also called the "initial prediction" or "initial value".
+    """
+
+    raw_bias = self.specialized_header().initial_predictions
+    if len(raw_bias) == 1:
+      raw_bias = raw_bias[0]
+    return raw_bias
+
+  @property
+  def num_trees_per_iter(self) -> int:
+    """Number of trees learned at each iteration.
+
+    The number of trees learned at each iteration depends on the loss and the
+    dataset. For example, in the case of binary classification or regression,
+    one tree is learned at each iteration. In the case of multi-class
+    classification, one tree is learned for each class at each iteration.
+    """
+
+    return self.specialized_header().num_trees_per_iter
+
   def evaluation(self) -> Optional[Evaluation]:
     if not self._specialized_header.HasField("training_logs"):
       return Evaluation(loss=self._specialized_header.validation_loss)
