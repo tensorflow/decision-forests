@@ -44,22 +44,23 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from datetime import datetime
-from datetime import timedelta
+from contextlib import contextmanager  # pylint: disable=g-importing-member
 import copy
+from datetime import datetime  # pylint: disable=g-importing-member
+from datetime import timedelta  # pylint: disable=g-importing-member
 from functools import partial  # pylint: disable=g-importing-member
 import inspect
 import os
 import tempfile
-from typing import Optional, List, Dict, Any, Union, Text, Tuple, NamedTuple, Set, Callable
+from typing import Optional, List, Dict, Any, Union, Text, Tuple, NamedTuple, Set
 import uuid
 
-from absl import logging
 import tensorflow as tf
 
 from tensorflow.python.training.tracking import base as base_tracking  # pylint: disable=g-direct-tensorflow-import
 from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
 from tensorflow_decision_forests.tensorflow import core as tf_core
+from tensorflow_decision_forests.tensorflow import tf_logging
 from tensorflow_decision_forests.tensorflow.ops.inference import api as tf_op
 from tensorflow_decision_forests.tensorflow.ops.training import op as training_op
 from yggdrasil_decision_forests.dataset import data_spec_pb2
@@ -378,7 +379,7 @@ class CoreModel(models.Model):
       training e.g. `model.save(path)`. If not specified, `temp_directory` is
       set to a temporary directory using `tempfile.TemporaryDirectory`. This
       directory is deleted when the model python object is garbage-collected.
-    verbose: If true, displays information about the training.
+    verbose: Verbosity mode. 0 = silent, 1 = small details, 2 = full details.
     advanced_arguments: Advanced control of the model that most users won't need
       to use. See `AdvancedArguments` for details.
     num_threads: Number of threads used to train the model. Different learning
@@ -424,7 +425,7 @@ class CoreModel(models.Model):
                ranking_group: Optional[str] = None,
                uplift_treatment: Optional[str] = None,
                temp_directory: Optional[str] = None,
-               verbose: Optional[bool] = True,
+               verbose: int = 1,
                advanced_arguments: Optional[AdvancedArguments] = None,
                num_threads: Optional[int] = None,
                name: Optional[str] = None,
@@ -458,23 +459,22 @@ class CoreModel(models.Model):
     if self._num_threads is None:
       self._num_threads = os.cpu_count()
       if self._num_threads is None:
-        if self._verbose:
-          logging.warning(
+        if self._verbose >= 1:
+          tf_logging.warning(
               "Cannot determine the number of CPUs. Set num_threads=6")
         self._num_threads = 6
       else:
-        if self._verbose:
-
-          if self._num_threads >= 32:
-            logging.warning(
+        if self._num_threads >= 32:
+          if self._verbose >= 1:
+            tf_logging.warning(
                 "The `num_threads` constructor argument is not set and the "
                 "number of CPU is os.cpu_count()=%d > 32. Setting num_threads "
-                "to 32. Set num_threads manually to use more than 32 cpus.",
+                "to 32. Set num_threads manually to use more than 32 cpus." %
                 self._num_threads)
-            self._num_threads = 32
-          else:
-            logging.info("Set num_threads = os.cpu_count() = %d",
-                         self._num_threads)
+          self._num_threads = 32
+        else:
+          if self._verbose >= 2:
+            tf_logging.info("Use %d thread(s) for training", self._num_threads)
 
     if advanced_arguments is None:
       self._advanced_arguments = AdvancedArguments()
@@ -499,8 +499,9 @@ class CoreModel(models.Model):
     if self._temp_directory is None:
       self._temp_directory_handle = tempfile.TemporaryDirectory()
       self._temp_directory = self._temp_directory_handle.name
-      logging.info("Using %s as temporary training directory",
-                   self._temp_directory)
+      if self._verbose >= 1:
+        tf_logging.info("Use %s as temporary training directory",
+                        self._temp_directory)
 
     if (self._task == Task.RANKING) != (ranking_group is not None):
       raise ValueError(
@@ -781,7 +782,7 @@ class CoreModel(models.Model):
     del training
 
     if self._semantics is None:
-      logging.warning(
+      tf_logging.warning(
           "The model was called directly (i.e. using `model(data)` instead of "
           "using `model.predict(data)`) before being trained. The model will "
           "only return zeros until trained. The output shape might change "
@@ -829,7 +830,7 @@ class CoreModel(models.Model):
     """
 
     if self._semantics is None:
-      logging.warning(
+      tf_logging.warning(
           "The model was called directly using `call_get_leaves` before "
           "being trained. This method will "
           "only return zeros until trained. The output shape might change "
@@ -919,9 +920,11 @@ class CoreModel(models.Model):
     else:
       raise ValueError(f"Unexpected data shape {data}")
 
-    if self._verbose:
-      logging.info("Collect training examples.\nFeatures: %s\nLabel: %s",
-                   train_x, train_y)
+    if self._verbose >= 2:
+      tf_logging.info(
+          "%s tensor examples:\nFeatures: %s\nLabel: %s\nWeights: %s",
+          "Training" if is_training_example else "Validation", train_x, train_y,
+          train_weights)
 
     if isinstance(train_x, dict):
       _check_feature_names(
@@ -930,10 +933,10 @@ class CoreModel(models.Model):
 
     if self._preprocessing is not None:
       train_x = self._preprocessing(train_x)
-      if self._verbose:
-        logging.info("Applying preprocessing on inputs. Result: %s", train_x)
+      if self._verbose >= 2:
+        tf_logging.info("Tensor example after pre-processing:\n%s", train_x)
       if isinstance(train_x, list) and self._features:
-        logging.warning(
+        tf_logging.warning(
             "Using \"features\" with a pre-processing stage returning a list "
             "is not recommended. Use a pre-processing stage that returns a "
             "dictionary instead.")
@@ -959,8 +962,9 @@ class CoreModel(models.Model):
           " instead.")
 
     if len(train_y.shape) != 1:
-      if self._verbose:
-        logging.info("Squeezing labels to [batch_size] from [batch_size, 1].")
+      if self._verbose >= 2:
+        tf_logging.info(
+            "Squeeze label' shape from [batch_size, 1] to [batch_size]")
       train_y = tf.squeeze(train_y, axis=1)
 
     if len(train_y.shape) != 1:
@@ -973,12 +977,13 @@ class CoreModel(models.Model):
     if self._weighted_training:
       if not isinstance(train_weights, tf.Tensor):
         raise ValueError(
-            f"The training weights tensor is expected to be a tensor. Got {train_weights}"
-            " instead.")
+            "The training weights tensor is expected to be a tensor. "
+            f"Got {train_weights} instead.")
 
       if len(train_weights.shape) != 1:
-        if self._verbose:
-          logging.info("Squeezing labels to [batch_size] from [batch_size, 1].")
+        if self._verbose >= 2:
+          tf_logging.info(
+              "Squeeze weight' shape from [batch_size, 1] to [batch_size]")
         train_weights = tf.squeeze(train_weights, axis=1)
 
       if len(train_weights.shape) != 1:
@@ -1023,8 +1028,9 @@ class CoreModel(models.Model):
 
     normalized_semantic_inputs = tf_core.normalize_inputs(semantic_inputs)
 
-    if self._verbose:
-      logging.info("Normalized features: %s", normalized_semantic_inputs)
+    if self._verbose >= 2:
+      tf_logging.info("Normalized tensor features:\n %s",
+                      normalized_semantic_inputs)
 
     if is_training_example:
       self._normalized_input_keys = sorted(
@@ -1098,7 +1104,7 @@ class CoreModel(models.Model):
       else:
 
         if not is_training_example:
-          logging.warning(
+          tf_logging.warning(
               "The validation dataset given to `fit` is not used to help "
               "training (e.g. early stopping) in the case of distributed "
               "training. If you want to use a validation dataset use "
@@ -1153,6 +1159,7 @@ class CoreModel(models.Model):
           x=None,
           y=None,
           callbacks=None,
+          verbose: Optional[int] = None,
           **kwargs) -> tf.keras.callbacks.History:
     """Trains the model.
 
@@ -1192,6 +1199,7 @@ class CoreModel(models.Model):
       y: Label of the training dataset. Only used if "x" does not contains the
         labels.
       callbacks: Callbacks triggered during the training.
+      verbose: Verbosity mode. 0 = silent, 1 = small details, 2 = full details.
       **kwargs: Arguments passed to the core keras model's fit.
 
     Returns:
@@ -1199,6 +1207,9 @@ class CoreModel(models.Model):
       implemented for decision forests algorithms, and will return empty.
       All other fields are filled as usual for `Keras.Mode.fit()`.
     """
+
+    if verbose is not None:
+      self._verbose = verbose
 
     self._clear_function_cache()
 
@@ -1245,9 +1256,18 @@ class CoreModel(models.Model):
     # Reset the training status.
     self._is_trained.assign(False)
 
+    # Keras's verbose cannot be "1" in case of distributed training (for
+    # "performance" reasons).
+    keras_verbose = "auto" if self._verbose == 1 else self._verbose
+
     try:
       history = super(CoreModel, self).fit(
-          x=x, y=y, epochs=1, callbacks=callbacks, **kwargs)
+          x=x,
+          y=y,
+          epochs=1,
+          callbacks=callbacks,
+          verbose=keras_verbose,
+          **kwargs)
     finally:
       self._train_on_evaluate = False
 
@@ -1340,8 +1360,8 @@ class CoreModel(models.Model):
 
     self._time_begin_training = datetime.now()
 
-    if self._verbose:
-      logging.info("Training on dataset %s", train_path)
+    if self._verbose >= 1:
+      tf_logging.info("Training model on dataset %s", train_path)
 
     self._clear_function_cache()
 
@@ -1403,7 +1423,7 @@ class CoreModel(models.Model):
 
     distribution_config = tf_core.get_distribution_configuration(
         self.distribute_strategy)
-    logging.info("distribution_config: %s", distribution_config)
+
     if distribution_config is not None and not self.capabilities(
     ).support_partial_cache_dataset_format:
       raise ValueError(
@@ -1416,36 +1436,42 @@ class CoreModel(models.Model):
           "DistributedGradientBoostedTreesModel instead of "
           "GradientBoostedTreesModel.")
 
-    # Train the model.
-    tf_core.train_on_file_dataset(
-        train_dataset_path=dataset_format + ":" + train_path,
-        valid_dataset_path=(dataset_format + ":" +
-                            valid_path) if valid_path else None,
-        feature_ids=self._normalized_input_keys,
-        label_id=label_key,
-        weight_id=weight_key,
-        model_id=self._training_model_id,
-        model_dir=train_model_path,
-        learner=self._learner,
-        task=self._task,
-        generic_hparms=tf_core.hparams_dict_to_generic_proto(
-            self._learner_params),
-        ranking_group=ranking_key,
-        keep_model_in_resource=True,
-        guide=guide,
-        training_config=self._advanced_arguments.yggdrasil_training_config,
-        deployment_config=deployment_config,
-        working_cache_path=os.path.join(self._temp_directory, "working_cache"),
-        distribution_config=distribution_config,
-        try_resume_training=try_resume_training)
+    with tf_logging.capture_cpp_log_context(verbose=self._verbose >= 2):
+      # Train the model.
+      tf_core.train_on_file_dataset(
+          train_dataset_path=dataset_format + ":" + train_path,
+          valid_dataset_path=(dataset_format + ":" +
+                              valid_path) if valid_path else None,
+          feature_ids=self._normalized_input_keys,
+          label_id=label_key,
+          weight_id=weight_key,
+          model_id=self._training_model_id,
+          model_dir=train_model_path,
+          learner=self._learner,
+          task=self._task,
+          generic_hparms=tf_core.hparams_dict_to_generic_proto(
+              self._learner_params),
+          ranking_group=ranking_key,
+          keep_model_in_resource=True,
+          guide=guide,
+          training_config=self._advanced_arguments.yggdrasil_training_config,
+          deployment_config=deployment_config,
+          working_cache_path=os.path.join(self._temp_directory,
+                                          "working_cache"),
+          distribution_config=distribution_config,
+          try_resume_training=try_resume_training)
 
-    if self._verbose:
-      logging.info("Training done. Finalizing the model.")
+      self._time_end_training = datetime.now()
+      if self._verbose >= 1:
+        self._print_timer_training()
 
-    # Request and store a description of the model.
-    self._description = training_op.SimpleMLShowModel(
-        model_identifier=self._training_model_id).numpy().decode("utf-8")
-    training_op.SimpleMLUnloadModel(model_identifier=self._training_model_id)
+      if self._verbose >= 1:
+        tf_logging.info("Compiling model")
+
+      # Request and store a description of the model.
+      self._description = training_op.SimpleMLShowModel(
+          model_identifier=self._training_model_id).numpy().decode("utf-8")
+      training_op.SimpleMLUnloadModel(model_identifier=self._training_model_id)
 
     # Build the model's graph.
     inspector = inspector_lib.make_inspector(model_path)
@@ -1466,10 +1492,6 @@ class CoreModel(models.Model):
           history.on_epoch_end(src_logs.num_trees,
                                src_logs.evaluation.to_dict())
     self.history = history
-
-    self._time_end_training = datetime.now()
-    if self._verbose:
-      self._print_timer_training()
 
     return self.history
 
@@ -1606,7 +1628,7 @@ class CoreModel(models.Model):
     except Exception:  # pylint: disable=broad-except
       pass
 
-    logging.warning("Dataset sampling not implemented for %s", x)
+    tf_logging.warning("Dataset sampling not implemented for %s", x)
     return None
 
   def _build(self, x):
@@ -1663,9 +1685,9 @@ class CoreModel(models.Model):
       raise Exception("The training graph was not built.")
 
     self._time_end_data_feed = datetime.now()
-    if self._verbose:
+    if self._verbose >= 1:
       self._print_timer_feed_data()
-      logging.info("Starting training the model")
+      tf_logging.info("Training model")
 
     self._time_begin_training = datetime.now()
 
@@ -1689,80 +1711,84 @@ class CoreModel(models.Model):
 
     distribution_config = tf_core.get_distribution_configuration(
         self.distribute_strategy)
-    if distribution_config is None:
-      # Train the model.
-      # The model will be exported to "train_model_path".
-      #
-      # Note: It would be possible to train and load the model without saving
-      # the model to file.
-      tf_core.train(
-          input_ids=self._normalized_input_keys,
-          label_id=_LABEL,
-          weight_id=_WEIGHTS if self._weighted_training else None,
-          model_id=self._training_model_id,
-          model_dir=train_model_path,
-          learner=self._learner,
-          task=self._task,
-          generic_hparms=tf_core.hparams_dict_to_generic_proto(
-              self._learner_params),
-          ranking_group=_RANK_GROUP if self._task == Task.RANKING else None,
-          uplift_treatment=_UPLIFT_TREATMENT
-          if self._task == Task.CATEGORICAL_UPLIFT else None,
-          keep_model_in_resource=True,
-          guide=guide,
-          training_config=self._advanced_arguments.yggdrasil_training_config,
-          deployment_config=deployment_config,
-          try_resume_training=self._try_resume_training,
-          has_validation_dataset=self._has_validation_dataset,
-      )
 
-    else:
-      tf_core.finalize_distributed_dataset_collection(
-          cluster_coordinator=self._cluster_coordinator,
-          input_ids=self._normalized_input_keys + [_LABEL] +
-          ([_WEIGHTS] if self._weighted_training else []),
-          model_id=self._training_model_id,
-          dataset_path=self._distributed_partial_dataset_cache_path())
+    with tf_logging.capture_cpp_log_context(verbose=self._verbose >= 2):
 
-      tf_core.train_on_file_dataset(
-          train_dataset_path="partial_dataset_cache:" +
-          self._distributed_partial_dataset_cache_path(),
-          valid_dataset_path=None,
-          feature_ids=self._normalized_input_keys,
-          label_id=_LABEL,
-          weight_id=_WEIGHTS if self._weighted_training else None,
-          model_id=self._training_model_id,
-          model_dir=train_model_path,
-          learner=self._learner,
-          task=self._task,
-          generic_hparms=tf_core.hparams_dict_to_generic_proto(
-              self._learner_params),
-          ranking_group=_RANK_GROUP if self._task == Task.RANKING else None,
-          uplift_treatment=_UPLIFT_TREATMENT
-          if self._task == Task.CATEGORICAL_UPLIFT else None,
-          keep_model_in_resource=True,
-          guide=guide,
-          training_config=self._advanced_arguments.yggdrasil_training_config,
-          deployment_config=deployment_config,
-          working_cache_path=os.path.join(self._temp_directory,
-                                          "working_cache"),
-          distribution_config=distribution_config,
-          try_resume_training=self._try_resume_training)
+      if distribution_config is None:
+        # Train the model.
+        # The model will be exported to "train_model_path".
+        #
+        # Note: It would be possible to train and load the model without saving
+        # the model to file.
+        tf_core.train(
+            input_ids=self._normalized_input_keys,
+            label_id=_LABEL,
+            weight_id=_WEIGHTS if self._weighted_training else None,
+            model_id=self._training_model_id,
+            model_dir=train_model_path,
+            learner=self._learner,
+            task=self._task,
+            generic_hparms=tf_core.hparams_dict_to_generic_proto(
+                self._learner_params),
+            ranking_group=_RANK_GROUP if self._task == Task.RANKING else None,
+            uplift_treatment=_UPLIFT_TREATMENT
+            if self._task == Task.CATEGORICAL_UPLIFT else None,
+            keep_model_in_resource=True,
+            guide=guide,
+            training_config=self._advanced_arguments.yggdrasil_training_config,
+            deployment_config=deployment_config,
+            try_resume_training=self._try_resume_training,
+            has_validation_dataset=self._has_validation_dataset)
 
-    # Request and store a description of the model.
-    self._description = training_op.SimpleMLShowModel(
-        model_identifier=self._training_model_id).numpy().decode("utf-8")
-    training_op.SimpleMLUnloadModel(model_identifier=self._training_model_id)
+      else:
+        tf_core.finalize_distributed_dataset_collection(
+            cluster_coordinator=self._cluster_coordinator,
+            input_ids=self._normalized_input_keys + [_LABEL] +
+            ([_WEIGHTS] if self._weighted_training else []),
+            model_id=self._training_model_id,
+            dataset_path=self._distributed_partial_dataset_cache_path())
 
-    self._is_trained.assign(True)
+        tf_core.train_on_file_dataset(
+            train_dataset_path="partial_dataset_cache:" +
+            self._distributed_partial_dataset_cache_path(),
+            valid_dataset_path=None,
+            feature_ids=self._normalized_input_keys,
+            label_id=_LABEL,
+            weight_id=_WEIGHTS if self._weighted_training else None,
+            model_id=self._training_model_id,
+            model_dir=train_model_path,
+            learner=self._learner,
+            task=self._task,
+            generic_hparms=tf_core.hparams_dict_to_generic_proto(
+                self._learner_params),
+            ranking_group=_RANK_GROUP if self._task == Task.RANKING else None,
+            uplift_treatment=_UPLIFT_TREATMENT
+            if self._task == Task.CATEGORICAL_UPLIFT else None,
+            keep_model_in_resource=True,
+            guide=guide,
+            training_config=self._advanced_arguments.yggdrasil_training_config,
+            deployment_config=deployment_config,
+            working_cache_path=os.path.join(self._temp_directory,
+                                            "working_cache"),
+            distribution_config=distribution_config,
+            try_resume_training=self._try_resume_training)
 
-    self._time_end_training = datetime.now()
-    if self._verbose:
-      self._print_timer_training()
+      # Request and store a description of the model.
+      self._description = training_op.SimpleMLShowModel(
+          model_identifier=self._training_model_id).numpy().decode("utf-8")
+      training_op.SimpleMLUnloadModel(model_identifier=self._training_model_id)
 
-    # Load and optimize the model in memory.
-    # Register the model as a SavedModel asset.
-    self._model = tf_op.ModelV2(model_path=model_path, verbose=False)
+      self._is_trained.assign(True)
+
+      self._time_end_training = datetime.now()
+
+      if self._verbose >= 1:
+        self._print_timer_training()
+        tf_logging.info("Compiling model")
+
+      # Load and optimize the model in memory.
+      # Register the model as a SavedModel asset.
+      self._model = tf_op.ModelV2(model_path=model_path, verbose=False)
 
   def _set_from_yggdrasil_model(self,
                                 inspector: inspector_lib.AbstractInspector,
@@ -1808,14 +1834,17 @@ class CoreModel(models.Model):
   def _print_timer_feed_data(self):
 
     if self._time_end_data_feed and self._time_begin_data_feed:
-      logging.info("Read training dataset in %s",
-                   self._time_end_data_feed - self._time_begin_data_feed)
+      if self._verbose == 1:
+        # Escape the keras progress bar.
+        tf_logging.info("")
+      tf_logging.info("Dataset read in %s",
+                      self._time_end_data_feed - self._time_begin_data_feed)
 
   def _print_timer_training(self):
 
     if self._time_end_training and self._time_begin_training:
-      logging.info("Training model in %s",
-                   self._time_end_training - self._time_begin_training)
+      tf_logging.info("Model trained in %s",
+                      self._time_end_training - self._time_begin_training)
 
       # Comparison to data feed stage.
       if self._time_end_data_feed and self._time_begin_data_feed:
@@ -1827,7 +1856,7 @@ class CoreModel(models.Model):
           ratio = duration_data_feed / (
               duration_data_feed + duration_training + warning_offset)
           if ratio > 0.5:
-            logging.warning(
+            tf_logging.warning(
                 "Tracing the TF graph and reading the dataset took more than "
                 "50%% of the time to effectively train the model "
                 "(tracing+dataset reading: %s, training: %s). This might "
@@ -1846,9 +1875,9 @@ class _TrainerCallBack(tf.keras.callbacks.Callback):
   def on_epoch_begin(self, epoch, logs=None):
     del logs
     if epoch == 0 and not self._model._is_trained.numpy():
-      if self._model._verbose:
-        logging.info("Starting reading the dataset")
-      self._model._time_begin_data_feed = datetime.now()
+      if self._model._verbose >= 1:  # pylint:disable=protected-access
+        tf_logging.info("Starting reading the dataset")
+      self._model._time_begin_data_feed = datetime.now()  # pylint:disable=protected-access
 
   def on_epoch_end(self, epoch, logs=None):
     del logs
@@ -1995,7 +2024,7 @@ def pd_dataframe_to_tf_dataset(
 
     dataframe = dataframe.rename(columns=rename_mapping)
     if change_any_feature_name:
-      logging.warning(
+      tf_logging.warning(
           "Some of the feature names have been changed automatically to be "
           "compatible with SavedModels because fix_feature_names=True.")
 
@@ -2193,9 +2222,9 @@ def _apply_hp_template(parameters: Dict[str, Any], template_name: str,
   """
 
   template = _get_matching_template(template_name, all_templates)
-  logging.info("Resolve hyper-parameter template \"%s\" to \"%s@v%d\" -> %s.",
-               template_name, template.name, template.version,
-               template.parameters)
+  tf_logging.info(
+      "Resolve hyper-parameter template \"%s\" to \"%s@v%d\" -> %s.",
+      template_name, template.name, template.version, template.parameters)
 
   for key in list(parameters.keys()):
     if key in template.parameters and key not in explicit_parameters:
@@ -2219,7 +2248,7 @@ def _check_feature_names(feature_names: List[str], raise_error: bool):
     if raise_error:
       raise ValueError(full_reason)
     else:
-      logging.warning(full_reason)
+      tf_logging.warning(full_reason)
 
   # List of character forbidden in a serving signature name.
   for feature_name in feature_names:
@@ -2250,7 +2279,7 @@ def _check_dataset(x: tf.data.Dataset):
       message += (
           " This warning will be turned into an error on "
           "[18 Jan. 2022]. Make sure to solve this issue before this date.")
-      logging.warning("%s", message)
+      tf_logging.warning(message)
     else:
       raise ValueError(message)
 

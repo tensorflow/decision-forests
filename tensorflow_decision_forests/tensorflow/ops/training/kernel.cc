@@ -40,9 +40,10 @@ namespace tensorflow_decision_forests {
 namespace ops {
 
 namespace tf = ::tensorflow;
-namespace model = ::yggdrasil_decision_forests::model;
-namespace utils = ::yggdrasil_decision_forests::utils;
-namespace dataset = ::yggdrasil_decision_forests::dataset;
+namespace ydf = ::yggdrasil_decision_forests;
+namespace model = ydf::model;
+namespace utils = ydf::utils;
+namespace dataset = ydf::dataset;
 
 tensorflow::Status YggdrasilModelContainer::LoadModel(
     const absl::string_view model_path) {
@@ -1030,6 +1031,27 @@ class SimpleMLUnloadModel : public tf::OpKernel {
 
 REGISTER_KERNEL_BUILDER(Name("SimpleMLUnloadModel").Device(tf::DEVICE_CPU),
                         SimpleMLUnloadModel);
+
+// Sets the amount of logging.
+class YggdrasilDecisionForestsSetLoggingLevel : public tf::OpKernel {
+ public:
+  explicit YggdrasilDecisionForestsSetLoggingLevel(
+      tf::OpKernelConstruction* ctx)
+      : tf::OpKernel(ctx) {
+    OP_REQUIRES_OK(ctx, ctx->GetAttr("level", &level_));
+  }
+
+  void Compute(tf::OpKernelContext* ctx) override {
+    ydf::logging::SetLoggingLevel(level_);
+  }
+
+ private:
+  int level_;
+};
+
+REGISTER_KERNEL_BUILDER(
+    Name("YggdrasilDecisionForestsSetLoggingLevel").Device(tf::DEVICE_CPU),
+    YggdrasilDecisionForestsSetLoggingLevel);
 
 #ifdef TFDF_STOP_TRAINING_ON_INTERRUPT
 namespace interruption {

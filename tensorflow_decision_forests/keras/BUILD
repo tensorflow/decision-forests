@@ -66,11 +66,11 @@ py_library(
     srcs = ["core.py"],
     srcs_version = "PY3",
     deps = [
-        # absl/logging dep,
         "@org_tensorflow//tensorflow/python",
         "@org_tensorflow//tensorflow/python/training/tracking:base",
         "//tensorflow_decision_forests/component/inspector",
         "//tensorflow_decision_forests/tensorflow:core",
+        "//tensorflow_decision_forests/tensorflow:tf_logging",
         "//tensorflow_decision_forests/tensorflow/ops/inference:api_py",
         "//tensorflow_decision_forests/tensorflow/ops/training:op_py",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",

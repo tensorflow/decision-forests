@@ -69,7 +69,7 @@ test_ds = tfdf.keras.pd_dataframe_to_tf_dataset(test_ds_pd, label="income")
 # - Don't use "repeats". The dataset should contain exactly one epoch.
 
 # Trains the model.
-model = tfdf.keras.RandomForestModel()
+model = tfdf.keras.RandomForestModel(verbose=2)
 model.fit(x=train_ds)
 
 # Note: If running in a Colab, ".fit()" will not print the training logs by

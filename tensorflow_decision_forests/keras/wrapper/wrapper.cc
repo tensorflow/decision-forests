@@ -455,7 +455,7 @@ class $0(core.CoreModel):
       training e.g. `model.save(path)`. If not specified, `temp_directory` is
       set to a temporary directory using `tempfile.TemporaryDirectory`. This
       directory is deleted when the model python object is garbage-collected.
-    verbose: If true, displays information about the training.
+    verbose: Verbosity mode. 0 = silent, 1 = small details, 2 = full details.
     hyperparameter_template: Override the default value of the hyper-parameters.
       If None (default) the default parameters of the library are used. If set,
       `default_hyperparameter_template` refers to one of the following
@@ -511,7 +511,7 @@ $2
       ranking_group: Optional[str] = None,
       uplift_treatment: Optional[str] = None,
       temp_directory: Optional[str] = None,
-      verbose: Optional[bool] = True,
+      verbose: int = 1,
       hyperparameter_template: Optional[str] = None,
       advanced_arguments: Optional[AdvancedArguments] = None,
       num_threads: Optional[int] = None,

@@ -248,4 +248,18 @@ REGISTER_OP("SimpleMLUnloadModel")
     .SetIsStateful()
     .Attr("model_identifier: string");
 
+// Sets the level of logging in the Yggdrasil decision forest code i.e. calls
+// yggdrasil_decision_forests::logging::SetLoggingLevel.
+// This is a no-op for the internal build.
+//
+// Args:
+//   level: Level of logging.
+//
+// Returns:
+//   Nothing.
+//
+REGISTER_OP("YggdrasilDecisionForestsSetLoggingLevel")
+    .SetIsStateful()
+    .Attr("level: int");
+
 }  // namespace tensorflow

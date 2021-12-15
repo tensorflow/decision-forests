@@ -98,6 +98,16 @@ py_library(
     deps = ["@org_tensorflow//tensorflow/python"],
 )
 
+py_library(
+    name = "tf_logging",
+    srcs = ["tf_logging.py"],
+    srcs_version = "PY3",
+    deps = [
+        "@org_tensorflow//tensorflow/python",
+        "//tensorflow_decision_forests/tensorflow/ops/training:api_py",
+    ],
+)
+
 # Tests
 # =====
 

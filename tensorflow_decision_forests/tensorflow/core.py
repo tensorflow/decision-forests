@@ -37,7 +37,6 @@ from tensorflow_decision_forests.tensorflow.ops.training import api as training_
 from yggdrasil_decision_forests.dataset import data_spec_pb2
 from yggdrasil_decision_forests.learner import abstract_learner_pb2
 from yggdrasil_decision_forests.model import abstract_model_pb2
-from tensorflow_decision_forests.component import py_tree
 from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
 
 try:

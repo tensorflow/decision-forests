@@ -22,6 +22,9 @@
     learners. This is used for example for early stopping in the case of GBT
     model.
 -   Add the "loss" parameter of the GBT model directly in the model constructor.
+-   Control the amount of training logs displayed in the notebook (if using
+    notebook) or in the console with the `verbose` constructor argument and
+    `fit` parameter of the model.
 
 ### Fixes
 
