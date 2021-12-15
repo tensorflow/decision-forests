@@ -183,7 +183,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
         steps=num_examples // global_batch_size,
         return_dict=True)
     logging.info("Valid evaluation (again): %s", valid_evaluation_again)
-    self.assertGreaterEqual(valid_evaluation_again["accuracy"], 0.99)
+    self.assertGreaterEqual(valid_evaluation_again["accuracy"], 0.98)
 
     logging.info("Trained model:")
     model.summary()
