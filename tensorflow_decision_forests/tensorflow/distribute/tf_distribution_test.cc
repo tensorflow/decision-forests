@@ -61,7 +61,7 @@ ManagerAndWorkers CreateTfDistManager(int parallel_execution_per_worker = 1) {
   // Start the workers.
   const auto binary =
       file::JoinPath(test::DataRootDirectory(),
-                     "third_party/tensorflow_decision_forests/tensorflow/"
+                     "tensorflow_decision_forests/tensorflow/"
                      "distribute/tf_distribution_py_worker");
 
   for (int worker_idx = 0; worker_idx < num_workers; worker_idx++) {

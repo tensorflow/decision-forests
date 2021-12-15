@@ -55,7 +55,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":core",
-        "@org_tensorflow//tensorflow/python",
+        # TensorFlow Python,
         "@ydf//yggdrasil_decision_forests/learner:abstract_learner_py_proto",
         "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
     ],
@@ -66,8 +66,8 @@ py_library(
     srcs = ["core.py"],
     srcs_version = "PY3",
     deps = [
-        "@org_tensorflow//tensorflow/python",
-        "@org_tensorflow//tensorflow/python/training/tracking:base",
+        # TensorFlow Python,
+        # TensorFlow /training/tracking:base,
         "//tensorflow_decision_forests/component/inspector",
         "//tensorflow_decision_forests/tensorflow:core",
         "//tensorflow_decision_forests/tensorflow:tf_logging",
@@ -103,7 +103,7 @@ py_test(
         # absl/testing:parameterized dep,
         # numpy dep,
         # pandas dep,
-        "@org_tensorflow//tensorflow/python",
+        # TensorFlow Python,
         "//tensorflow_decision_forests/component/inspector",
         "//tensorflow_decision_forests/component/model_plotter",
         "//tensorflow_decision_forests/tensorflow:core",
@@ -138,8 +138,8 @@ py_test(
         # numpy dep,
         # pandas dep,
         # portpicker dep,
-        "@org_tensorflow//tensorflow/python",
-        "@org_tensorflow//tensorflow/python/distribute:distribute_lib",
+        # TensorFlow Python,
+        # TensorFlow /distribute:distribute_lib,
         "//tensorflow_decision_forests",
     ],
 )
@@ -156,8 +156,8 @@ py_binary(
         # absl/logging dep,
         # numpy dep,
         # pandas dep,
-        "@org_tensorflow//tensorflow/python",
-        "//tensorflow_decision_forests/tensorflow/ops/inference:api_py",
+        # TensorFlow Python,
+        "//tensorflow_decision_forests/tensorflow/ops/inference:op_py",
     ],
 )
 

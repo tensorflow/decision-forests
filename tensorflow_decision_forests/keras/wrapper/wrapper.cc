@@ -239,9 +239,9 @@ from $0yggdrasil_decision_forests.learner import abstract_learner_pb2
       absl::Substitute(R"(r"""Wrapper around each learning algorithm.
 
 This file is generated automatically by running the following commands:
-  bazel build -c opt //third_party/tensorflow_decision_forests/keras:wrappers
-  bazel-bin/third_party/tensorflow_decision_forests/keras/wrappers_wrapper_main\
-    > third_party/tensorflow_decision_forests/keras/wrappers_pre_generated.py
+  bazel build -c opt //tensorflow_decision_forests/keras:wrappers
+  bazel-bin/tensorflow_decision_forests/keras/wrappers_wrapper_main\
+    > tensorflow_decision_forests/keras/wrappers_pre_generated.py
 
 Please don't change this file directly. Instead, changes the source. The
 documentation source is contained in the "GetGenericHyperParameterSpecification"

@@ -14,34 +14,117 @@
 # limitations under the License.
 
 
-# Compile and runs the unit tests.
 
-set -x
-set -e
+# Build and test TF-DF.
 
+set -vex
+
+# Version of Python
+# Needs to be >=python3.7
+PYTHON=python3.8
+
+# Install Pip dependencies
+${PYTHON} -m ensurepip --upgrade || true
+${PYTHON} -m pip install pip --upgrade
+${PYTHON} -m pip install tensorflow numpy pandas --upgrade
+
+# Force a compiler
+# export CC=gcc-8
+# export CXX=gcc-8
+
+# Running flags.
+FLAGS=
+STARTUP_FLAGS=
+
+# Detect the target host
+PLATFORM="$(uname -s | tr 'A-Z' 'a-z')"
+
+function is_windows() {
+  # On windows, the shell script is actually running in msys
+  [[ "${PLATFORM}" =~ msys_nt*|mingw*|cygwin*|uwin* ]]
+}
+
+function is_macos() {
+  [[ "${PLATFORM}" == "darwin" ]]
+}
+
+if is_macos; then
+  FLAGS="--config=macos --config=release_cpu_macos"
+elif is_windows; then
+  FLAGS="--config=windows --config=release_cpu_windows"
+else
+  FLAGS="--config=linux --config=release_cpu_linux"
+fi
+
+# Find the path to the pre-compiled version of TensorFlow installed in the
+# "tensorflow" pip package.
+TF_CFLAGS=( $(${PYTHON} -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_compile_flags()))') )
+TF_LFLAGS="$(${PYTHON} -c 'import tensorflow as tf; print(tf.sysconfig.get_link_flags()[0])')"
+
+HEADER_DIR=${TF_CFLAGS:2}
+if is_macos; then
+  SHARED_LIBRARY_NAME="libtensorflow_framework.dylib"
+  SHARED_LIBRARY_DIR=${TF_LFLAGS:2}
+elif is_windows; then
+ # Use pywrap_tensorflow's import library on Windows. It is in the same dir as the dll/pyd.
+  SHARED_LIBRARY_NAME="_pywrap_tensorflow_internal.lib"
+  SHARED_LIBRARY_DIR=${TF_CFLAGS:2:-7}"python"
+
+  SHARED_LIBRARY_NAME=${SHARED_LIBRARY_NAME//\\//}
+  SHARED_LIBRARY_DIR=${SHARED_LIBRARY_DIR//\\//}
+  HEADER_DIR=${HEADER_DIR//\\//}
+else
+  SHARED_LIBRARY_DIR=${TF_LFLAGS:2}
+  SHARED_LIBRARY_NAME="libtensorflow_framework.so.2"
+fi
+
+FLAGS="${FLAGS} --action_env TF_HEADER_DIR=${HEADER_DIR}"
+FLAGS="${FLAGS} --action_env TF_SHARED_LIBRARY_DIR=${SHARED_LIBRARY_DIR}"
+FLAGS="${FLAGS} --action_env TF_SHARED_LIBRARY_NAME=${SHARED_LIBRARY_NAME}"
+
+# Bazel
+#
 # Note: TensorFlow is not (Mar2021) compatible with Bazel4.
-BAZEL=bazel-3.7.2
+BAZEL=bazel
 
-# Distributed compilation using RBE i.e. a remove server (fast).
-# Set the following variable to tensorflow's bashrc. You might have to download
-# this file from the github (https://github.com/tensorflow/tensorflow).
-# TENSORFLOW_BAZELRC="${HOME}/git/tf_bazelrc"
-
-# Alternatively, download bazelrc:
-# .bazelrc of TF v2.7.0-rc1 This value should match the TF version in the "WORKSPACE" file.
+# TensorFlow building configuration
+#
+# Note: Copy the building configuration of TF.
 TENSORFLOW_BAZELRC="tensorflow_bazelrc"
-wget https://raw.githubusercontent.com/tensorflow/tensorflow/v2.7.0-rc1/.bazelrc -O ${TENSORFLOW_BAZELRC}
+wget https://raw.githubusercontent.com/tensorflow/tensorflow/v2.7.0/.bazelrc -O ${TENSORFLOW_BAZELRC}
+STARTUP_FLAGS="${STARTUP_FLAGS} --bazelrc=${TENSORFLOW_BAZELRC}"
 
+# Distributed compilation using Remote Build Execution (RBE)
+#
 # copybara:strip_begin
 # First follow the instruction: go/tf-rbe-guide
 # copybara:strip_end
+# FLAGS="$FLAGS --config=rbe_cpu_linux --config=tensorflow_testing_rbe_linux --config=rbe_linux_py3"
 
-FLAGS="--config=linux --config=rbe_cpu_linux --config=tensorflow_testing_rbe_linux --config=rbe_linux_py3 --define tf_ps_distribution_strategy=0"
+# Minimal rules to create and test the Pip Package.
+#
+# Only require a small amount of TF to be compiled.
+BUILD_RULES="//tensorflow_decision_forests/component/...:all //tensorflow_decision_forests/keras //tensorflow_decision_forests/keras:grpc_worker_main"
+TEST_RULES="//tensorflow_decision_forests/component/...:all //tensorflow_decision_forests/keras:keras_test"
 
-${BAZEL} --bazelrc=${TENSORFLOW_BAZELRC} build \
-  //tensorflow_decision_forests/...:all \
-  ${FLAGS}
+# All the build rules.
+#
+# BUILD_RULES="//tensorflow_decision_forests/...:all"
+# TEST_RULES="//tensorflow_decision_forests/...:all"
 
-${BAZEL} --bazelrc=${TENSORFLOW_BAZELRC} test \
-  //tensorflow_decision_forests/...:all \
-  ${FLAGS}
+# Disable distributed training with TF Parameter Server
+#
+# Note: Currently, distributed training with parameter server is only supported
+# in the monolithic build. Distributed training is available with the Yggdrasil
+# Distribution through.
+FLAGS="${FLAGS} --define tf_ps_distribution_strategy=0"
+# TEST_RULES="${TEST_RULES} //tensorflow_decision_forests/keras:keras_distributed_test"
+
+# Build library
+time ${BAZEL} ${STARTUP_FLAGS} build ${BUILD_RULES} ${FLAGS}
+
+# Unit test library
+time ${BAZEL} ${STARTUP_FLAGS} test ${TEST_RULES} ${FLAGS}
+
+# Example of dependency check.
+# ${BAZEL} --bazelrc=${TENSORFLOW_BAZELRC} cquery "somepath(//tensorflow_decision_forests/tensorflow/ops/inference:api_py,@org_tensorflow//tensorflow/c:kernels.cc)" ${FLAGS}

@@ -1070,12 +1070,12 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
   def test_synthetic_classification_numerical(self):
     self._synthetic_train_and_test(
-        keras.Task.CLASSIFICATION, 0.8, 0.717, test_numerical=True)
+        keras.Task.CLASSIFICATION, 0.795, 0.717, test_numerical=True)
 
   def test_synthetic_classification_squeeze_label(self):
     self._synthetic_train_and_test(
         keras.Task.CLASSIFICATION,
-        0.8,
+        0.795,
         0.717,
         test_numerical=True,
         label_shape=1)

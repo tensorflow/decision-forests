@@ -44,6 +44,8 @@ def py_wrap_yggdrasil_learners(
     )
 
     # Compiles the wrapper binary.
+    # TODO(gbm): Find way to link from pypi.
+    # Note: This rule will compile a small part of TF.
     tf_cc_binary(
         name = wrapper_name,
         copts = tf_copts(),
@@ -71,7 +73,7 @@ def py_wrap_yggdrasil_learners(
         srcs_version = "PY3",
         deps = [
             "//tensorflow_decision_forests/keras:core",
-            "@org_tensorflow//tensorflow/python",
+            # TensorFlow Python,
             "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
             "@ydf//yggdrasil_decision_forests/learner:abstract_learner_py_proto",
         ],

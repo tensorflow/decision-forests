@@ -14,10 +14,6 @@
 
 """Core classes and functions of TensorFlow Decision Forests training."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import os
 import copy
 import enum
@@ -33,17 +29,17 @@ import tensorflow as tf
 from tensorflow.python.distribute import distribute_lib
 from tensorflow.python.distribute import parameter_server_strategy_v2
 from tensorflow_decision_forests.tensorflow.distribute import tf_distribution_pb2
-from tensorflow_decision_forests.tensorflow.ops.training import api as training_op
+from tensorflow_decision_forests.tensorflow.ops.training import op as training_op
 from yggdrasil_decision_forests.dataset import data_spec_pb2
 from yggdrasil_decision_forests.learner import abstract_learner_pb2
 from yggdrasil_decision_forests.model import abstract_model_pb2
 from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
 
 try:
-  from tensorflow_decision_forests.tensorflow.distribute import api as distributed_api  # pytype: disable=import-error
+  from tensorflow_decision_forests.tensorflow.distribute import op as distributed_op  # pytype: disable=import-error
   from tensorflow.python.distribute.coordinator import coordinator_context  # pytype: disable=import-error
 except Exception as e:
-  distributed_api = None
+  distributed_op = None
   coordinator_context = None
   logging.warning(
       "TF Parameter Server distributed training not available (this is "

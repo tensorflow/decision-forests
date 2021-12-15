@@ -14,7 +14,7 @@ py_library(
     deps = [
         # numpy dep,
         # six dep,
-        "@org_tensorflow//tensorflow/python",
+        # TensorFlow Python,
         "//tensorflow_decision_forests/component/inspector",
         "//tensorflow_decision_forests/component/inspector:blob_sequence",
         "//tensorflow_decision_forests/component/py_tree",
@@ -44,7 +44,7 @@ py_test(
         # absl/testing:parameterized dep,
         # numpy dep,
         # pandas dep,
-        "@org_tensorflow//tensorflow/python",
+        # TensorFlow Python,
         "//tensorflow_decision_forests/component/inspector",
         "//tensorflow_decision_forests/component/py_tree",
         "//tensorflow_decision_forests/keras",

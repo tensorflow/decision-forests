@@ -31,6 +31,9 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+# Inject the inference ops only.
+from tensorflow_decision_forests.tensorflow.ops.inference import op  # pylint: disable=unused-import
+
 flags.DEFINE_string("model_path", "", "Path to the SavedModel model to load.")
 
 flags.DEFINE_string("dataset_path", "", "Path to adult dataset.")

@@ -53,6 +53,20 @@ cc_library(
     alwayslink = 1,
 )
 
+# Dataset formats supported when training from file
+# =================================================
+
+# Dataset format supported by the disk-based trainer.
+cc_library(
+    name = "dataset_formats",
+    deps = [
+        "@ydf//yggdrasil_decision_forests/dataset:csv_example_reader",
+        "@ydf//yggdrasil_decision_forests/dataset:tf_example_io_tfrecord",
+        "@ydf//yggdrasil_decision_forests/learner/distributed_decision_tree/dataset_cache:dataset_cache_reader",
+    ],
+    alwayslink = 1,
+)
+
 # Bzl Libraries
 # =============
 
@@ -71,22 +85,22 @@ py_library(
     deps = [
         # numpy dep,
         # pandas dep,
-        "@org_tensorflow//tensorflow/python",
-        "@org_tensorflow//tensorflow/python/distribute:distribute_lib",
-        "@org_tensorflow//tensorflow/python/distribute:parameter_server_strategy_v2",
-        "@org_tensorflow//tensorflow/python/distribute/coordinator:cluster_coordinator",
+        # TensorFlow Python,
+        # TensorFlow /distribute:distribute_lib,
+        # TensorFlow /distribute:parameter_server_strategy_v2,
+        # TensorFlow /distribute/coordinator:cluster_coordinator,
         "//tensorflow_decision_forests/component/py_tree",
         "//tensorflow_decision_forests/component/inspector",
         "//tensorflow_decision_forests/tensorflow/distribute:tf_distribution_py_proto",
-        "//tensorflow_decision_forests/tensorflow/ops/training:api_py",
+        "//tensorflow_decision_forests/tensorflow/ops/training:op_py",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
         "@ydf//yggdrasil_decision_forests/learner:abstract_learner_py_proto",
         "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
     ] + select({
         "//tensorflow_decision_forests:disable_tf_ps_distribution_strategy": [],
         "//conditions:default": [
-            "@org_tensorflow//tensorflow/python/distribute/coordinator:coordinator_context",
-            "//tensorflow_decision_forests/tensorflow/distribute:api_py",  # Compatibility with TF Parameter Server for distribution.
+            # TensorFlow /distribute/coordinator:coordinator_context,
+            "//tensorflow_decision_forests/tensorflow/distribute:op_py",  # Compatibility with TF Parameter Server for distribution.
         ],
     }),
 )
@@ -95,7 +109,9 @@ py_library(
     name = "check_version",
     srcs = ["check_version.py"],
     srcs_version = "PY3",
-    deps = ["@org_tensorflow//tensorflow/python"],
+    deps = [
+        # TensorFlow Python,
+    ],
 )
 
 py_library(
@@ -103,8 +119,8 @@ py_library(
     srcs = ["tf_logging.py"],
     srcs_version = "PY3",
     deps = [
-        "@org_tensorflow//tensorflow/python",
-        "//tensorflow_decision_forests/tensorflow/ops/training:api_py",
+        # TensorFlow Python,
+        "//tensorflow_decision_forests/tensorflow/ops/training:op_py",
     ],
 )
 
@@ -120,7 +136,7 @@ py_test(
         ":core",
         # absl/logging dep,
         # pandas dep,
-        "@org_tensorflow//tensorflow/python",
+        # TensorFlow Python,
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
         "@ydf//yggdrasil_decision_forests/learner:abstract_learner_py_proto",
     ],
@@ -132,6 +148,6 @@ py_test(
     python_version = "PY3",
     deps = [
         ":check_version",
-        "@org_tensorflow//tensorflow/python",
+        # TensorFlow Python,
     ],
 )

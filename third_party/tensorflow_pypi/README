@@ -1,0 +1,8 @@
+TensorFlow injected through the .h, .so and .dll available in the TensorFlow
+PyPi package.
+
+This directory contains a copy of:
+  https://github.com/tensorflow/custom-op/tree/master/tf
+
+With the following edits:
+  "//tf:" -> "//third_party/tensorflow_pypi:"

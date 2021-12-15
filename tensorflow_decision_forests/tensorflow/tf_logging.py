@@ -19,7 +19,7 @@ Replacement of absl's logging primitives that are always visible to the user.
 
 from contextlib import contextmanager  # pylint: disable=g-importing-member
 import sys
-from tensorflow_decision_forests.tensorflow.ops.training import api as training_op
+from tensorflow_decision_forests.tensorflow.ops.training import op as training_op
 
 # Background
 # ==========

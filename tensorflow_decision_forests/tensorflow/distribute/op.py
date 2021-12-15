@@ -12,13 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from tensorflow_decision_forests.tensorflow import check_version  # pylint: disable=unused-import
-
-import tensorflow as tf
-from tensorflow.python.framework import load_library
-from tensorflow.python.platform import resource_loader
-tf.load_op_library(resource_loader.get_path_to_datafile("distribute.so"))
+from tensorflow_decision_forests.tensorflow.distribute.op_dynamic import *

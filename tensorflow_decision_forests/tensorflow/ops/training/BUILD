@@ -1,89 +1,58 @@
 load("@org_tensorflow//tensorflow:tensorflow.bzl", "tf_gen_op_wrapper_py")
-load("//tensorflow_decision_forests/tensorflow:utils.bzl", "rpath_linkopts_to_tensorflow","tf_custom_op_library_external")
-load("//tensorflow_decision_forests/tensorflow:utils.bzl", "rpath_linkopts_to_tensorflow")
 
 package(
     default_visibility = ["//visibility:public"],
     licenses = ["notice"],
 )
 
-# =========
+# TF Ops
+# ======
 
 py_library(
-    name = "api_py",
-    srcs = ["api.py"],
+    name = "op_py",
+    srcs = ["op.py"],
+    srcs_version = "PY3",
+    deps = [
+    ] + select({
+        "@ydf//yggdrasil_decision_forests:tensorflow_with_header_lib": [":op_py_dynamic"],
+        "//conditions:default": [":op_py_static"],
+    }),
+)
+
+tf_gen_op_wrapper_py(
+    name = "op_py_static",
+    out = "op_static.py",
+    deps = [":op"],
+)
+
+py_library(
+    name = "op_py_dynamic",
+    srcs = ["op_dynamic.py"],
     data = [":training.so"],
     srcs_version = "PY3",
     deps = [
-        ":op_py",
-        "@org_tensorflow//tensorflow:tensorflow_py",
+        # TensorFlow Python,
         "//tensorflow_decision_forests/tensorflow:check_version",
     ],
 )
 
-# TF Ops
-# ======
-
-# Op+kernel for dynamical linking.
-tf_custom_op_library_external(
+cc_binary(
     name = "training.so",
+    linkshared = 1,
     deps = [":kernel_and_op"],
 )
 
-# Dataset format supported by the disk-based trainer.
-cc_library(
-    name = "dataset_formats",
-    deps = [
-        "@ydf//yggdrasil_decision_forests/dataset:csv_example_reader",
-        "@ydf//yggdrasil_decision_forests/dataset:tf_example_io_tfrecord",
-        "@ydf//yggdrasil_decision_forests/learner/distributed_decision_tree/dataset_cache:dataset_cache_reader",
-    ],
-    alwayslink = 1,
-)
-
-# Op+kernel for static linking.
+# Op+kernel
 cc_library(
     name = "kernel_and_op",
     deps = [
-        ":dataset_formats",
         ":kernel",
         ":op",
         "//tensorflow_decision_forests/tensorflow:canonical_learners",
+        "//tensorflow_decision_forests/tensorflow:dataset_formats",
         "//tensorflow_decision_forests/tensorflow:distribution_engines",
     ],
     alwayslink = 1,
-)
-
-alias(
-    name = "op_py",
-    actual = select({
-        "//tensorflow_decision_forests:use_precompiled_wrappers": ":op_py_precompile",
-        "//conditions:default": ":op_py_no_precompile",
-    }),
-)
-
-# Python wrapper around the ops.
-# This generates a python wrapper around the op.{so,dll}:
-# Python wrapper around the ops.
-# This is the reason why tf needs to be entirely compiled in OSS setting.
-tf_gen_op_wrapper_py(
-    name = "op_py_no_precompile",
-    out = "op.py",
-    cc_linkopts = rpath_linkopts_to_tensorflow("op"),
-    deps = [":op"],
-)
-
-# Pre-compiled version of "tf_gen_op_wrapper_py" above.
-#
-# Refresh file file with:
-# cp bazel-genfiles/third_party/tensorflow_decision_forests/tensorflow/ops/training/op.py third_party/tensorflow_decision_forests/tensorflow/ops/training/op.py
-py_library(
-    name = "op_py_precompile",
-    srcs = ["op.py"],
-    srcs_version = "PY3",
-    deps = [
-        "@org_tensorflow//tensorflow/python",
-    ],
 )
 
 # Declaration of the ops.
@@ -91,7 +60,13 @@ cc_library(
     name = "op",
     srcs = ["op.cc"],
     linkstatic = 1,
-    deps = ["@org_tensorflow//tensorflow/core:framework_headers_lib"],
+    deps = [] + select({
+        "@ydf//yggdrasil_decision_forests:tensorflow_with_header_lib": [
+            "@tensorflow_pypi//:libtensorflow_framework",
+            "@tensorflow_pypi//:tf_header_lib",
+        ],
+        "//conditions:default": ["@org_tensorflow//tensorflow/core:framework"],
+    }),
     alwayslink = 1,
 )
 
@@ -114,8 +89,6 @@ cc_library(
     }),
     deps = [
         "@com_google_absl//absl/strings",
-        "@org_tensorflow//tensorflow/core:framework_headers_lib",
-        "@org_tensorflow//tensorflow/core/platform:path",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_cc_proto",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_inference",
@@ -130,8 +103,15 @@ cc_library(
         "@ydf//yggdrasil_decision_forests/model:model_library",
         "@ydf//yggdrasil_decision_forests/utils:distribution_cc_proto",
         "@ydf//yggdrasil_decision_forests/utils:tensorflow",
-    ],
+    ] + select({
+        "@ydf//yggdrasil_decision_forests:tensorflow_with_header_lib": [
+            "@tensorflow_pypi//:libtensorflow_framework",
+            "@tensorflow_pypi//:tf_header_lib",
+        ],
+        "//conditions:default": [
+            "@org_tensorflow//tensorflow/core:framework",
+            "@org_tensorflow//tensorflow/core/platform:path",
+        ],
+    }),
+    alwayslink = 1,
 )
-
-# Tests
-# =====

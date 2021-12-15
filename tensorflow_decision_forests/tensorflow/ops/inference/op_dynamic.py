@@ -12,4 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from tensorflow_decision_forests.tensorflow.ops.training.op_dynamic import *
+from tensorflow_decision_forests.tensorflow import check_version
+import tensorflow as tf
+from tensorflow.python.platform import resource_loader
+import sys
+
+try:
+  ops = tf.load_op_library(resource_loader.get_path_to_datafile("inference.so"))
+except Exception as e:
+  check_version.info_fail_to_load_custom_op(e, "inference.so")
+  raise e
+
+# Importing all the symbols.
+module = sys.modules[__name__]
+for name, value in ops.__dict__.items():
+  if "__" in name:
+    continue
+  setattr(module, name, value)
