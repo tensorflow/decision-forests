@@ -11,6 +11,8 @@ supports classification, regression and ranking.
 [Yggdrasil Decision Forests](https://github.com/google/yggdrasil-decision-forests)
 C++ libraries. Models trained with TF-DF are compatible with Yggdrasil Decision
 Forests' models, and vice versa.
+[This link](https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/user_manual.md#serving-tensorflow-decision-forests-model)
+explains how to do inference of TF-DF models in C++ using Yggdrasil.
 
 ## Usage example
 
