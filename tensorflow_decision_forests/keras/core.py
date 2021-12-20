@@ -890,7 +890,6 @@ class CoreModel(models.Model):
   def valid_step(self, data):
     """Collects validation examples."""
 
-    tf.print("Validation data:", data)
     return self.collect_data_step(data, is_training_example=False)
 
   # This function should not be serialized in the SavedModel.
