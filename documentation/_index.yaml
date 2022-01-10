@@ -34,7 +34,7 @@ landing_page:
         <p>
         TF-DF is a wrapper around the <a
         href="https://github.com/google/yggdrasil-decision-forests">Yggdrasil Decision Forest</a>
-        C++ libraries. Models trained with TF-DF are [compatible](https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/user_manual.md#serving-tensorflow-decision-forests-model) with Yggdrasil Decision
+        C++ libraries. Models trained with TF-DF are <a href="https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/user_manual.md#serving-tensorflow-decision-forests-model">compatible</a> with Yggdrasil Decision
         Forests' models, and vice versa.
         </p>
         <p>
