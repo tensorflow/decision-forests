@@ -288,7 +288,7 @@ def core_condition_to_condition(
         for attribute_idx in condition_type.oblique_condition.attributes
     ]
     return NumericalSparseObliqueCondition(
-        attributes, condition_type.oblique_condition.weights[:],
+        attributes, list(condition_type.oblique_condition.weights),
         condition_type.oblique_condition.threshold, core_condition.na_value)
 
   raise ValueError(f"Non supported condition type: {core_condition}")
