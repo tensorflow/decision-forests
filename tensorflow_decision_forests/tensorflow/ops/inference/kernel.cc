@@ -1452,7 +1452,7 @@ class SimpleMLInferenceOp : public OpKernel {
 
   // List of pre-allocated working memory to re-use in between inference calls.
   std::vector<std::unique_ptr<AbstractInferenceEngine::AbstractCache>>
-      engine_caches_ ABSL_GUARDED_BY(engine_cache_mutex_);
+      engine_caches_ GUARDED_BY(engine_cache_mutex_);
 
   // Protect calls to the engine inference.
   tensorflow::mutex engine_cache_mutex_;

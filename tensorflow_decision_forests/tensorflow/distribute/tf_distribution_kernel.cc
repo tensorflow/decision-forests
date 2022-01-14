@@ -49,7 +49,7 @@ class WorkerResource : public tf::ResourceBase {
   std::string DebugString() const override { return "WorkerResource"; }
 
   utils::StatusOr<Blob> RunTask(Blob blob) {
-    absl::ReaderMutexLock lock(&mu_);
+    utils::concurrency::ReaderMutexLock lock(&mu_);
     if (!worker_) {
       return absl::InternalError("Worker no set");
     }
@@ -66,7 +66,7 @@ class WorkerResource : public tf::ResourceBase {
                            const std::vector<std::string>& worker_addresses,
                            const std::vector<std::string>& worker_resource_ids,
                            const int parallel_execution_per_worker) {
-    absl::WriterMutexLock lock(&mu_);
+    utils::concurrency::WriterMutexLock lock(&mu_);
     ASSIGN_OR_RETURN(worker_, AbstractWorkerRegisterer::Create(worker_name));
     RETURN_IF_ERROR(InternalInitializeWorker(
         worker_idx, worker_addresses.size(), worker_.get(), &hook_));
@@ -77,7 +77,7 @@ class WorkerResource : public tf::ResourceBase {
   }
 
   absl::Status Done() {
-    absl::WriterMutexLock lock(&mu_);
+    utils::concurrency::WriterMutexLock lock(&mu_);
     if (worker_) {
       RETURN_IF_ERROR(worker_->Done());
       worker_.reset();
@@ -139,11 +139,11 @@ class WorkerResource : public tf::ResourceBase {
     ThreadVector threads;
 
     struct OtherWorkers {
-      absl::Mutex mutex;
+      utils::concurrency::SharedMutex mutex;
       std::string socket_address;
       std::string resource_id;
 
-      std::unique_ptr<tf::ClientSession> session;  // ABSL_GUARDED_BY(mutex);
+      std::unique_ptr<tf::ClientSession> session;  // GUARDED_BY(mutex);
 
       tf::Status status;
       std::unique_ptr<tf::Scope> root;
@@ -196,7 +196,7 @@ class WorkerResource : public tf::ResourceBase {
   // Ensures that the communication with another worker is ready.
   tf::Status EnsureIntraWorkerStubIsReady(
       InterWorkerCommunication::OtherWorkers* worker) {
-    absl::MutexLock lock(&worker->mutex);
+    utils::concurrency::WriterMutexLock lock(&worker->mutex);
     CHECK(worker);
 
     if (worker->session) {
@@ -258,7 +258,7 @@ class WorkerResource : public tf::ResourceBase {
     while (true) {
       absl::Status status;
       {
-        absl::ReaderMutexLock lock(&target_worker->mutex);
+        utils::concurrency::ReaderMutexLock lock(&target_worker->mutex);
         status = utils::ToUtilStatus(target_worker->session->Run(
             feeds, {target_worker->run_task_output}, &outputs));
       }
@@ -285,7 +285,7 @@ class WorkerResource : public tf::ResourceBase {
                    << ")";
       absl::SleepFor(absl::Seconds(10));
 
-      absl::WriterMutexLock lock(&target_worker->mutex);
+      utils::concurrency::WriterMutexLock lock(&target_worker->mutex);
       target_worker->session = absl::make_unique<tf::ClientSession>(
           *target_worker->root, target_worker->socket_address);
     }
@@ -313,8 +313,8 @@ class WorkerResource : public tf::ResourceBase {
     }
   }
 
-  absl::Mutex mu_;
-  std::unique_ptr<AbstractWorker> worker_ ABSL_GUARDED_BY(mu_);
+  utils::concurrency::SharedMutex mu_;
+  std::unique_ptr<AbstractWorker> worker_ GUARDED_BY(mu_);
   WorkerHook hook_;
   InterWorkerCommunication intra_worker_communication_;
 };
@@ -343,7 +343,7 @@ class YggdrasilDistributeRunTask : public OpKernel {
 
   void Compute(OpKernelContext* ctx) override {
     {
-      absl::MutexLock lock(&mutex_);
+      utils::concurrency::MutexLock lock(&mutex_);
       if (!worker_resource_) {
         OP_REQUIRES_OK(ctx, CreateWorkerResource(ctx));
       }
@@ -367,7 +367,7 @@ class YggdrasilDistributeRunTask : public OpKernel {
 
  private:
   tf::Status CreateWorkerResource(OpKernelContext* ctx)
-      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
+      EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
     TF_RETURN_IF_ERROR(ctx->resource_manager()->LookupOrCreate<WorkerResource>(
         kResourceContainer, resource_uid_, &worker_resource_,
         [&](WorkerResource** resource) -> tensorflow::Status {
@@ -389,7 +389,7 @@ class YggdrasilDistributeRunTask : public OpKernel {
   std::string welcome_blob_;
   std::string worker_name_;
   std::string resource_uid_;
-  absl::Mutex mutex_;
+  utils::concurrency::Mutex mutex_;
   WorkerResource* worker_resource_ = nullptr;
 };
 
@@ -412,7 +412,7 @@ class YggdrasilDistributeRunInterWorkerTask : public OpKernel {
   }
 
   void Compute(OpKernelContext* ctx) override {
-    absl::MutexLock l(&mutex_);
+    utils::concurrency::MutexLock l(&mutex_);
     if (!worker_resource_) {
       OP_REQUIRES_OK(ctx, CreateWorkerResource(ctx));
     }
@@ -435,15 +435,15 @@ class YggdrasilDistributeRunInterWorkerTask : public OpKernel {
 
  private:
   tf::Status CreateWorkerResource(OpKernelContext* ctx)
-      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
+      EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
     TF_RETURN_IF_ERROR(ctx->resource_manager()->Lookup<WorkerResource>(
         kResourceContainer, resource_uid_, &worker_resource_));
     return tf::Status::OK();
   }
 
   std::string resource_uid_;
-  absl::Mutex mutex_;
-  WorkerResource* worker_resource_ ABSL_GUARDED_BY(mutex_) = nullptr;
+  utils::concurrency::Mutex mutex_;
+  WorkerResource* worker_resource_ GUARDED_BY(mutex_) = nullptr;
 };
 
 REGISTER_KERNEL_BUILDER(

@@ -272,7 +272,7 @@ class FeatureOnFileOp : public tensorflow::OpKernel {
   std::string dataset_path_;
   int worker_idx_;
   bool dataset_already_on_disk_;
-  Resource* resource_ ABSL_GUARDED_BY(mu_);
+  Resource* resource_ GUARDED_BY(mu_);
 
   TF_DISALLOW_COPY_AND_ASSIGN(FeatureOnFileOp);
 };

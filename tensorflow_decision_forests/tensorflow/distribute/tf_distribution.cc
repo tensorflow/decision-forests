@@ -19,7 +19,6 @@
 
 #include <random>
 
-#include "absl/synchronization/notification.h"
 #include "include/rapidjson/document.h"
 #include "include/rapidjson/reader.h"
 #include "tensorflow/cc/client/client_session.h"
@@ -33,6 +32,7 @@
 #include "yggdrasil_decision_forests/utils/filesystem.h"
 #include "yggdrasil_decision_forests/utils/logging.h"
 #include "yggdrasil_decision_forests/utils/status_macros.h"
+#include "yggdrasil_decision_forests/utils/synchronization_primitives.h"
 #include "yggdrasil_decision_forests/utils/tensorflow.h"
 #include "yggdrasil_decision_forests/utils/uid.h"
 
@@ -402,7 +402,7 @@ utils::StatusOr<Blob> RemoteConnection::RunTask(const Blob& input) {
   while (true) {
     absl::Status status;
     {
-      absl::ReaderMutexLock lock(&session_mutex);
+      utils::concurrency::ReaderMutexLock lock(&session_mutex);
       status =
           utils::ToUtilStatus(session->Run(feeds, {run_task_output}, &outputs));
     }
@@ -429,7 +429,7 @@ utils::StatusOr<Blob> RemoteConnection::RunTask(const Blob& input) {
                  << ")";
     absl::SleepFor(absl::Seconds(10));
 
-    absl::WriterMutexLock lock(&session_mutex);
+    utils::concurrency::WriterMutexLock lock(&session_mutex);
     session = absl::make_unique<tf::ClientSession>(*root, target);
   }
 }

@@ -56,7 +56,7 @@ cc_library(
         ":tf_distribution_common",
         ":op",
         ":tf_distribution_cc_proto",
-        "@com_google_absl//absl/synchronization",
+        "@ydf//yggdrasil_decision_forests/utils:synchronization_primitives",
         "@com_github_tencent_rapidjson//:rapidjson",
         "@ydf//yggdrasil_decision_forests/utils:concurrency",
         "@ydf//yggdrasil_decision_forests/utils:filesystem",

@@ -86,7 +86,7 @@ class RemoteConnection {
   std::unique_ptr<tf::ClientSession> session;
   std::unique_ptr<tf::Scope> root;
   std::string target;
-  absl::Mutex session_mutex;
+  utils::concurrency::SharedMutex session_mutex;
 
   // Graph.
   std::unique_ptr<tf::ops::Placeholder> run_task_input;

@@ -90,7 +90,7 @@ class FeatureResource : public AbstractFeatureResource {
 
  private:
   tensorflow::mutex mu_;
-  std::vector<T> data_ ABSL_GUARDED_BY(mu_);
+  std::vector<T> data_ GUARDED_BY(mu_);
   // Number of batches of data.
   int64_t num_batches_ = 0;
 };
@@ -102,7 +102,7 @@ class FeatureResource<std::string> : public AbstractFeatureResource {
       : AbstractFeatureResource(feature_name) {}
 
   // Appends the tensor values for the object cache.
-  void Add(const tensorflow::Tensor& tensor) ABSL_LOCKS_EXCLUDED(mu_) {
+  void Add(const tensorflow::Tensor& tensor) LOCKS_EXCLUDED(mu_) {
     tensorflow::mutex_lock l(mu_);
     num_batches_++;
     const auto tensor_data = tensor.flat<tensorflow::tstring>();
@@ -143,9 +143,9 @@ class FeatureResource<std::string> : public AbstractFeatureResource {
 
  private:
   tensorflow::mutex mu_;
-  std::vector<int64_t> data_ ABSL_GUARDED_BY(mu_);
-  absl::flat_hash_map<std::string, int64_t> index_ ABSL_GUARDED_BY(mu_);
-  std::vector<std::string> reverse_index_ ABSL_GUARDED_BY(mu_);
+  std::vector<int64_t> data_ GUARDED_BY(mu_);
+  absl::flat_hash_map<std::string, int64_t> index_ GUARDED_BY(mu_);
+  std::vector<std::string> reverse_index_ GUARDED_BY(mu_);
   // Number of batches of data.
   int64_t num_batches_ = 0;
 };
@@ -215,7 +215,7 @@ class Feature : public tensorflow::OpKernel {
   tensorflow::mutex mu_;
   std::string identifier_;
   std::string feature_name_;
-  Resource* resource_ ABSL_GUARDED_BY(mu_);
+  Resource* resource_ GUARDED_BY(mu_);
 
   TF_DISALLOW_COPY_AND_ASSIGN(Feature);
 };
@@ -279,7 +279,7 @@ class MultiValueRaggedFeatureResource : public AbstractFeatureResource {
 
   // The values of the i-th example are {values_[j] for j in
   // row_splits_[i]..row_splits_[i+1]-1}).
-  std::vector<T> values_ ABSL_GUARDED_BY(mu_);
+  std::vector<T> values_ GUARDED_BY(mu_);
   std::vector<size_t> row_splits_;
   // Number of batches of data.
   int64_t num_batches_ = 0;
