@@ -1637,6 +1637,49 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     # TODO(gbm): Evaluate with the Uplift framework.
 
+  def test_uplift_honest_sim_pte(self):
+    # Path to dataset.
+    dataset_directory = os.path.join(test_data_path(), "dataset")
+    train_path = os.path.join(dataset_directory, "sim_pte_train.csv")
+    test_path = os.path.join(dataset_directory, "sim_pte_test.csv")
+
+    train_df = pd.read_csv(train_path)
+    test_df = pd.read_csv(test_path)
+
+    outcome_key = "y"
+    treatment_key = "treat"
+
+    def prepare_df(df):
+      # Both the treatment and outcome are 1 indexed.
+      df[outcome_key] = df[outcome_key] - 1
+      df[treatment_key] = df[treatment_key] - 1
+
+    prepare_df(train_df)
+    prepare_df(test_df)
+
+    task = keras.Task.CATEGORICAL_UPLIFT
+    train_ds = keras.pd_dataframe_to_tf_dataset(
+        train_df, label=outcome_key, task=task)
+    test_ds = keras.pd_dataframe_to_tf_dataset(
+        test_df, label=outcome_key, task=task)
+
+    model = keras.RandomForestModel(
+        task=task,
+        uplift_treatment=treatment_key,
+        uplift_split_score="ED",
+        sampling_with_replacement=False,
+        bootstrap_size_ratio=0.5,
+        honest=True)
+    model.fit(train_ds)
+
+    logging.info("Trained model:")
+    model.summary()
+
+    predictions = model.predict(test_ds)
+    logging.info("Predictions: %s", predictions)
+
+    # TODO(gbm): Evaluate with the Uplift framework.
+
   def test_metadata(self):
 
     x_train = [0, 1, 2, 3] * 10

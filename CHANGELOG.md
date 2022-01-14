@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.3 - ????
+
+### Features
+
+-   Honest Random Forests (also work with Gradient Boosted Tree and CART).
+-   Can train Random Forests with example sampling without replacement.
+
 ## 0.2.2 - 2021-12-13
 
 ### Features
