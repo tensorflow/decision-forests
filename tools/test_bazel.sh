@@ -32,8 +32,8 @@ ${PYTHON} -m pip install tensorflow numpy pandas --upgrade
 # export CC=gcc-8
 # export CXX=gcc-8
 
-# Running flags.
-FLAGS=
+# Support for newer version of Bazel with the (old) TensorFlow code.
+FLAGS="--incompatible_blacklisted_protos_requires_proto_info=false --incompatible_linkopts_to_linklibs=false"
 STARTUP_FLAGS=
 
 # Detect the target host
@@ -49,16 +49,17 @@ function is_macos() {
 }
 
 if is_macos; then
-  FLAGS="--config=macos --config=release_cpu_macos"
+  FLAGS="${FLAGS} --config=macos --config=release_cpu_macos"
+  FLAGS="${FLAGS} --features=-supports_dynamic_linker"
 elif is_windows; then
-  FLAGS="--config=windows --config=release_cpu_windows"
+  FLAGS="${FLAGS} --config=windows --config=release_cpu_windows"
 else
-  FLAGS="--config=linux --config=release_cpu_linux"
+  FLAGS="${FLAGS} --config=linux --config=release_cpu_linux"
 fi
 
 # Find the path to the pre-compiled version of TensorFlow installed in the
 # "tensorflow" pip package.
-TF_CFLAGS=( $(${PYTHON} -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_compile_flags()))') )
+TF_CFLAGS="$(${PYTHON} -c 'import tensorflow as tf; print(tf.sysconfig.get_compile_flags()[0])')"
 TF_LFLAGS="$(${PYTHON} -c 'import tensorflow as tf; print(tf.sysconfig.get_link_flags()[0])')"
 
 HEADER_DIR=${TF_CFLAGS:2}

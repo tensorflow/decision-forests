@@ -43,11 +43,23 @@
 
 set -xve
 
+function is_macos() {
+  [[ "${PLATFORM}" == "darwin" ]]
+}
+
+# Make sure to use Gnu CP where needed.
+if is_macos; then
+  GCP="gcp"
+else
+  GCP="cp"
+fi
+
 # Temporary directory used to assemble the package.
 SRCPK="$(pwd)/tmp_package"
 
 function patch_auditwell() {
-  PYTHON="$1"; shift
+  PYTHON="$1"
+  shift
   # Patch auditwheel for TensorFlow
   AUDITWHELL_DIR="$(${PYTHON} -m pip show auditwheel | grep "Location:")"
   AUDITWHELL_DIR="${AUDITWHELL_DIR:10}/auditwheel"
@@ -57,7 +69,7 @@ function patch_auditwell() {
   if ! grep -q "${TF_DYNAMIC_FILENAME}" "${POLICY_PATH}"; then
     echo "Patching Auditwhell"
     cp "${POLICY_PATH}" "${POLICY_PATH}.orig"
-    sed -i "s/\"libresolv.so.2\"/\"libresolv.so.2\",\"${TF_DYNAMIC_FILENAME}\"/g" "${POLICY_PATH}"
+    sed -i '' "s/\"libresolv.so.2\"/\"libresolv.so.2\",\"${TF_DYNAMIC_FILENAME}\"/g" "${POLICY_PATH}"
   else
     echo "Auditwhell already patched"
   fi
@@ -66,13 +78,15 @@ function patch_auditwell() {
 # Pypi package version compatible with a given version of python.
 # Example: Python3.8.2 => Package version: "38"
 function python_to_package_version() {
-  PYTHON="$1"; shift
+  PYTHON="$1"
+  shift
   ${PYTHON} -c 'import sys; print(f"{sys.version_info.major}{sys.version_info.minor}")'
 }
 
 # Installs dependency requirement for build the Pip package.
 function install_dependencies() {
-  PYTHON="$1"; shift
+  PYTHON="$1"
+  shift
   ${PYTHON} -m ensurepip -U || true
   ${PYTHON} -m pip install pip -U
   ${PYTHON} -m pip install setuptools -U
@@ -117,7 +131,7 @@ function assemble_files() {
   YDFSRCBIN="bazel-bin/external/ydf/yggdrasil_decision_forests"
   mkdir -p ${SRCPK}/yggdrasil_decision_forests
   pushd ${YDFSRCBIN}
-  find -name \*.py -exec cp --parents -prv {} ${SRCPK}/yggdrasil_decision_forests \;
+  find . -name \*.py -exec ${GCP} --parents -prv {} ${SRCPK}/yggdrasil_decision_forests \;
   popd
 
   # Add __init__.py to all exported Yggdrasil sub-directories.
@@ -126,7 +140,8 @@ function assemble_files() {
 
 # Build a pip package.
 function build_package() {
-  PYTHON="$1"; shift
+  PYTHON="$1"
+  shift
 
   pushd ${SRCPK}
   $PYTHON -m build
@@ -137,11 +152,13 @@ function build_package() {
 
 # Tests a pip package.
 function test_package() {
-  PYTHON="$1"; shift
-  PACKAGE="$1"; shift
+  PYTHON="$1"
+  shift
+  PACKAGE="$1"
+  shift
 
   PIP="${PYTHON} -m pip"
-  ${PIP} install dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-linux_x86_64.whl
+  ${PIP} install dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-*.whl
   ${PIP} list
   ${PIP} show tensorflow_decision_forests -f
 
@@ -151,7 +168,8 @@ function test_package() {
 
 # Builds and tests a pip package in a given version of python
 function e2e_native() {
-  PYTHON="$1"; shift
+  PYTHON="$1"
+  shift
   PACKAGE=$(python_to_package_version ${PYTHON})
 
   install_dependencies ${PYTHON}
@@ -160,12 +178,13 @@ function e2e_native() {
   test_package ${PYTHON} ${PACKAGE}
 
   # Fix package.
-  auditwheel repair --plat manylinux2010_x86_64 -w dist dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-linux_x86_64.whl
+  auditwheel repair --plat manylinux2010_x86_64 -w dist dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-*.whl
 }
 
 # Builds and tests a pip package in Pyenv.
 function e2e_pyenv() {
-  VERSION="$1"; shift
+  VERSION="$1"
+  shift
 
   ENVNAME=env_${VERSION}
   pyenv install ${VERSION} -s
@@ -182,7 +201,8 @@ function e2e_pyenv() {
   pyenv deactivate
 }
 
-ARG="$1"; shift | true
+ARG="$1"
+shift | true
 
 if [ -z "${ARG}" ]; then
   echo "The first argument should be one of:"
@@ -190,14 +210,14 @@ if [ -z "${ARG}" ]; then
   echo "  ALL_VERSIONS_ALREADY_ASSEMBLED: Build all pip packages from already assembled files using pyenv."
   echo "  Python binary (e.g. python3.8): Build a pip package for a specific python version without pyenv."
   exit 1
-elif [ ${ARG} == "ALL_VERSIONS" ] ; then
+elif [ ${ARG} == "ALL_VERSIONS" ]; then
   # Compile with all the version of python using pyenv.
   assemble_files
   eval "$(pyenv init -)"
   e2e_pyenv 3.9.2
   e2e_pyenv 3.8.7
   e2e_pyenv 3.7.7
-elif [ ${ARG} == "ALL_VERSIONS_ALREADY_ASSEMBLED" ] ; then
+elif [ ${ARG} == "ALL_VERSIONS_ALREADY_ASSEMBLED" ]; then
   eval "$(pyenv init -)"
   e2e_pyenv 3.9.2
   e2e_pyenv 3.8.7

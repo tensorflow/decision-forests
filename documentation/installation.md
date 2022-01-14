@@ -36,20 +36,24 @@ python3 -c "import tensorflow_decision_forests as tfdf; print('Found TF-DF v' + 
 
 ## Build from source
 
+### Linux
+
+#### Setup
+
 **Requirements**
 
-- Microsoft Visual Studio >= 2019 (Windows) or GCC>=7.3 (Linux).
-- Bazel >= 3.7.2
-- Python >= 3
-- Git
-- Python's numpy
-- MSYS2 (Windows only)
+-   Bazel >= 3.7.2
+-   Python >= 3
+-   Git
+-   Python packages: numpy tensorflow pandas
 
 Instead of installing the dependencies by hands, you can use the
 [TensorFlow Build docker](https://github.com/tensorflow/build). If you choose
 this options, install Docker:
 
 - [Docker](https://docs.docker.com/get-docker/).
+
+#### Compilation
 
 Download TensorFlow Decision Forests as follows:
 
@@ -125,6 +129,25 @@ of python using pyenv by running the following command. See the header of
 # Build and test all the Pip package using Pyenv.
 ./tools/build_pip_package.sh ALL_VERSIONS
 ```
+
+### MacOS
+
+#### Setup
+
+**Requirements**
+
+-   Coreutils (tested with `brew install coreutils`)
+-   Bazel >= 3.7.2
+-   Python >= 3 (tested with `brew install python`)
+-   Git
+-   JDK 11
+-   Python packages: numpy tensorflow pandas
+
+#### Compilation
+
+Follow the same steps as for the linux compilation without Docker.
+
+Note: Currently, multi-threading support is broken on MacOS.
 
 ## Final note
 
