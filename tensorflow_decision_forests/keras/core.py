@@ -1975,7 +1975,7 @@ def pd_dataframe_to_tf_dataset(
 
     if task == Task.CLASSIFICATION:
 
-      classification_classes = dataframe[label].unique().tolist()
+      classification_classes = list(dataframe[label].unique())
       if len(classification_classes) > max_num_classes:
         raise ValueError(
             f"The number of unique classes ({len(classification_classes)}) "

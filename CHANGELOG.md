@@ -14,6 +14,7 @@
 -   Incorrect default evaluation of categorical split with uplift tasks. This
     was making uplift models with missing categorical values perform worst, and
     made the inference of uplift model possibly slower.
+-   Fix `pd_dataframe_to_tf_dataset` on Pandas dataframe not containing arrays.
 
 ## 0.2.2 - 2021-12-13
 
