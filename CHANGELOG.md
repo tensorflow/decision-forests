@@ -7,6 +7,7 @@
 -   Honest Random Forests (also work with Gradient Boosted Tree and CART).
 -   Can train Random Forests with example sampling without replacement.
 -   Add support for Focal Loss with Gradient Boosted Trees.
+-   Add support for MacOS.
 
 ### Fixes
 

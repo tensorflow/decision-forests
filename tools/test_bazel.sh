@@ -32,9 +32,11 @@ ${PYTHON} -m pip install tensorflow numpy pandas --upgrade
 # export CC=gcc-8
 # export CXX=gcc-8
 
-# Support for newer version of Bazel with the (old) TensorFlow code.
-FLAGS="--incompatible_blacklisted_protos_requires_proto_info=false --incompatible_linkopts_to_linklibs=false"
+# Bazel startup and common flags.
+# STARTUP_FLAGS is given before the command (e.g. build), and FLAGS is given
+# after.
 STARTUP_FLAGS=
+FLAGS=
 
 # Detect the target host
 PLATFORM="$(uname -s | tr 'A-Z' 'a-z')"
@@ -49,12 +51,11 @@ function is_macos() {
 }
 
 if is_macos; then
-  FLAGS="${FLAGS} --config=macos --config=release_cpu_macos"
-  FLAGS="${FLAGS} --features=-supports_dynamic_linker"
+  FLAGS="${FLAGS} --config=macos"
 elif is_windows; then
-  FLAGS="${FLAGS} --config=windows --config=release_cpu_windows"
+  FLAGS="${FLAGS} --config=windows"
 else
-  FLAGS="${FLAGS} --config=linux --config=release_cpu_linux"
+  FLAGS="${FLAGS} --config=linux"
 fi
 
 # Find the path to the pre-compiled version of TensorFlow installed in the
@@ -92,7 +93,7 @@ BAZEL=bazel
 #
 # Note: Copy the building configuration of TF.
 TENSORFLOW_BAZELRC="tensorflow_bazelrc"
-wget https://raw.githubusercontent.com/tensorflow/tensorflow/v2.7.0/.bazelrc -O ${TENSORFLOW_BAZELRC}
+curl https://raw.githubusercontent.com/tensorflow/tensorflow/v2.7.0/.bazelrc -o ${TENSORFLOW_BAZELRC}
 STARTUP_FLAGS="${STARTUP_FLAGS} --bazelrc=${TENSORFLOW_BAZELRC}"
 
 # Distributed compilation using Remote Build Execution (RBE)
@@ -113,12 +114,7 @@ TEST_RULES="//tensorflow_decision_forests/component/...:all //tensorflow_decisio
 # BUILD_RULES="//tensorflow_decision_forests/...:all"
 # TEST_RULES="//tensorflow_decision_forests/...:all"
 
-# Disable distributed training with TF Parameter Server
-#
-# Note: Currently, distributed training with parameter server is only supported
-# in the monolithic build. Distributed training is available with the Yggdrasil
-# Distribution through.
-FLAGS="${FLAGS} --define tf_ps_distribution_strategy=0"
+# Tests when distribution strategy is enabled.
 # TEST_RULES="${TEST_RULES} //tensorflow_decision_forests/keras:keras_distributed_test"
 
 # Build library

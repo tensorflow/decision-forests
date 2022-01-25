@@ -43,6 +43,7 @@
 
 set -xve
 
+PLATFORM="$(uname -s | tr 'A-Z' 'a-z')"
 function is_macos() {
   [[ "${PLATFORM}" == "darwin" ]]
 }

@@ -16,6 +16,10 @@ common --experimental_repo_remote_exec
 build --announce_rc
 build -c opt
 
+# Support for newer version of Bazel with the (old) TensorFlow code.
+build --incompatible_blacklisted_protos_requires_proto_info=false
+build --incompatible_linkopts_to_linklibs=false
+
 # Allow to use tensorflow internal methods.
 build --nocheck_visibility
 
@@ -45,7 +49,7 @@ build:linux --host_copt=-w
 build:macos --copt=-w
 build:windows --copt=/W0
 
-# Linux options that should also be used for Windows.
+# Common build options.
 build --define=framework_shared_object=true
 build --enable_platform_specific_config
 build --define=dynamic_loaded_kernels=true
@@ -59,3 +63,21 @@ build --host_cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0
 
 build --strategy=Genrule=standalone
 build --action_env TF_NEED_CUDA="0"
+
+# Disable distributed training with TF Parameter Server
+#
+# Note: Currently, distributed training with parameter server is only supported
+# in the monolithic build. Distributed training is available with the Yggdrasil
+# Distribution through.
+build --define=tf_ps_distribution_strategy=0
+
+# Host specifics options.
+build:macos --config=release_cpu_macos
+build:macos --features=-supports_dynamic_linker
+# Absl synchronization primitives currently do not work on MacOS.
+# b/214189609 # copybara:strip
+build:macos --define std_synchronization_primitives=1
+
+build:windows --config=release_cpu_windows
+
+build:linux --config=release_cpu_linux

@@ -44,7 +44,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from contextlib import contextmanager  # pylint: disable=g-importing-member
 import copy
 from datetime import datetime  # pylint: disable=g-importing-member
 from datetime import timedelta  # pylint: disable=g-importing-member

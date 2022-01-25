@@ -14,11 +14,11 @@
 
 """Core classes and functions of TensorFlow Decision Forests training."""
 
-import os
 import copy
 import enum
 import logging
 import math
+import os
 import re
 from typing import Optional, List, Tuple, Dict, Union, NamedTuple, Callable, Text, Any
 
@@ -28,12 +28,12 @@ import tensorflow as tf
 
 from tensorflow.python.distribute import distribute_lib
 from tensorflow.python.distribute import parameter_server_strategy_v2
+from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
 from tensorflow_decision_forests.tensorflow.distribute import tf_distribution_pb2
 from tensorflow_decision_forests.tensorflow.ops.training import op as training_op
 from yggdrasil_decision_forests.dataset import data_spec_pb2
 from yggdrasil_decision_forests.learner import abstract_learner_pb2
 from yggdrasil_decision_forests.model import abstract_model_pb2
-from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
 
 try:
   from tensorflow_decision_forests.tensorflow.distribute import op as distributed_op  # pytype: disable=import-error

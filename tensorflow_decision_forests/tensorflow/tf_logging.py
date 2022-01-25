@@ -18,7 +18,10 @@ Replacement of absl's logging primitives that are always visible to the user.
 """
 
 from contextlib import contextmanager  # pylint: disable=g-importing-member
+import io
 import sys
+from typing import Union
+
 from tensorflow_decision_forests.tensorflow.ops.training import op as training_op
 
 # Background
@@ -26,12 +29,12 @@ from tensorflow_decision_forests.tensorflow.ops.training import op as training_o
 #
 # By default, logs of the Yggdrasil C++ training code are shown on the
 # "standard C output" and "error" channels (COUT and CERR). When executing
-# python code in a script, those channels are displayed along side Python
+# python code in a script, those channels are displayed alongside Python
 # standard output (i.e. the output of python's "print" function). When running
 # in a colab or a notebook, the COUT and CERR channels are not printed i.e. they
 # are not visible to the user (unless the user looks in the colab logs). In this
-# case, the COUT and CERR channels needs to be "redirected" to the python's
-# standard output.
+# case, one may want the COUT and CERR channels to be "redirected" to the
+# python's standard output.
 #
 # This parameter
 # ==============
@@ -48,6 +51,24 @@ from tensorflow_decision_forests.tensorflow.ops.training import op as training_o
 # the redirection is setup; false positive). If you face one of those
 # situations, please ping us.
 REDIRECT_YGGDRASIL_CPP_OUTPUT_TO_PYTHON_OUTPUT = "auto"
+REDIRECT_MESSAGE_WAS_PRINTED = False
+
+
+def set_training_logs_redirection(value: Union[str, bool]):
+  """Controls the redirection of training logs for display.
+
+  The default value ("auto") should be satifying in most cases.
+  If the training is stuck before training, call
+  `set_training_logs_redirection(false)`.
+  If you don't see the training logs (even through the model created with
+  `verbose=2`), call `set_training_logs_redirection(true)`.
+
+  Args:
+    value: Redirection. Can be False, True or "auto".
+  """
+
+  global REDIRECT_YGGDRASIL_CPP_OUTPUT_TO_PYTHON_OUTPUT
+  REDIRECT_YGGDRASIL_CPP_OUTPUT_TO_PYTHON_OUTPUT = value
 
 
 def info(msg, *args):
@@ -57,6 +78,10 @@ def info(msg, *args):
 
   Usage example:
     logging_info("Hello %s", "world")
+
+  Args:
+    msg: String message with replacement placeholders e.g. %s.
+    *args: Placeholder replacement values.
   """
 
   print(msg % args)
@@ -108,11 +133,31 @@ def capture_cpp_log_context(verbose=False):
     # Make sure the c++ logs are not visible to the user.
     return hide_cpp_logs()
 
+  def is_direct_output(stream):
+    """Checks if output stream redirects to the shell/console directly."""
+
+    if stream.isatty():
+      return True
+    if isinstance(stream, io.TextIOWrapper):
+      return is_direct_output(stream.buffer)
+    if isinstance(stream, io.BufferedWriter):
+      return is_direct_output(stream.raw)
+    if isinstance(stream, io.FileIO):
+      return stream.fileno() in [1, 2]
+    return False
+
   if ((REDIRECT_YGGDRASIL_CPP_OUTPUT_TO_PYTHON_OUTPUT == "auto" and
-       sys.stdout.isatty()) or
+       is_direct_output(sys.stdout)) or
       not REDIRECT_YGGDRASIL_CPP_OUTPUT_TO_PYTHON_OUTPUT):
-    # The cour and cerr of the c++ library are already visible to the user.
+    # The cout and cerr of the c++ library are already visible to the user.
     return no_op_context()
+
+  global REDIRECT_MESSAGE_WAS_PRINTED
+  if not REDIRECT_MESSAGE_WAS_PRINTED:
+    REDIRECT_MESSAGE_WAS_PRINTED = True
+    info("Standard output detected as not visible to the user e.g. running "
+         "in a notebook. Creating a training log redirection. If training get "
+         "stuck, try calling tfdf.keras.set_training_logs_redirection(False).")
 
   # pytype: disable=import-error
   # pylint: disable=g-import-not-at-top
