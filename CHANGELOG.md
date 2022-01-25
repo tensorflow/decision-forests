@@ -8,6 +8,12 @@
 -   Can train Random Forests with example sampling without replacement.
 -   Add support for Focal Loss with Gradient Boosted Trees.
 
+### Fixes
+
+-   Incorrect default evaluation of categorical split with uplift tasks. This
+    was making uplift models with missing categorical values perform worst, and
+    made the inference of uplift model possibly slower.
+
 ## 0.2.2 - 2021-12-13
 
 ### Features
