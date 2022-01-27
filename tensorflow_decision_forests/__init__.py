@@ -45,7 +45,7 @@ model.save("/tmp/my_saved_model")
 
 """
 
-__version__ = "0.2.2"
+__version__ = "0.2.3"
 __author__ = "Mathieu Guillame-Bert"
 
 compatible_tf_versions = ["2.7.0"]

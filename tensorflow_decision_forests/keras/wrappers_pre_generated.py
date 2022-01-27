@@ -180,6 +180,12 @@ class CartModel(core.CoreModel):
         called "best first" or "leaf-wise growth". See "Best-first decision
         tree learning", Shi and "Additive logistic regression : A statistical
         view of boosting", Friedman for more details. Default: "LOCAL".
+    honest: In honest trees, different training examples are used to infer the
+      structure and the leaf values. This regularization technique trades
+      examples for bias estimates. It might increase or reduce the quality of
+      the model. See "Generalized Random Forests", Athey et al. In this paper,
+      Honest tree are trained with the Random Forest algorithm with a sampling
+      without replacement. Default: False.
     in_split_min_examples_check: Whether to check the `min_examples` constraint
       in the split search (i.e. splits leading to one child having less than
       `min_examples` examples are considered invalid) or before the split
@@ -310,6 +316,7 @@ class CartModel(core.CoreModel):
                categorical_set_split_max_num_items: Optional[int] = -1,
                categorical_set_split_min_item_frequency: Optional[int] = 1,
                growing_strategy: Optional[str] = "LOCAL",
+               honest: Optional[bool] = False,
                in_split_min_examples_check: Optional[bool] = True,
                keep_non_leaf_label_distribution: Optional[bool] = True,
                max_depth: Optional[int] = 16,
@@ -345,6 +352,8 @@ class CartModel(core.CoreModel):
             categorical_set_split_min_item_frequency,
         "growing_strategy":
             growing_strategy,
+        "honest":
+            honest,
         "in_split_min_examples_check":
             in_split_min_examples_check,
         "keep_non_leaf_label_distribution":
@@ -844,6 +853,14 @@ class GradientBoostedTreesModel(core.CoreModel):
         "LOSS_INCREASE".
     early_stopping_num_trees_look_ahead: Rolling number of trees used to detect
       validation loss increase and trigger early stopping. Default: 30.
+    focal_loss_alpha: EXPERIMENTAL. Wighting parameter for focal loss, positive
+      samples weighted by alpha, negative samples by (1-alpha). The default 0.5
+      value means no active class-level weighting. Only used with Focal loss
+      i.e. `loss="BINARY_FOCAL_LOSS"` Default: 0.5.
+    focal_loss_gamma: EXPERIMENTAL. Exponent of the misprediction exponent term
+      in focal Loss, corresponds to gamma parameter in
+      https://arxiv.org/pdf/1708.02002.pdf. Only used with Focal loss i.e.
+      `loss="BINARY_FOCAL_LOSS"` Default: 2.0.
     forest_extraction: How to construct the forest:
       - MART: For Multiple Additive Regression Trees. The "classical" way to
         build a GBDT i.e. each tree tries to "correct" the mistakes of the
@@ -867,6 +884,12 @@ class GradientBoostedTreesModel(core.CoreModel):
         called "best first" or "leaf-wise growth". See "Best-first decision
         tree learning", Shi and "Additive logistic regression : A statistical
         view of boosting", Friedman for more details. Default: "LOCAL".
+    honest: In honest trees, different training examples are used to infer the
+      structure and the leaf values. This regularization technique trades
+      examples for bias estimates. It might increase or reduce the quality of
+      the model. See "Generalized Random Forests", Athey et al. In this paper,
+      Honest tree are trained with the Random Forest algorithm with a sampling
+      without replacement. Default: False.
     in_split_min_examples_check: Whether to check the `min_examples` constraint
       in the split search (i.e. splits leading to one child having less than
       `min_examples` examples are considered invalid) or before the split
@@ -1056,10 +1079,13 @@ class GradientBoostedTreesModel(core.CoreModel):
       dart_dropout: Optional[float] = 0.01,
       early_stopping: Optional[str] = "LOSS_INCREASE",
       early_stopping_num_trees_look_ahead: Optional[int] = 30,
+      focal_loss_alpha: Optional[float] = 0.5,
+      focal_loss_gamma: Optional[float] = 2.0,
       forest_extraction: Optional[str] = "MART",
       goss_alpha: Optional[float] = 0.2,
       goss_beta: Optional[float] = 0.1,
       growing_strategy: Optional[str] = "LOCAL",
+      honest: Optional[bool] = False,
       in_split_min_examples_check: Optional[bool] = True,
       keep_non_leaf_label_distribution: Optional[bool] = True,
       l1_regularization: Optional[float] = 0.0,
@@ -1117,6 +1143,10 @@ class GradientBoostedTreesModel(core.CoreModel):
             early_stopping,
         "early_stopping_num_trees_look_ahead":
             early_stopping_num_trees_look_ahead,
+        "focal_loss_alpha":
+            focal_loss_alpha,
+        "focal_loss_gamma":
+            focal_loss_gamma,
         "forest_extraction":
             forest_extraction,
         "goss_alpha":
@@ -1125,6 +1155,8 @@ class GradientBoostedTreesModel(core.CoreModel):
             goss_beta,
         "growing_strategy":
             growing_strategy,
+        "honest":
+            honest,
         "in_split_min_examples_check":
             in_split_min_examples_check,
         "keep_non_leaf_label_distribution":
@@ -1418,6 +1450,12 @@ class RandomForestModel(core.CoreModel):
         called "best first" or "leaf-wise growth". See "Best-first decision
         tree learning", Shi and "Additive logistic regression : A statistical
         view of boosting", Friedman for more details. Default: "LOCAL".
+    honest: In honest trees, different training examples are used to infer the
+      structure and the leaf values. This regularization technique trades
+      examples for bias estimates. It might increase or reduce the quality of
+      the model. See "Generalized Random Forests", Athey et al. In this paper,
+      Honest tree are trained with the Random Forest algorithm with a sampling
+      without replacement. Default: False.
     in_split_min_examples_check: Whether to check the `min_examples` constraint
       in the split search (i.e. splits leading to one child having less than
       `min_examples` examples are considered invalid) or before the split
@@ -1480,6 +1518,12 @@ class RandomForestModel(core.CoreModel):
       training speed, and inference latency. Default: 300.
     random_seed: Random seed for the training of the model. Learners are
       expected to be deterministic by the random seed. Default: 123456.
+    sampling_with_replacement: If true, the training examples are sampled with
+      replacement. If false, the training samples are sampled without
+      replacement. Only used when "bootstrap_training_dataset=true". If false
+      (sampling without replacement) and if "bootstrap_size_ratio=1" (default),
+      all the examples are used to train all the trees (you probably do not
+      want that). Default: True.
     sorting_strategy: How are sorted the numerical features in order to find
       the splits
       - PRESORT: The features are pre-sorted at the start of the training. This
@@ -1564,6 +1608,7 @@ class RandomForestModel(core.CoreModel):
       compute_oob_performances: Optional[bool] = True,
       compute_oob_variable_importances: Optional[bool] = False,
       growing_strategy: Optional[str] = "LOCAL",
+      honest: Optional[bool] = False,
       in_split_min_examples_check: Optional[bool] = True,
       keep_non_leaf_label_distribution: Optional[bool] = True,
       max_depth: Optional[int] = 16,
@@ -1577,6 +1622,7 @@ class RandomForestModel(core.CoreModel):
       num_oob_variable_importances_permutations: Optional[int] = 1,
       num_trees: Optional[int] = 300,
       random_seed: Optional[int] = 123456,
+      sampling_with_replacement: Optional[bool] = True,
       sorting_strategy: Optional[str] = "PRESORT",
       sparse_oblique_normalization: Optional[str] = None,
       sparse_oblique_num_projections_exponent: Optional[float] = None,
@@ -1611,6 +1657,8 @@ class RandomForestModel(core.CoreModel):
             compute_oob_variable_importances,
         "growing_strategy":
             growing_strategy,
+        "honest":
+            honest,
         "in_split_min_examples_check":
             in_split_min_examples_check,
         "keep_non_leaf_label_distribution":
@@ -1637,6 +1685,8 @@ class RandomForestModel(core.CoreModel):
             num_trees,
         "random_seed":
             random_seed,
+        "sampling_with_replacement":
+            sampling_with_replacement,
         "sorting_strategy":
             sorting_strategy,
         "sparse_oblique_normalization":

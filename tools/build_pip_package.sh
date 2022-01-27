@@ -70,7 +70,11 @@ function patch_auditwell() {
   if ! grep -q "${TF_DYNAMIC_FILENAME}" "${POLICY_PATH}"; then
     echo "Patching Auditwhell"
     cp "${POLICY_PATH}" "${POLICY_PATH}.orig"
-    sed -i '' "s/\"libresolv.so.2\"/\"libresolv.so.2\",\"${TF_DYNAMIC_FILENAME}\"/g" "${POLICY_PATH}"
+    if is_macos; then
+      sed -i '' "s/\"libresolv.so.2\"/\"libresolv.so.2\",\"${TF_DYNAMIC_FILENAME}\"/g" "${POLICY_PATH}"
+    else
+      sed -i "s/\"libresolv.so.2\"/\"libresolv.so.2\",\"${TF_DYNAMIC_FILENAME}\"/g" "${POLICY_PATH}"
+    fi
   else
     echo "Auditwhell already patched"
   fi
@@ -159,7 +163,15 @@ function test_package() {
   shift
 
   PIP="${PYTHON} -m pip"
-  ${PIP} install dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-*.whl
+
+  if is_macos; then
+    PACKAGEPATH="dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-*.whl"
+  else
+    PACKAGEPATH="dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-linux_x86_64.whl"
+  fi
+  ${PIP} install ${PACKAGEPATH}
+
+
   ${PIP} list
   ${PIP} show tensorflow_decision_forests -f
 
@@ -179,7 +191,12 @@ function e2e_native() {
   test_package ${PYTHON} ${PACKAGE}
 
   # Fix package.
-  auditwheel repair --plat manylinux2010_x86_64 -w dist dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-*.whl
+  if is_macos; then
+    PACKAGEPATH="dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-*.whl"
+  else
+    PACKAGEPATH="dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-linux_x86_64.whl"
+  fi
+  auditwheel repair --plat manylinux2010_x86_64 -w dist ${PACKAGEPATH}
 }
 
 # Builds and tests a pip package in Pyenv.

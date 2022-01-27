@@ -6,11 +6,18 @@
 
 <!--ts-->
 
-* [Installation](#installation)
-    * [Table of Contents](#table-of-contents)
-    * [Installation with pip](#installation-with-pip)
-    * [Build from source](#build-from-source)
-    * [Troubleshooting](#troubleshooting)
+*   [Installation](#installation)
+    *   [Table of Contents](#table-of-contents)
+    *   [Installation with Pip](#installation-with-pip)
+    *   [Build from source](#build-from-source)
+        *   [Linux](#linux)
+            *   [Setup](#setup)
+            *   [Compilation](#compilation)
+        *   [MacOS](#macos)
+            *   [Setup](#setup-1)
+            *   [Compilation](#compilation-1)
+    *   [Final note](#final-note)
+    *   [Troubleshooting](#troubleshooting)
 
 <!--te-->
 

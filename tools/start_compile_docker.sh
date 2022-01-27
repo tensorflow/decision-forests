@@ -57,7 +57,7 @@
 #  ./tools/build_pip_package.sh ALL_VERSIONS_ALREADY_ASSEMBLED
 #
 
-DOCKER=tensorflow/build:latest-python3.8
+DOCKER=tensorflow/build:2.8-python3.8
 
 # Current directory
 # Useful if Yggdrasil Decision Forests is available locally in a neighbor
