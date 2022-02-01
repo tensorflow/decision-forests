@@ -74,7 +74,7 @@ instructions.
 ### Import TF-DF in the TF-Serving project.
 
 Add the following lines in the `WORKSPACE` file located in the root directory of
-TF-Serving. The content should be placed near the top bellow `workspace(name =
+TF-Serving. The content should be placed near the top below `workspace(name =
 "tf_serving")`:
 
 ```python
