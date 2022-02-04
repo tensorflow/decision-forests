@@ -93,7 +93,7 @@ BAZEL=bazel
 #
 # Note: Copy the building configuration of TF.
 TENSORFLOW_BAZELRC="tensorflow_bazelrc"
-curl https://raw.githubusercontent.com/tensorflow/tensorflow/v2.7.0/.bazelrc -o ${TENSORFLOW_BAZELRC}
+curl https://raw.githubusercontent.com/tensorflow/tensorflow/v2.8.0/.bazelrc -o ${TENSORFLOW_BAZELRC}
 STARTUP_FLAGS="${STARTUP_FLAGS} --bazelrc=${TENSORFLOW_BAZELRC}"
 
 # Distributed compilation using Remote Build Execution (RBE)

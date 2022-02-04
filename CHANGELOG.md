@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.4 - 2021-02-04
+
+### Features
+
+-   Support for TensorFlow 2.8.
+
 ## 0.2.3 - 2021-01-27
 
 ### Features
