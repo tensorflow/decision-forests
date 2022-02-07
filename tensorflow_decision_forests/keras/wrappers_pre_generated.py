@@ -184,7 +184,7 @@ class CartModel(core.CoreModel):
       structure and the leaf values. This regularization technique trades
       examples for bias estimates. It might increase or reduce the quality of
       the model. See "Generalized Random Forests", Athey et al. In this paper,
-      Honest tree are trained with the Random Forest algorithm with a sampling
+      Honest trees are trained with the Random Forest algorithm with a sampling
       without replacement. Default: False.
     in_split_min_examples_check: Whether to check the `min_examples` constraint
       in the split search (i.e. splits leading to one child having less than
@@ -853,13 +853,13 @@ class GradientBoostedTreesModel(core.CoreModel):
         "LOSS_INCREASE".
     early_stopping_num_trees_look_ahead: Rolling number of trees used to detect
       validation loss increase and trigger early stopping. Default: 30.
-    focal_loss_alpha: EXPERIMENTAL. Wighting parameter for focal loss, positive
-      samples weighted by alpha, negative samples by (1-alpha). The default 0.5
-      value means no active class-level weighting. Only used with Focal loss
-      i.e. `loss="BINARY_FOCAL_LOSS"` Default: 0.5.
+    focal_loss_alpha: EXPERIMENTAL. Weighting parameter for focal loss,
+      positive samples weighted by alpha, negative samples by (1-alpha). The
+      default 0.5 value means no active class-level weighting. Only used with
+      focal loss i.e. `loss="BINARY_FOCAL_LOSS"` Default: 0.5.
     focal_loss_gamma: EXPERIMENTAL. Exponent of the misprediction exponent term
-      in focal Loss, corresponds to gamma parameter in
-      https://arxiv.org/pdf/1708.02002.pdf. Only used with Focal loss i.e.
+      in focal loss, corresponds to gamma parameter in
+      https://arxiv.org/pdf/1708.02002.pdf. Only used with focal loss i.e.
       `loss="BINARY_FOCAL_LOSS"` Default: 2.0.
     forest_extraction: How to construct the forest:
       - MART: For Multiple Additive Regression Trees. The "classical" way to
@@ -888,7 +888,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       structure and the leaf values. This regularization technique trades
       examples for bias estimates. It might increase or reduce the quality of
       the model. See "Generalized Random Forests", Athey et al. In this paper,
-      Honest tree are trained with the Random Forest algorithm with a sampling
+      Honest trees are trained with the Random Forest algorithm with a sampling
       without replacement. Default: False.
     in_split_min_examples_check: Whether to check the `min_examples` constraint
       in the split search (i.e. splits leading to one child having less than
@@ -1454,7 +1454,7 @@ class RandomForestModel(core.CoreModel):
       structure and the leaf values. This regularization technique trades
       examples for bias estimates. It might increase or reduce the quality of
       the model. See "Generalized Random Forests", Athey et al. In this paper,
-      Honest tree are trained with the Random Forest algorithm with a sampling
+      Honest trees are trained with the Random Forest algorithm with a sampling
       without replacement. Default: False.
     in_split_min_examples_check: Whether to check the `min_examples` constraint
       in the split search (i.e. splits leading to one child having less than
