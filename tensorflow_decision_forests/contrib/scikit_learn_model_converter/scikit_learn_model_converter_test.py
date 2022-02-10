@@ -17,6 +17,7 @@
 from absl.testing import parameterized
 import numpy as np
 from sklearn import datasets
+from sklearn import ensemble
 from sklearn import linear_model
 from sklearn import tree
 import tensorflow as tf
@@ -27,7 +28,9 @@ from tensorflow_decision_forests.contrib import scikit_learn_model_converter
 class ScikitLearnModelConverterTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.parameters((tree.DecisionTreeRegressor(random_state=42),),
-                            (tree.ExtraTreeRegressor(random_state=42),))
+                            (tree.ExtraTreeRegressor(random_state=42),),
+                            (ensemble.RandomForestRegressor(random_state=42),),
+                            (ensemble.ExtraTreesRegressor(random_state=42),))
   def test_convert_reproduces_regression_model(
       self,
       sklearn_tree,
@@ -42,10 +45,12 @@ class ScikitLearnModelConverterTest(tf.test.TestCase, parameterized.TestCase):
     tf_features = tf.constant(features, dtype=tf.float32)
     tf_labels = tf_tree(tf_features).numpy().ravel()
     sklearn_labels = sklearn_tree.predict(features).astype(np.float32)
-    self.assertAllEqual(sklearn_labels, tf_labels)
+    self.assertAllClose(sklearn_labels, tf_labels, rtol=1e-5)
 
   @parameterized.parameters((tree.DecisionTreeClassifier(random_state=42),),
-                            (tree.ExtraTreeClassifier(random_state=42),))
+                            (tree.ExtraTreeClassifier(random_state=42),),
+                            (ensemble.RandomForestClassifier(random_state=42),),
+                            (ensemble.ExtraTreesClassifier(random_state=42),))
   def test_convert_reproduces_classification_model(
       self,
       sklearn_tree,
@@ -62,7 +67,7 @@ class ScikitLearnModelConverterTest(tf.test.TestCase, parameterized.TestCase):
     tf_features = tf.constant(features, dtype=tf.float32)
     tf_labels = tf_tree(tf_features).numpy()
     sklearn_labels = sklearn_tree.predict_proba(features).astype(np.float32)
-    self.assertAllEqual(sklearn_labels, tf_labels)
+    self.assertAllClose(sklearn_labels, tf_labels, rtol=1e-5)
 
   def test_convert_raises_when_unrecognised_model_provided(self):
     features, labels = datasets.make_regression(
