@@ -14,13 +14,13 @@
 
 """Tests for scikit_learn_model_converter."""
 
+from absl.testing import parameterized
 import numpy as np
 from sklearn import datasets
 from sklearn import linear_model
 from sklearn import tree
 import tensorflow as tf
 
-from google3.testing.pybase import parameterized
 from tensorflow_decision_forests.contrib import scikit_learn_model_converter
 
 

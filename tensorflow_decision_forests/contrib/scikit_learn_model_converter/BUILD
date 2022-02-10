@@ -30,7 +30,7 @@ py_test(
     srcs_version = "PY3",
     deps = [
         ":scikit_learn_model_converter",
-        "//testing/pybase:parameterized",
+        # absl/testing:parameterized dep,
         # numpy dep,
         "//third_party/py/sklearn",
         # TensorFlow Python,
