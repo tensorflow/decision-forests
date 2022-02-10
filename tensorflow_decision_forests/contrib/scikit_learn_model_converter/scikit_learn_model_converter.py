@@ -19,9 +19,10 @@ import enum
 import functools
 import os
 import tempfile
-from typing import Any, Dict, List, Optional, TypeVar
+from typing import Any, Dict, List, Optional, TypeVar, Union
 
 from sklearn import base
+from sklearn import ensemble
 from sklearn import tree
 import tensorflow as tf
 import tensorflow_decision_forests as tfdf
@@ -49,6 +50,10 @@ def convert(
   *   sklearn.tree.DecisionTreeRegressor
   *   sklearn.tree.ExtraTreeClassifier
   *   sklearn.tree.ExtraTreeRegressor
+  *   sklearn.ensemble.RandomForestClassifier
+  *   sklearn.ensemble.RandomForestRegressor
+  *   sklearn.ensemble.ExtraTreesClassifier
+  *   sklearn.ensemble.ExtraTreesRegressor
 
   Additionally, only single-label classification and scalar regression are
   supported (e.g. multivariate regression models will not convert).
@@ -127,6 +132,39 @@ def _(sklearn_model: ScikitLearnTree, path: os.PathLike) -> tf.keras.Model:
   cart_builder = tfdf.builder.CARTBuilder(path=path, objective=objective)
   cart_builder.add_tree(pytree)
   cart_builder.close()
+  return tf.keras.models.load_model(path)
+
+
+@_build_tfdf_model.register(ensemble.ExtraTreesRegressor)
+@_build_tfdf_model.register(ensemble.RandomForestRegressor)
+def _(
+    sklearn_model: Union[ensemble.ExtraTreesRegressor, ensemble.RandomForestRegressor],
+    path: os.PathLike,
+) -> tf.keras.Model:
+  """Converts a forest regression model into a TFDF model."""
+  objective = tfdf.py_tree.objective.RegressionObjective(label="label")
+  rf_builder = tfdf.builder.RandomForestBuilder(path=path, objective=objective)
+  for single_tree in sklearn_model.estimators_:
+    rf_builder.add_tree(_convert_sklearn_tree_to_tfdf_pytree(single_tree))
+  rf_builder.close()
+  return tf.keras.models.load_model(path)
+
+
+@_build_tfdf_model.register(ensemble.ExtraTreesClassifier)
+@_build_tfdf_model.register(ensemble.RandomForestClassifier)
+def _(
+    sklearn_model: Union[ensemble.ExtraTreesClassifier, ensemble.RandomForestClassifier],
+    path: os.PathLike,
+) -> tf.keras.Model:
+  """Converts a forest classification model into a TFDF model."""
+  objective = tfdf.py_tree.objective.ClassificationObjective(
+      label="label",
+      classes=[str(c) for c in sklearn_model.classes_],
+  )
+  rf_builder = tfdf.builder.RandomForestBuilder(path=path, objective=objective)
+  for single_tree in sklearn_model.estimators_:
+    rf_builder.add_tree(_convert_sklearn_tree_to_tfdf_pytree(single_tree))
+  rf_builder.close()
   return tf.keras.models.load_model(path)
 
 
