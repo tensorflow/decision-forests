@@ -15,6 +15,10 @@ compatible with all of TF-DF functionalities (e.g. plotting, c++ inference API).
 *   `sklearn.tree.DecisionTreeRegressor`
 *   `sklearn.tree.ExtraTreeClassifier`
 *   `sklearn.tree.ExtraTreeRegressor`
+*   `sklearn.ensemble.RandomForestClassifier`
+*   `sklearn.ensemble.RandomForestRegressor`
+*   `sklearn.ensemble.ExtraTreesClassifier`
+*   `sklearn.ensemble.ExtraTreesRegressor`
 
 ## Usage example
 
