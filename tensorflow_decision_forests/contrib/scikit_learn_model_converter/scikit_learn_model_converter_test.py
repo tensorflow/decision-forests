@@ -27,10 +27,18 @@ from tensorflow_decision_forests.contrib import scikit_learn_model_converter
 
 class ScikitLearnModelConverterTest(tf.test.TestCase, parameterized.TestCase):
 
-  @parameterized.parameters((tree.DecisionTreeRegressor(random_state=42),),
-                            (tree.ExtraTreeRegressor(random_state=42),),
-                            (ensemble.RandomForestRegressor(random_state=42),),
-                            (ensemble.ExtraTreesRegressor(random_state=42),))
+  @parameterized.parameters(
+      (tree.DecisionTreeRegressor(random_state=42),),
+      (tree.ExtraTreeRegressor(random_state=42),),
+      (ensemble.RandomForestRegressor(random_state=42),),
+      (ensemble.ExtraTreesRegressor(random_state=42),),
+      (ensemble.GradientBoostingRegressor(random_state=42,),),
+      (ensemble.GradientBoostingRegressor(random_state=42, init="zero"),),
+      (ensemble.GradientBoostingRegressor(
+          random_state=42,
+          init=tree.DecisionTreeRegressor(random_state=42),
+      ),),
+  )
   def test_convert_reproduces_regression_model(
       self,
       sklearn_tree,
@@ -149,6 +157,19 @@ class ScikitLearnModelConverterTest(tf.test.TestCase, parameterized.TestCase):
           sklearn_tree,
           weight=0.5,
       )
+
+  def test_convert_raises_when_gbt_initial_estimator_is_not_tree_or_constant(
+      self):
+    features, labels = datasets.make_regression(
+        n_samples=100,
+        n_features=10,
+        random_state=42,
+    )
+    init_estimator = linear_model.LinearRegression()
+    sklearn_model = ensemble.GradientBoostingRegressor(init=init_estimator)
+    sklearn_model.fit(features, labels)
+    with self.assertRaises(ValueError):
+      _ = scikit_learn_model_converter.convert(sklearn_model)
 
 
 if __name__ == "__main__":
