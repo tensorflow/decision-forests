@@ -111,7 +111,7 @@ def _(sklearn_model: ScikitLearnTree, path: os.PathLike) -> tf.keras.Model:
   # The label argument is unused when the model is loaded, so we pass a
   # placeholder.
   objective = tfdf.py_tree.objective.RegressionObjective(label="label")
-  pytree = _convert_sklearn_tree_to_tfdf_pytree(sklearn_model)
+  pytree = convert_sklearn_tree_to_tfdf_pytree(sklearn_model)
   cart_builder = tfdf.builder.CARTBuilder(path=path, objective=objective)
   cart_builder.add_tree(pytree)
   cart_builder.close()
@@ -128,7 +128,7 @@ def _(sklearn_model: ScikitLearnTree, path: os.PathLike) -> tf.keras.Model:
       # so we convert the classes into strings in case they are not.
       classes=[str(c) for c in sklearn_model.classes_],
   )
-  pytree = _convert_sklearn_tree_to_tfdf_pytree(sklearn_model)
+  pytree = convert_sklearn_tree_to_tfdf_pytree(sklearn_model)
   cart_builder = tfdf.builder.CARTBuilder(path=path, objective=objective)
   cart_builder.add_tree(pytree)
   cart_builder.close()
@@ -145,7 +145,7 @@ def _(
   objective = tfdf.py_tree.objective.RegressionObjective(label="label")
   rf_builder = tfdf.builder.RandomForestBuilder(path=path, objective=objective)
   for single_tree in sklearn_model.estimators_:
-    rf_builder.add_tree(_convert_sklearn_tree_to_tfdf_pytree(single_tree))
+    rf_builder.add_tree(convert_sklearn_tree_to_tfdf_pytree(single_tree))
   rf_builder.close()
   return tf.keras.models.load_model(path)
 
@@ -163,14 +163,25 @@ def _(
   )
   rf_builder = tfdf.builder.RandomForestBuilder(path=path, objective=objective)
   for single_tree in sklearn_model.estimators_:
-    rf_builder.add_tree(_convert_sklearn_tree_to_tfdf_pytree(single_tree))
+    rf_builder.add_tree(convert_sklearn_tree_to_tfdf_pytree(single_tree))
   rf_builder.close()
   return tf.keras.models.load_model(path)
 
 
-def _convert_sklearn_tree_to_tfdf_pytree(
-    sklearn_tree: ScikitLearnTree) -> tfdf.py_tree.tree.Tree:
-  """Converts a scikit-learn decision tree into a TFDF pytree."""
+def convert_sklearn_tree_to_tfdf_pytree(
+    sklearn_tree: ScikitLearnTree,
+    weight: Optional[float] = None,
+) -> tfdf.py_tree.tree.Tree:
+  """Converts a scikit-learn decision tree into a TFDF pytree.
+
+  Args:
+    sklearn_tree: a scikit-learn decision tree.
+    weight: an optional weight to apply to the values of the leaves in the tree.
+      This is intended for use when converting gradient boosted tree models.
+
+  Returns:
+    a TFDF pytree that has the same structure as the scikit-learn tree.
+  """
   try:
     sklearn_tree_data = sklearn_tree.tree_.__getstate__()
   except AttributeError as e:
@@ -179,6 +190,9 @@ def _convert_sklearn_tree_to_tfdf_pytree(
 
   field_names = sklearn_tree_data["nodes"].dtype.names
   task_type = _get_sklearn_tree_task_type(sklearn_tree)
+  if weight and task_type is TaskType.SINGLE_LABEL_CLASSIFICATION:
+    raise ValueError("weight should not be passed for classification trees.")
+
   nodes = []
   for node_properties, target_value in zip(
       sklearn_tree_data["nodes"],
@@ -189,7 +203,9 @@ def _convert_sklearn_tree_to_tfdf_pytree(
         for field_name, field_value in zip(field_names, node_properties)
     }
     if task_type is TaskType.SCALAR_REGRESSION:
-      node["value"] = tfdf.py_tree.value.RegressionValue(target_value[0][0])
+      scaling_factor = weight if weight else 1.0
+      node["value"] = tfdf.py_tree.value.RegressionValue(target_value[0][0] *
+                                                         scaling_factor)
     elif task_type is TaskType.SINGLE_LABEL_CLASSIFICATION:
       # Normalise to probabilities if we have a classification tree.
       probabilities = list(target_value[0] / target_value[0].sum())

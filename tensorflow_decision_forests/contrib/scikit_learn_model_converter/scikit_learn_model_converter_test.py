@@ -134,6 +134,22 @@ class ScikitLearnModelConverterTest(tf.test.TestCase, parameterized.TestCase):
     tfdf_tree = tf.keras.models.load_model(write_path)
     self.assertIsInstance(tfdf_tree, tf.keras.Model)
 
+  def test_convert_sklearn_tree_to_tfdf_pytree_raises_if_weight_provided_for_classification_tree(
+      self):
+    features, labels = datasets.make_classification(random_state=42)
+    sklearn_tree = tree.DecisionTreeClassifier(random_state=42).fit(
+        features,
+        labels,
+    )
+    with self.assertRaisesRegex(
+        ValueError,
+        "weight should not be passed for classification trees.",
+    ):
+      _ = scikit_learn_model_converter.convert_sklearn_tree_to_tfdf_pytree(
+          sklearn_tree,
+          weight=0.5,
+      )
+
 
 if __name__ == "__main__":
   tf.test.main()
