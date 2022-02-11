@@ -22,6 +22,7 @@ import tempfile
 from typing import Any, Dict, List, Optional, TypeVar, Union
 
 from sklearn import base
+from sklearn import dummy
 from sklearn import ensemble
 from sklearn import tree
 import tensorflow as tf
@@ -54,6 +55,7 @@ def convert(
   *   sklearn.ensemble.RandomForestRegressor
   *   sklearn.ensemble.ExtraTreesClassifier
   *   sklearn.ensemble.ExtraTreesRegressor
+  *   sklearn.ensemble.GradientBoostingRegressor
 
   Additionally, only single-label classification and scalar regression are
   supported (e.g. multivariate regression models will not convert).
@@ -165,6 +167,49 @@ def _(
   for single_tree in sklearn_model.estimators_:
     rf_builder.add_tree(convert_sklearn_tree_to_tfdf_pytree(single_tree))
   rf_builder.close()
+  return tf.keras.models.load_model(path)
+
+
+@_build_tfdf_model.register(ensemble.GradientBoostingRegressor)
+def _(
+    sklearn_model: ensemble.GradientBoostingRegressor,
+    path: os.PathLike,
+) -> tf.keras.Model:
+  """Converts a gradient boosting regression model into a TFDF model."""
+  if isinstance(sklearn_model.init_, dummy.DummyRegressor):
+    # If the initial estimator is a DummyRegressor, then it predicts a constant
+    # which can be passed to GradientBoostedTreeBuilder as a bias.
+    init_pytree = None
+    bias = sklearn_model.init_.constant_[0][0]
+  elif isinstance(sklearn_model.init_, tree.DecisionTreeRegressor):
+    # If the initial estimator is a DecisionTreeRegressor, we add it as the
+    # first tree in the ensemble and set the bias to zero. We could also support
+    # other tree-based initial estimators (e.g. RandomForest), but this seems
+    # like a niche enough use case that we don't for the moment.
+    init_pytree = convert_sklearn_tree_to_tfdf_pytree(sklearn_model.init_)
+    bias = 0.0
+  elif sklearn_model.init_ == "zero":
+    init_pytree = None
+    bias = 0.0
+  else:
+    raise ValueError("The initial estimator must be either a DummyRegressor"
+                     "or a DecisionTreeRegressor, but got"
+                     f"{type(sklearn_model.init_)}.")
+
+  gbt_builder = tfdf.builder.GradientBoostedTreeBuilder(
+      path=path,
+      objective=tfdf.py_tree.objective.RegressionObjective(label="label"),
+      bias=bias,
+  )
+  if init_pytree:
+    gbt_builder.add_tree(init_pytree)
+
+  for weak_learner in sklearn_model.estimators_.ravel():
+    gbt_builder.add_tree(convert_sklearn_tree_to_tfdf_pytree(
+        weak_learner,
+        weight=sklearn_model.learning_rate,
+    ))
+  gbt_builder.close()
   return tf.keras.models.load_model(path)
 
 

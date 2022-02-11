@@ -19,6 +19,7 @@ compatible with all of TF-DF functionalities (e.g. plotting, c++ inference API).
 *   `sklearn.ensemble.RandomForestRegressor`
 *   `sklearn.ensemble.ExtraTreesClassifier`
 *   `sklearn.ensemble.ExtraTreesRegressor`
+*   `sklearn.ensemble.GradientBoostingRegressor`
 
 ## Usage example
 
