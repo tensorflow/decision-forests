@@ -43,3 +43,4 @@ y_pred = tensorflow_model.predict(tf.constant(X))
 from tensorflow_decision_forests.contrib.scikit_learn_model_converter import scikit_learn_model_converter as lib
 
 convert = lib.convert
+convert_sklearn_tree_to_tfdf_pytree = lib.convert_sklearn_tree_to_tfdf_pytree
