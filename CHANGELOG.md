@@ -1,5 +1,13 @@
 # Changelog
 
+## ???? - ????
+
+### Features
+
+-   Adds the `contrib` module for contributed, non-core functionality.
+-   Adds `contrib.scikit_learn_model_converter`, which facilitates converting
+    Scikit-Learn tree-based models into TF-DF models.
+
 ## 0.2.4 - 2021-02-04
 
 ### Features
