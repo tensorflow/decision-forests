@@ -40,6 +40,11 @@ model.summary()
 
 # Export the model with the TF.SavedModel format.
 model.save("/path/to/my/model")
+
+# ...
+
+# Load a model: it loads as a generic keras model.
+loaded_model = tf.keras.models.load_model("/path/to/my/model")
 ```
 
 """

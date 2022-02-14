@@ -41,6 +41,11 @@ model.compile(metrics=["accuracy"])
 
 # Save model.
 model.save("/tmp/my_saved_model")
+
+# ...
+
+# Load a model: it loads as a generic keras model.
+loaded_model = tf.keras.models.load_model("/tmp/my_saved_model")
 ```
 
 """
