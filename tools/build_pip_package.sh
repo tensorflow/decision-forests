@@ -232,11 +232,13 @@ elif [ ${ARG} == "ALL_VERSIONS" ]; then
   # Compile with all the version of python using pyenv.
   assemble_files
   eval "$(pyenv init -)"
+  e2e_pyenv 3.10.2
   e2e_pyenv 3.9.2
   e2e_pyenv 3.8.7
   e2e_pyenv 3.7.7
 elif [ ${ARG} == "ALL_VERSIONS_ALREADY_ASSEMBLED" ]; then
   eval "$(pyenv init -)"
+  e2e_pyenv 3.10.2
   e2e_pyenv 3.9.2
   e2e_pyenv 3.8.7
   e2e_pyenv 3.7.7
