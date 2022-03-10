@@ -16,28 +16,33 @@
 system for TensorFlow models in production environments. The TF-Serving team
 publishes a
 [pre-compiled release](https://www.tensorflow.org/tfx/serving/docker) containing
-only Core TensorFlow ops.
+only canonical TensorFlow ops.
 
-TensorFlow Decision Forests (TF-DF) models use custom Ops for inference.
-Therefore, they are not compatible with the pre-compiled releases of TF-Serving.
-The solution to serve TF-DF models with TF-Serving is to re-compile TF-Serving
-with TF-DF ops. This document explains how to do so.
+The TensorFlow Decision Forests (TF-DF) library uses custom TensorFlow Ops for
+inference. Therefore, TF-DF models are not compatible with the pre-compiled
+releases of TF-Serving. If you try, the following error will be raised:
 
-We are currently not offering pre-compiled docker images of TF-Serving for TF-DF
-on [dockerhub/tensorflow](https://hub.docker.com/u/tensorflow).
+*NOT_FOUND: Op type not registered 'SimpleMLCreateModelResource' in binary
+running on gbm1.zrh.corp.google.com. Make sure the Op and Kernel are registered
+in the binary running in this process. Note that if you are loading a saved
+graph which used ops from tf.contrib, accessing (e.g.) `tf.contrib.resampler`
+should be done before importing the graph, as contrib ops are lazily registered
+when the module is first accessed.*
 
-**Note:** The
-[TF-Serving guide for custom ops](https://www.tensorflow.org/tfx/serving/custom_op)
-proposes to copy custom op implementations inside of the TF-Serving repository.
-While possible, we won't follow this solution. Instead, we will create a Bazel
-dependency to TF-DF. This way, when a new version of TF-DF is released, you can
-update your custom TF-Serving easily.
+Two options are available to run TF-DF in TF Serving:
 
-## Instructions
+1. Compile TF Serving from source with support for TF-DF. Instructions are
+   available in the next sections.
+2. Use the pre-compiled version of TF Serving managed by the TF-DF team and
+   compatible with TF-DF. TF Serving binaries are related on
+   the [TF-DF GitHub release page](https://github.com/tensorflow/serving/releases)
+   . For example, search for the latest `tf_serving_linux.zip`.
 
-This guide is inspired from the TF-Serving
-[compile from source guide](https://www.tensorflow.org/tfx/serving/setup#building_from_source)
-. In case of an issue with TF-Serving or Docker, refer to this guide.
+## Troubleshooting
+
+For errors specific to TF Serving, refer to the
+[TF-Serving compilation guide](https://www.tensorflow.org/tfx/serving/setup#building_from_source)
+.
 
 ### Install Docker
 
