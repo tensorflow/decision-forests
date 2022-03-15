@@ -312,6 +312,11 @@ class CoreModel(models.Model):
 
   # Export the model with the TF.SavedModel format.
   model.save("/path/to/my/model")
+
+  # ...
+
+  # Load a model: it loads as a generic keras model.
+  model = tf.keras.models.load_model("/tmp/my_saved_model")
   ```
 
   The training logs (e.g. feature statistics, validation loss, remaining
@@ -572,6 +577,23 @@ class CoreModel(models.Model):
 
     path = self.yggdrasil_model_path_tensor().numpy().decode("utf-8")
     return inspector_lib.make_inspector(path)
+
+  def load_weights(self, *args, **kwargs):
+    """No-op for TensorFlow Decision Forests models.
+
+    `load_weights` is not supported by TensorFlow Decision Forests models.
+    To save and restore a model, use the SavedModel API i.e.
+    `model.save(...)` and `tf.keras.models.load_model(...)`. To resume the
+    training of an existing model, create the model with
+    `try_resume_training=True` (default value) and with a similar
+    `temp_directory` argument. See documentation of `try_resume_training`
+    for more details.
+
+    Args:
+      *args: Passed through to base `keras.Model` implemenation.
+      **kwargs: Passed through to base `keras.Model` implemenation.
+    """
+    super(CoreModel, self).load_weights(*args, **kwargs)
 
   @tf.function(input_signature=[])
   def yggdrasil_model_path_tensor(self) -> Optional[tf.Tensor]:
@@ -2453,7 +2475,6 @@ def _reduce_per_replica(values, strategy, reduction="first"):
                        f"reduction={reduction}.")
 
   return tf.nest.map_structure(_reduce, values)
-
 
 # pylint: enable=g-doc-args
 # pylint: enable=g-doc-return-or-yield
