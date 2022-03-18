@@ -123,9 +123,7 @@ get_worker_idx_and_num_workers = tf_core.get_worker_idx_and_num_workers
 # If the check fails, and if ONLY_WARN_ON_DATASET_CONFIGURATION_ISSUES=If true,
 # a warning is printed. Instead, if
 # ONLY_WARN_ON_DATASET_CONFIGURATION_ISSUES=false, a ValueException is raised.
-#
-# TODO(b/206981020): Set False on 18 Jan 2022.
-ONLY_WARN_ON_DATASET_CONFIGURATION_ISSUES = True
+ONLY_WARN_ON_DATASET_CONFIGURATION_ISSUES = False
 
 
 class FeatureUsage(object):
@@ -2386,6 +2384,10 @@ def _contains_batch(dataset) -> Optional[int]:
       return dataset._batch_size  # pylint: disable=protected-access
     if hasattr(dataset, "_input_dataset"):
       return _contains_batch(dataset._input_dataset)  # pylint: disable=protected-access
+    if hasattr(dataset, "_input_datasets") and dataset._input_datasets:  # pylint: disable=protected-access
+      return _contains_batch(dataset._input_datasets)  # pylint: disable=protected-access
+    if hasattr(dataset, "_dataset"):
+      return _contains_batch(dataset._dataset)  # pylint: disable=protected-access
   except:  # pylint: disable=bare-except
     pass
   return None
@@ -2475,6 +2477,7 @@ def _reduce_per_replica(values, strategy, reduction="first"):
                        f"reduction={reduction}.")
 
   return tf.nest.map_structure(_reduce, values)
+
 
 # pylint: enable=g-doc-args
 # pylint: enable=g-doc-return-or-yield
