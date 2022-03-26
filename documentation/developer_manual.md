@@ -16,5 +16,5 @@ New logics should be implemented where relevant. When several layers are
 possibly relevant, the most generic layer should be favored.
 
 The directory structure of [TF-DF](directory_structure.md) and
-[YDF](https://github.com/google/yggdrasil-decision-forests/manual/directory_structure.md)
+[YDF](https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/directory_structure.md)
 is a good start.
