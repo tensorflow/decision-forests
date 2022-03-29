@@ -7,6 +7,10 @@
 -   Adds the `contrib` module for contributed, non-core functionality.
 -   Adds `contrib.scikit_learn_model_converter`, which facilitates converting
     Scikit-Learn tree-based models into TF-DF models.
+-   Discard hessian splits with score lower than the parents. This change has
+    little effect on the model quality, but it can reduce its size.
+-   Add internal flag `hessian_split_score_subtract_parent` to subtract the
+    parent score in the computation of an hessian split score.
 
 ## 0.2.4 - 2021-02-04
 
