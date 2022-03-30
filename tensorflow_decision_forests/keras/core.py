@@ -444,6 +444,7 @@ class CoreModel(models.Model):
     super(CoreModel, self).__init__(name=name)
 
     self._task = task
+    self._learner = learner  # Only used for user inspection
     self._learner_params = learner_params
     self._features = features or []
     self._exclude_non_specified = exclude_non_specified_features
@@ -572,6 +573,26 @@ class CoreModel(models.Model):
     Changing this dictionary will impact the training.
     """
     return self._learner_params
+
+  @property
+  def learner(self) -> Optional[str]:
+    """Name of the learning algorithm used to train the model."""
+    return self._learner
+
+  @property
+  def task(self) -> Optional[TaskType]:
+    """Task to solve (e.g. CLASSIFICATION, REGRESSION, RANKING)."""
+    return self._task
+
+  @property
+  def num_threads(self) -> Optional[int]:
+    """Number of threads used to train the model."""
+    return self._num_threads
+
+  @property
+  def exclude_non_specified_features(self) -> Optional[bool]:
+    """If true, only use the features specified in "features"."""
+    return self._exclude_non_specified
 
   def make_inspector(self) -> inspector_lib.AbstractInspector:
     """Creates an inspector to access the internal model structure.

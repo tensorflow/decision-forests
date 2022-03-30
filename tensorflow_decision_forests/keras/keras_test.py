@@ -34,13 +34,13 @@ import tensorflow as tf
 from google.protobuf import text_format
 
 from tensorflow_decision_forests import keras
+from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
 from tensorflow_decision_forests.component.model_plotter import model_plotter
 from tensorflow_decision_forests.keras import core
 from tensorflow_decision_forests.tensorflow import core as tf_core
 from yggdrasil_decision_forests.dataset import synthetic_dataset_pb2
 from yggdrasil_decision_forests.learner.decision_tree import decision_tree_pb2
 from yggdrasil_decision_forests.learner.random_forest import random_forest_pb2
-from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
 
 layers = tf.keras.layers
 models = tf.keras.models
@@ -1830,6 +1830,15 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     self.assertEqual(
         multinom_model.make_inspector().loss, inspector_lib
         .gradient_boosted_trees_pb2.Loss.MULTINOMIAL_LOG_LIKELIHOOD)
+
+  def test_properties(self):
+    model = keras.GradientBoostedTreesModel(
+        task=keras.Task.REGRESSION, num_threads=2, num_trees=5)
+    self.assertEqual(model.learner, "GRADIENT_BOOSTED_TREES")
+    self.assertEqual(model.task, keras.Task.REGRESSION)
+    self.assertEqual(model.num_threads, 2)
+    self.assertEqual(model.learner_params["num_trees"], 5)
+    self.assertEqual(model.exclude_non_specified_features, False)
 
 
 if __name__ == "__main__":
