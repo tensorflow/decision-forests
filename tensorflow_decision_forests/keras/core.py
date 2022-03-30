@@ -58,6 +58,7 @@ import tensorflow as tf
 
 from tensorflow.python.training.tracking import base as base_tracking  # pylint: disable=g-direct-tensorflow-import
 from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
+from tensorflow_decision_forests.component.tuner import tuner as tuner_lib
 from tensorflow_decision_forests.tensorflow import core as tf_core
 from tensorflow_decision_forests.tensorflow import tf_logging
 from tensorflow_decision_forests.tensorflow.ops.inference import api as tf_op
@@ -414,6 +415,10 @@ class CoreModel(models.Model):
         (3) Check if the dataset has a large enough batch size (min 100 if the
         dataset contains more than 1k examples or if the number of examples is
         not available) If set to false, do not run any test.
+    tuner: If set, automatically optimize the hyperparameters of the model using
+      this tuner. If the model is trained with distribution (i.e. the model
+      definition is wrapper in a TF Distribution strategy, the tuning is
+      distributed.
   """
 
   def __init__(self,
@@ -433,11 +438,11 @@ class CoreModel(models.Model):
                name: Optional[str] = None,
                max_vocab_count: Optional[int] = 2000,
                try_resume_training: Optional[bool] = True,
-               check_dataset: Optional[bool] = True) -> None:
+               check_dataset: Optional[bool] = True,
+               tuner: Optional[tuner_lib.Tuner] = None) -> None:
     super(CoreModel, self).__init__(name=name)
 
     self._task = task
-    self._learner = learner
     self._learner_params = learner_params
     self._features = features or []
     self._exclude_non_specified = exclude_non_specified_features
@@ -451,6 +456,7 @@ class CoreModel(models.Model):
     self._max_vocab_count = max_vocab_count
     self._try_resume_training = try_resume_training
     self._check_dataset = check_dataset
+    self._tuner = tuner
 
     # Internal, indicates whether the first evaluation during training,
     # triggered by providing validation data, should trigger the training
@@ -482,6 +488,14 @@ class CoreModel(models.Model):
       self._advanced_arguments = AdvancedArguments()
     else:
       self._advanced_arguments = copy.deepcopy(advanced_arguments)
+
+    # Configure the training config.
+    if tuner is not None:
+      tuner.set_base_learner(learner)
+      self._advanced_arguments.yggdrasil_training_config.MergeFrom(
+          tuner.train_config())
+    else:
+      self._advanced_arguments.yggdrasil_training_config.learner = learner
 
     # Copy the metadata
     if (not self._advanced_arguments.yggdrasil_training_config.metadata
@@ -1480,7 +1494,7 @@ class CoreModel(models.Model):
           weight_id=weight_key,
           model_id=self._training_model_id,
           model_dir=train_model_path,
-          learner=self._learner,
+          learner="",
           task=self._task,
           generic_hparms=tf_core.hparams_dict_to_generic_proto(
               self._learner_params),
@@ -1759,7 +1773,7 @@ class CoreModel(models.Model):
             weight_id=_WEIGHTS if self._weighted_training else None,
             model_id=self._training_model_id,
             model_dir=train_model_path,
-            learner=self._learner,
+            learner="",
             task=self._task,
             generic_hparms=tf_core.hparams_dict_to_generic_proto(
                 self._learner_params),
@@ -1790,7 +1804,7 @@ class CoreModel(models.Model):
             weight_id=_WEIGHTS if self._weighted_training else None,
             model_id=self._training_model_id,
             model_dir=train_model_path,
-            learner=self._learner,
+            learner="",
             task=self._task,
             generic_hparms=tf_core.hparams_dict_to_generic_proto(
                 self._learner_params),

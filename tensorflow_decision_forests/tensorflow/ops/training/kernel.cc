@@ -700,13 +700,11 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
                        "The \"task\" should not be set in the training_config,"
                        "instead set it as the Op parameter \"task\"."));
       }
-      if (training_config_.has_learner()) {
-        OP_REQUIRES_OK(
-            ctx,
-            tf::Status(
-                tf::error::INVALID_ARGUMENT,
-                "The \"learner\" should not be set in the training_config, "
-                "instead set it as the Op parameter \"learner\"."));
+      if (training_config_.has_learner() && !learner_.empty() &&
+          learner_ != training_config_.learner()) {
+        OP_REQUIRES_OK(ctx, tf::Status(tf::error::INVALID_ARGUMENT,
+                                       "\"train_config.learner\" is set and "
+                                       "different from \"learner\""));
       }
       if (training_config_.has_label()) {
         OP_REQUIRES_OK(
@@ -820,9 +818,12 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
 
     LOG(INFO) << "Configure learner";
     model::proto::TrainingConfig config = training_config_;
-    config.set_learner(learner_);
+    if (!learner_.empty()) {
+      config.set_learner(learner_);
+    }
     config.set_label(label_feature);
     config.set_task(task_);
+
     if (!weight_feature.empty()) {
       LOG(INFO) << "Use example weight: " << weight_feature
                 << " from accumulator: " << weight_id_;
@@ -836,8 +837,10 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
 
     std::unique_ptr<model::AbstractLearner> learner;
     OP_REQUIRES_OK(ctx, utils::FromUtilStatus(GetLearner(config, &learner)));
+
     OP_REQUIRES_OK(
         ctx, utils::FromUtilStatus(learner->SetHyperParameters(hparams_)));
+
     *learner->mutable_deployment() = deployment_config_;
     if (!model_dir_.empty()) {
       learner->set_log_directory(tf::io::JoinPath(model_dir_, "train_logs"));

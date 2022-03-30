@@ -38,6 +38,7 @@ with sys_pipes():
 
 # Evaluate model.
 model.compile(metrics=["accuracy"])
+model.evaluate(...test_dataset...)
 
 # Save model.
 model.save("/tmp/my_saved_model")
@@ -64,3 +65,4 @@ from tensorflow_decision_forests.component import py_tree
 from tensorflow_decision_forests.component.builder import builder
 from tensorflow_decision_forests.component.inspector import inspector
 from tensorflow_decision_forests.component.model_plotter import model_plotter
+from tensorflow_decision_forests.component.tuner import tuner

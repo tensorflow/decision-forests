@@ -935,7 +935,8 @@ def train_on_file_dataset(
     training_config.uplift_treatment = uplift_treatment
 
   # Set the method argument into the proto configs.
-  training_config.learner = learner
+  if learner:
+    training_config.learner = learner
   training_config.task = task
   training_config.label = label_id
 

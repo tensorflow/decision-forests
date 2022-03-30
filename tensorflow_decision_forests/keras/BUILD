@@ -69,6 +69,7 @@ py_library(
         # TensorFlow Python,
         # TensorFlow /training/tracking:base,
         "//tensorflow_decision_forests/component/inspector",
+        "//tensorflow_decision_forests/component/tuner",
         "//tensorflow_decision_forests/tensorflow:core",
         "//tensorflow_decision_forests/tensorflow:tf_logging",
         "//tensorflow_decision_forests/tensorflow/ops/inference:api_py",
@@ -110,6 +111,26 @@ py_test(
         "@ydf//yggdrasil_decision_forests/dataset:synthetic_dataset_py_proto",
         "@ydf//yggdrasil_decision_forests/learner/decision_tree:decision_tree_py_proto",
         "@ydf//yggdrasil_decision_forests/learner/random_forest:random_forest_py_proto",
+    ],
+)
+
+py_test(
+    name = "keras_tuner_test",
+    size = "large",
+    srcs = ["keras_tuner_test.py"],
+    data = ["@ydf//yggdrasil_decision_forests/test_data"],
+    python_version = "PY3",
+    deps = [
+        ":core",
+        ":keras",
+        "@com_google_protobuf//:python_srcs",
+        # absl/flags dep,
+        # absl/logging dep,
+        # absl/testing:parameterized dep,
+        # numpy dep,
+        # pandas dep,
+        # TensorFlow Python,
+        "//third_party/py/tensorflow_decision_forests",
     ],
 )
 

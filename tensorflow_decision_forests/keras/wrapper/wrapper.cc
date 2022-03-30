@@ -230,6 +230,7 @@ ydf::utils::StatusOr<std::string> GenKerasPythonWrapper() {
 
   std::string imports = absl::Substitute(R"(
 from $0tensorflow_decision_forests.keras import core
+from $0tensorflow_decision_forests.component.tuner import tuner as tuner_lib
 from $0yggdrasil_decision_forests.model import abstract_model_pb2  # pylint: disable=unused-import
 from $0yggdrasil_decision_forests.learner import abstract_learner_pb2
 )",
@@ -423,6 +424,27 @@ class $0(core.CoreModel):
   print(model.summary())
   ```
 
+  Hyper-parameter tuning:
+
+  ```python
+  import tensorflow_decision_forests as tfdf
+  import pandas as pd
+
+  dataset = pd.read_csv("project/dataset.csv")
+  tf_dataset = tfdf.keras.pd_dataframe_to_tf_dataset(dataset, label="my_label")
+
+  tuner = tfdf.tuner.RandomSearch(num_trials=20)
+
+  # Hyper-parameters to optimize.
+  tuner.discret("max_depth", [4, 5, 6, 7])
+
+  model = tfdf.keras.$0(tuner=tuner)
+  model.fit(tf_dataset)
+
+  print(model.summary())
+  ```
+
+
   Attributes:
     task: Task to solve (e.g. Task.CLASSIFICATION, Task.REGRESSION,
       Task.RANKING, Task.CATEGORICAL_UPLIFT).
@@ -498,6 +520,10 @@ $7
         (3) Check if the dataset has a large enough batch size (min 100 if the
         dataset contains more than 1k examples or if the number of examples is
         not available) If set to false, do not run any test.
+    tuner: If set, automatically optimize the hyperparameters of the model using
+      this tuner. If the model is trained with distribution (i.e. the model
+      definition is wrapper in a TF Distribution strategy, the tuning is
+      distributed.
 $2
   """
 
@@ -519,6 +545,7 @@ $2
       max_vocab_count : Optional[int] = 2000,
       try_resume_training: Optional[bool] = True,
       check_dataset: Optional[bool] = True,
+      tuner: Optional[tuner_lib.Tuner] = None,
 $3,
       explicit_args: Optional[Set[str]] = None):
 
@@ -547,7 +574,8 @@ $4
       name=name,
       max_vocab_count=max_vocab_count,
       try_resume_training=try_resume_training,
-      check_dataset=check_dataset)
+      check_dataset=check_dataset,
+      tuner=tuner)
 
   @staticmethod
   def predefined_hyperparameters() -> List[core.HyperParameterTemplate]:
