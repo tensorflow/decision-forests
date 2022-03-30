@@ -1181,6 +1181,15 @@ class CoreModel(models.Model):
           **kwargs) -> tf.keras.callbacks.History:
     """Trains the model.
 
+    On most cases, you want to prepare the dataset as a Pandas Dataframe, and
+    use the method "dataframe_to_tf_dataset" to convert it into a TensorFlow
+    Dataset.
+
+    For example:
+      pd_dataset = pandas.Dataframe(...)
+      tf_dataset = pd_dataframe_to_tf_dataset(dataset, label="my_label")
+      model.fit(pd_dataset)
+
     The following dataset formats are supported:
 
       1. "x" is a tf.data.Dataset containing a tuple "(features, labels)".
@@ -1193,17 +1202,23 @@ class CoreModel(models.Model):
       3. "x" is a numpy-array, list of numpy-arrays or dictionary of
          numpy-arrays containing the input features. "y" is a numpy-array.
 
-    Unlike classical neural networks, the learning algorithm requires to scan
-    the training dataset exactly once. Therefore, the dataset should not be
-    repeated. The algorithm also does not benefit from shuffling the dataset.
+    IMPORTANT: Unlike classical neural networks that train with mini-batching,
+    this algorithm trains on the entire dataset at once. This has the following
+    consequences:
 
-    Input features generally do not need to be normalized (numerical) or indexed
-    (categorical features stored as string). Also, missing values are well
-    supported (i.e. not need to replace missing values).
+      1. The dataset need to be read exactly once. If you use a TensorFlow
+         dataset, make sure NOT to add a "repeat" operation.
+      2. The algorithm does not benefit from shuffling the dataset. If you use a
+         TensorFlow dataset, make sure NOT to add a "shuffle" operation.
+      3. The dataset needs to be batched (i.e. with a "batch" operation).
+         However, the number of elements per batch has not impact on the model.
+         Generally, it is recommanded to use batches as large as possible as its
+         speeds-up reading the dataset in TensorFlow.
 
-    Pandas Dataframe can be prepared with "dataframe_to_tf_dataset":
-      dataset = pandas.Dataframe(...)
-      model.fit(pd_dataframe_to_tf_dataset(dataset, label="my_label"))
+
+    Input features do not need to be normalized (e.g. dividing numerical values
+    by the variance) or indexed (e.g. replacing categorical string values by
+    an integer). Additionnaly, missing values can be consumed natigely.
 
     Some of the learning algorithm will support distributed training with the
     ParameterServerStrategy e.g.:
