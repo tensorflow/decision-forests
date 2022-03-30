@@ -67,6 +67,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         # TensorFlow Python,
+        # TensorFlow /data/ops:dataset_ops,
         # TensorFlow /training/tracking:base,
         "//tensorflow_decision_forests/component/inspector",
         "//tensorflow_decision_forests/component/tuner",

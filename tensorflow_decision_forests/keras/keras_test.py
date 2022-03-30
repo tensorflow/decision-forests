@@ -275,9 +275,21 @@ def dataset_to_tf_dataset(
     return tf.data.Dataset.from_tensor_slices(
         (dict(df.drop(dataset.label, 1)), df[dataset.label].values))
 
-  train_ds = df_to_ds(dataset.train).shuffle(1024).batch(1024)
+  train_ds = df_to_ds(dataset.train).batch(1024)
   test_ds = df_to_ds(dataset.test).batch(1024)
   return train_ds, test_ds
+
+
+def create_tf_data_service():
+  """Creates an in-process tf.data service."""
+  dispatcher = tf.data.experimental.service.DispatchServer()
+  dispatcher_address = dispatcher.target.split("://")[1]
+  worker = tf.data.experimental.service.WorkerServer(
+      tf.data.experimental.service.WorkerConfig(
+          dispatcher_address=dispatcher_address))
+  # Attach the worker to the dispatcher to avoid having it garbage collected.
+  setattr(dispatcher, "worker", worker)
+  return dispatcher
 
 
 # The different ways to train a model.
@@ -777,7 +789,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     train_ds = tf.data.Dataset.from_tensor_slices((train_x, train_y))
     test_ds = tf.data.Dataset.from_tensor_slices((test_x, test_y))
 
-    train_ds = train_ds.shuffle(1024).batch(100)
+    train_ds = train_ds.batch(100)
     test_ds = test_ds.batch(100)
 
     model = build_model(
@@ -1557,20 +1569,34 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     self.assertTrue(core._contains_repeat(a))
     a = a.prefetch(5)
     self.assertTrue(core._contains_repeat(a))
+    dispatcher = create_tf_data_service()
+    a = a.apply(
+        tf.data.experimental.service.distribute(
+            processing_mode=tf.data.experimental.service.ShardingPolicy.OFF,
+            service=dispatcher.target,
+        ))
+    self.assertTrue(core._contains_repeat(a))
 
   def test_contains_batch(self):
     a = tf.data.Dataset.from_tensor_slices(range(10))
-    self.assertIsNone(core._contains_batch(a))
+    self.assertIsNone(core._get_batch_size(a))
     a = a.repeat(5)
-    self.assertIsNone(core._contains_batch(a))
+    self.assertIsNone(core._get_batch_size(a))
     a = a.map(lambda x: x + 1)
-    self.assertIsNone(core._contains_batch(a))
+    self.assertIsNone(core._get_batch_size(a))
     a = a.batch(5)
-    self.assertEqual(core._contains_batch(a), 5)
+    self.assertEqual(core._get_batch_size(a), 5)
     a = a.map(lambda x: x + 1)
-    self.assertEqual(core._contains_batch(a), 5)
+    self.assertEqual(core._get_batch_size(a), 5)
     a = a.prefetch(10)
-    self.assertEqual(core._contains_batch(a), 5)
+    self.assertEqual(core._get_batch_size(a), 5)
+    dispatcher = create_tf_data_service()
+    a = a.apply(
+        tf.data.experimental.service.distribute(
+            processing_mode=tf.data.experimental.service.ShardingPolicy.OFF,
+            service=dispatcher.target,
+        ))
+    self.assertEqual(core._get_batch_size(a), 5)
 
   def test_contains_shuffle(self):
     a = tf.data.Dataset.from_tensor_slices(range(10))
@@ -1584,6 +1610,13 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     a = a.map(lambda x: x + 1)
     self.assertTrue(core._contains_shuffle(a))
     a = a.prefetch(5)
+    self.assertTrue(core._contains_shuffle(a))
+    dispatcher = create_tf_data_service()
+    a = a.apply(
+        tf.data.experimental.service.distribute(
+            processing_mode=tf.data.experimental.service.ShardingPolicy.OFF,
+            service=dispatcher.target,
+        ))
     self.assertTrue(core._contains_shuffle(a))
 
   def test_check_dataset(self):

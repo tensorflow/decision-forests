@@ -56,6 +56,7 @@ import uuid
 
 import tensorflow as tf
 
+from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.training.tracking import base as base_tracking  # pylint: disable=g-direct-tensorflow-import
 from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
 from tensorflow_decision_forests.component.tuner import tuner as tuner_lib
@@ -2345,10 +2346,10 @@ def _check_dataset(x: tf.data.Dataset):
         "change the `random_seed` constructor argument instead. Remove the "
         "shuffle operations to solve this issue.")
 
-  batch_size = _contains_batch(x)
+  batch_size = _get_batch_size(x)
   if batch_size is None:
     error("The dataset does not contain a 'batch' operation. TF-DF models "
-          "should be trained without batch operations. Add a batch operations "
+          "should be trained with batch operations. Add a batch operations "
           "to solve this issue.")
 
   num_examples = None
@@ -2366,38 +2367,43 @@ def _check_dataset(x: tf.data.Dataset):
           "dataset with more than 2k examples to solve this issue.")
 
 
-def _contains_repeat(dataset) -> bool:
-  """Tests if a dataset contains a "repeat()" operation."""
-
+def _get_operation(dataset, cls):
+  """Returns an operation defined by cls if present in dataset or else None."""
   try:
     if not isinstance(dataset, tf.data.Dataset):
-      return False
-    if dataset.__class__.__name__ == "RepeatDataset":
-      return True
+      return None
+    if isinstance(dataset, cls):
+      return dataset
+    if hasattr(dataset, "_dataset"):
+      operation = _get_operation(dataset._dataset, cls)  # pylint: disable=protected-access
+      if operation is not None:
+        return operation
     if hasattr(dataset, "_input_dataset"):
-      return _contains_repeat(dataset._input_dataset)  # pylint: disable=protected-access
+      operation = _get_operation(dataset._input_dataset, cls)  # pylint: disable=protected-access
+      if operation is not None:
+        return operation
+    if hasattr(dataset, "_input_datasets"):
+      for input_dataset in dataset._input_datasets:  # pylint: disable=protected-access
+        operation = _get_operation(input_dataset, cls)
+        if operation is not None:
+          return operation
   except:  # pylint: disable=bare-except
     pass
-  return False
+  return None
+
+
+def _contains_repeat(dataset) -> bool:
+  """Tests if a dataset contains a "repeat()" operation."""
+  return _get_operation(dataset, dataset_ops.RepeatDataset) is not None
 
 
 def _contains_shuffle(dataset) -> bool:
   """Tests if a dataset contains a "shuffle()" operation."""
-
-  try:
-    if not isinstance(dataset, tf.data.Dataset):
-      return False
-    if dataset.__class__.__name__ == "ShuffleDataset":
-      return True
-    if hasattr(dataset, "_input_dataset"):
-      return _contains_repeat(dataset._input_dataset)  # pylint: disable=protected-access
-  except:  # pylint: disable=bare-except
-    pass
-  return False
+  return _get_operation(dataset, dataset_ops.ShuffleDataset) is not None
 
 
-def _contains_batch(dataset) -> Optional[int]:
-  """Tests if a dataset contains a "batch()" operation.
+def _get_batch_size(dataset) -> Optional[int]:
+  """Returns batch_size if dataset contains a "batch()" operation or else None.
 
   Args:
     dataset: A tf.data.Dataset.
@@ -2406,19 +2412,9 @@ def _contains_batch(dataset) -> Optional[int]:
     The batch size, or None if not batch operation was found.
   """
 
-  try:
-    if not isinstance(dataset, tf.data.Dataset):
-      return None
-    if dataset.__class__.__name__ == "BatchDataset":
-      return dataset._batch_size  # pylint: disable=protected-access
-    if hasattr(dataset, "_input_dataset"):
-      return _contains_batch(dataset._input_dataset)  # pylint: disable=protected-access
-    if hasattr(dataset, "_input_datasets") and dataset._input_datasets:  # pylint: disable=protected-access
-      return _contains_batch(dataset._input_datasets)  # pylint: disable=protected-access
-    if hasattr(dataset, "_dataset"):
-      return _contains_batch(dataset._dataset)  # pylint: disable=protected-access
-  except:  # pylint: disable=bare-except
-    pass
+  operation = _get_operation(dataset, dataset_ops.BatchDataset)
+  if operation is not None and hasattr(operation, "_batch_size"):
+    return operation._batch_size  # pylint: disable=protected-access
   return None
 
 
