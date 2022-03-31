@@ -12,13 +12,14 @@
 
 ## Introduction
 
-[TensorFlow Serving](https://www.tensorflow.org/tfx/guide/serving) is a serving
-system for TensorFlow models in production environments. The TF-Serving team
-publishes a
-[pre-compiled release](https://www.tensorflow.org/tfx/serving/docker) containing
-only canonical TensorFlow ops.
+[TensorFlow Serving](https://www.tensorflow.org/tfx/guide/serving) is a system
+to run TensorFlow models in production environments. More precisely, TensorFlow
+Serving is a binary that expose model predictions through gRPC and HTTP. The
+TF-Serving team publishes a
+[pre-compiled release](https://www.tensorflow.org/tfx/serving/docker) compatible
+with models only containing *canonical* TensorFlow ops.
 
-The TensorFlow Decision Forests (TF-DF) library uses custom TensorFlow Ops for
+The TensorFlow Decision Forests (TF-DF) library uses *custom* TensorFlow Ops for
 inference. Therefore, TF-DF models are not compatible with the pre-compiled
 releases of TF-Serving. If you try, the following error will be raised:
 
@@ -31,12 +32,17 @@ when the module is first accessed.*
 
 Two options are available to run TF-DF in TF Serving:
 
-1. Compile TF Serving from source with support for TF-DF. Instructions are
-   available in the next sections.
-2. Use the pre-compiled version of TF Serving managed by the TF-DF team and
-   compatible with TF-DF. TF Serving binaries are related on
-   the [TF-DF GitHub release page](https://github.com/tensorflow/serving/releases)
-   . For example, search for the latest `tf_serving_linux.zip`.
+1.  Use the pre-compiled version of TF Serving managed by the TF-DF team and
+    compatible with TF-DF. TF Serving binaries are related on the
+    [TF-DF GitHub release page](https://github.com/tensorflow/decision-forests/releases)
+    . For example, search for the latest `tf_serving_linux.zip`.
+1.  Compile TF Serving from source with support for TF-DF using the instructions
+    below.
+
+**Note:** The
+[TF-DF TF-Serving compile script](https://github.com/tensorflow/decision-forests/tree/main/tools/tf_serving)
+is an experimental solution to compile TF-Serving in TF-DF automatically. It is
+equivalent to the instruction below.
 
 ## Troubleshooting
 
