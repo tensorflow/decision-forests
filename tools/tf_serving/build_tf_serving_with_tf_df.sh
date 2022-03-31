@@ -7,13 +7,12 @@
 # publicly on github.
 #
 # Usage example:
-#   build_servo_with_tfdf.sh
+#   # In a fresh directory
+#   git clone https://github.com/tensorflow/decision-forests.git
+#   git clone https://github.com/tensorflow/serving.git
+#   decision-forests/tools/tf_serving/build_tf_serving_with_tf_df.sh
 #
 set -e
-
-# Download TF Servo.
-git clone https://github.com/tensorflow/serving.git
-cd serving
 
 # Add TF-DF as a dependency.
 
@@ -22,7 +21,7 @@ WORKSPACE_PATH="serving/WORKSPACE"
 if [ ! -f "${WORKSPACE_PATH}.bk" ]; then
   echo "Edit WORKSPACE: ${WORKSPACE_PATH}"
   cp ${WORKSPACE_PATH} ${WORKSPACE_PATH}.bk
-  sed -i '3rbuild_tf_serving_workspace_extra.txt' ${WORKSPACE_PATH}
+  sed -i '3rdecision-forests/tools/tf_serving/build_tf_serving_workspace_extra.txt' ${WORKSPACE_PATH}
 else
   echo "WORKSPACE already edited: ${WORKSPACE_PATH}"
 fi

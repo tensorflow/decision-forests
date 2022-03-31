@@ -6,6 +6,20 @@ for background information. Results of this script as published as
 `tf_serving_linux.zip` on the
 [TF-DF GitHub release page](https://github.com/tensorflow/decision-forests/releases).
 
+Compilation
+
+**Note:** Make sure Docker is installed.
+
+```shell
+# In a fresh directory
+git clone https://github.com/tensorflow/decision-forests.git
+git clone https://github.com/tensorflow/serving.git
+decision-forests/tools/tf_serving/build_tf_serving_with_tf_df.sh
+
+# Or sudo decision-forests/tools/tf_serving/build_tf_serving_with_tf_df.sh if
+# Docker need to be run as sudo.
+```
+
 Usage example:
 
 ```shell
