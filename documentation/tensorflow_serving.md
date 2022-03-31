@@ -10,6 +10,18 @@
 
 <!-- docs_infra:strip_end -->
 
+## TL;DR
+
+To run TF Decision Forests models in TF-Serving, use the precompiled
+[TF-Sering+TF-Decision Forests package](https://github.com/tensorflow/decision-forests/releases),
+or compile it from source
+([instructions](#compile-tf-seringtf-decision-forests-from-source),
+[automated building](https://github.com/tensorflow/decision-forests/tree/main/tools/tf_serving)).
+
+See for a usage example
+[here](https://github.com/tensorflow/decision-forests/tree/main/tools/tf_serving),
+or at the bottom of this document.
+
 ## Introduction
 
 [TensorFlow Serving](https://www.tensorflow.org/tfx/guide/serving) is a system
@@ -44,7 +56,9 @@ Two options are available to run TF-DF in TF Serving:
 is an experimental solution to compile TF-Serving in TF-DF automatically. It is
 equivalent to the instruction below.
 
-## Troubleshooting
+## Compile TF-Sering+TF-Decision Forests from source
+
+### Troubleshooting
 
 For errors specific to TF Serving, refer to the
 [TF-Serving compilation guide](https://www.tensorflow.org/tfx/serving/setup#building_from_source)

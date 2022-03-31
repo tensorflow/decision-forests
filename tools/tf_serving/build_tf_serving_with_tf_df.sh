@@ -12,8 +12,8 @@
 set -e
 
 # Download TF Servo.
-#git clone https://github.com/tensorflow/serving.git
-#cd serving
+git clone https://github.com/tensorflow/serving.git
+cd serving
 
 # Add TF-DF as a dependency.
 
