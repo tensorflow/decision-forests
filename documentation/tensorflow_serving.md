@@ -13,14 +13,14 @@
 ## TL;DR
 
 To run TF Decision Forests models in TF-Serving, use the precompiled
-[TF-Sering+TF-Decision Forests package](https://github.com/tensorflow/decision-forests/releases),
-or compile it from source
+[TF-Sering+TF-Decision Forests package](https://github.com/tensorflow/decision-forests/releases)
+**(recommended)**, or compile it from source
 ([instructions](#compile-tf-seringtf-decision-forests-from-source),
 [automated building](https://github.com/tensorflow/decision-forests/tree/main/tools/tf_serving)).
 
-See for a usage example
-[here](https://github.com/tensorflow/decision-forests/tree/main/tools/tf_serving),
-or at the bottom of this document.
+Run
+[the TF-Serving+TF-DF example](https://github.com/tensorflow/decision-forests/tree/main/tools/tf_serving)
+for a demonstration of TF-Serving + TF-DF.
 
 ## Introduction
 
@@ -51,12 +51,22 @@ Two options are available to run TF-DF in TF Serving:
 1.  Compile TF Serving from source with support for TF-DF using the instructions
     below.
 
-**Note:** The
-[TF-DF TF-Serving compile script](https://github.com/tensorflow/decision-forests/tree/main/tools/tf_serving)
-is an experimental solution to compile TF-Serving in TF-DF automatically. It is
-equivalent to the instruction below.
+**Remarks:**
 
-## Compile TF-Sering+TF-Decision Forests from source
+-   [TF-DF TF-Serving compile script](https://github.com/tensorflow/decision-forests/tree/main/tools/tf_serving)
+    is an experimental solution to compile TF-Serving in TF-DF automatically. It
+    is equivalent to the instruction below.
+
+-   "TF-Serving + TF-Decision Forests" runs independently the Python
+    installation of TF-Decision Forests.
+
+-   TF-Decision Forests models are backward compatible: For example, a model
+    trained with TF-DF v0.3 can be run with TF-DF v0.4.
+
+-   In the vast majority of cases, TF-DF models are foward compatible: For
+    example, a model trained with TF-DF v0.4 can be run with the TF-DF v0.1.
+
+## Compile TF-Sering+TF-Decision Forests from source manually
 
 ### Troubleshooting
 
@@ -184,40 +194,6 @@ tools/run_in_docker.sh -d tensorflow/serving:latest-devel bazel \
 
 ### Testing the TF-Serving + TF-DF build
 
-In this example, we trained a model on the adult dataset following
-[this example](https://github.com/tensorflow/decision-forests/blob/main/examples/minimal.py).
-
-Start TF-Serving on this model:
-
-```shell
-MODEL_PATH=/tmp/my_saved_model
-MODEL_NAME=my_model
-
-# Make sure that MODEL_PATH contains a version serving sub-directory. For example, the structure should be:
-tree $MODEL_PATH
-# /path/to/tf-df/model
-# └── 1
-#     ├── assets
-#     ├── keras_metadata.pb
-#     ├── saved_model.pb
-#     └── variables
-
-bazel-bin/tensorflow_serving/model_servers/tensorflow_model_server \
-    --rest_api_port=8501 --model_name=${MODEL_NAME} --model_base_path=${MODEL_PATH}
-```
-
-Alternatively, you can start TF-Serving from withing the Docker instance:
-
-```shell
-tools/run_in_docker.sh -d tensorflow/serving:latest-devel \
-  -o "-p 8501:8501 --mount type=bind,source=${MODEL_PATH},target=/my_model" \
-  bazel-bin/tensorflow_serving/model_servers/tensorflow_model_server \
-  --rest_api_port=8501 --model_name=${MODEL_NAME} --model_base_path=/my_model
-```
-
-Finally, send test requests to the model:
-
-```shell
-curl http://localhost:8501/v1/models/${MODEL_NAME}:predict -X POST \
-    -d '{"instances": [{"age":[39],"workclass":["State-gov"],"fnlwgt":[77516],"education":["Bachelors"],"education_num":[13],"marital_status":["Never-married"],"occupation":["Adm-clerical"],"relationship":["Not-in-family"],"race":["White"],"sex":["Male"],"capital_gain":[2174],"capital_loss":[0],"hours_per_week":[40],"native_country":["United-States"]}]}'
-```
+Run
+[the TF-Serving+TF-DF example](https://github.com/tensorflow/decision-forests/tree/main/tools/tf_serving)
+to test to test your binary.
