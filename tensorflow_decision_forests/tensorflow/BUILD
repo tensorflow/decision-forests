@@ -97,6 +97,7 @@ py_library(
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
         "@ydf//yggdrasil_decision_forests/learner:abstract_learner_py_proto",
         "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
+        "@ydf//yggdrasil_decision_forests/model:hyperparameter_py_proto",
     ] + select({
         "//tensorflow_decision_forests:disable_tf_ps_distribution_strategy": [],
         "//conditions:default": [
@@ -139,7 +140,7 @@ py_test(
         # pandas dep,
         # TensorFlow Python,
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
-        "@ydf//yggdrasil_decision_forests/learner:abstract_learner_py_proto",
+        "@ydf//yggdrasil_decision_forests/model:hyperparameter_py_proto",
     ],
 )
 

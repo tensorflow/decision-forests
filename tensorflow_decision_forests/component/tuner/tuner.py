@@ -56,6 +56,7 @@ from typing import List, Optional, Union, Any
 from yggdrasil_decision_forests.learner import abstract_learner_pb2
 from yggdrasil_decision_forests.learner.hyperparameters_optimizer import hyperparameters_optimizer_pb2
 from yggdrasil_decision_forests.learner.hyperparameters_optimizer.optimizers import random_pb2
+from yggdrasil_decision_forests.model import hyperparameter_pb2
 
 TrainConfig = abstract_learner_pb2.TrainingConfig
 HPOptProto = hyperparameters_optimizer_pb2.HyperParametersOptimizerLearnerTrainingConfig
@@ -74,7 +75,7 @@ class SearchSpace(object):
       self,
       fields: Fields,
       parent_values: Optional[
-          abstract_learner_pb2.HyperParameterSpace.DiscreteCandidates] = None):
+          hyperparameter_pb2.HyperParameterSpace.DiscreteCandidates] = None):
     self._fields = fields
     self._parent_values = parent_values
 
@@ -109,7 +110,7 @@ class SearchSpace(object):
       if not merge:
         raise ValueError(f"The field {key} already exist")
 
-    dst_values = abstract_learner_pb2.HyperParameterSpace.DiscreteCandidates()
+    dst_values = hyperparameter_pb2.HyperParameterSpace.DiscreteCandidates()
     for value in values:
       dst_value = dst_values.possible_values.add()
       if isinstance(value, bool):
@@ -129,8 +130,7 @@ class SearchSpace(object):
     return SearchSpace(field.children, parent_values=dst_values)
 
   def _find_field(
-      self,
-      key: str) -> Optional[abstract_learner_pb2.HyperParameterSpace.Field]:
+      self, key: str) -> Optional[hyperparameter_pb2.HyperParameterSpace.Field]:
     """Gets the existing hyperparameter with this name."""
 
     for field in self._fields:

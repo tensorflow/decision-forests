@@ -14,6 +14,7 @@ py_library(
     deps = [
         "@ydf//yggdrasil_decision_forests/learner/hyperparameters_optimizer:hyperparameters_optimizer_py_proto",
         "@ydf//yggdrasil_decision_forests/learner/hyperparameters_optimizer/optimizers:random_py_proto",
+        "@ydf//yggdrasil_decision_forests/model:hyperparameter_py_proto",
     ],
 )
 

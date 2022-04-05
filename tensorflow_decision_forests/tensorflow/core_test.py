@@ -18,8 +18,8 @@ import tensorflow as tf
 from absl import logging
 
 from tensorflow_decision_forests.tensorflow import core
-from yggdrasil_decision_forests.learner import abstract_learner_pb2
 from yggdrasil_decision_forests.dataset import data_spec_pb2
+from yggdrasil_decision_forests.model import hyperparameter_pb2
 
 
 class SimpleMlTfTest(tf.test.TestCase):
@@ -195,7 +195,7 @@ class SimpleMlTfTest(tf.test.TestCase):
   def test_hparams_dict_to_generic_proto(self):
     generic = core.hparams_dict_to_generic_proto({"a": 1.0, "b": 2, "c": "3"})
 
-    expected = abstract_learner_pb2.GenericHyperParameters()
+    expected = hyperparameter_pb2.GenericHyperParameters()
     a = expected.fields.add()
     a.name = "a"
     a.value.real = 1.0

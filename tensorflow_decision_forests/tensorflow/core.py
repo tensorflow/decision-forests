@@ -34,6 +34,7 @@ from tensorflow_decision_forests.tensorflow.ops.training import op as training_o
 from yggdrasil_decision_forests.dataset import data_spec_pb2
 from yggdrasil_decision_forests.learner import abstract_learner_pb2
 from yggdrasil_decision_forests.model import abstract_model_pb2
+from yggdrasil_decision_forests.model import hyperparameter_pb2
 
 try:
   from tensorflow_decision_forests.tensorflow.distribute import op as distributed_op  # pytype: disable=import-error
@@ -748,24 +749,23 @@ def _num_inner_dimension(value: tf.Tensor) -> int:
     raise ValueError(f"Non supported tensor {value}")
 
 
-def train(input_ids: List[str],
-          label_id: str,
-          weight_id: Optional[str],
-          model_id: str,
-          learner: str,
-          task: Optional[TaskType] = Task.CLASSIFICATION,
-          generic_hparms: Optional[
-              abstract_learner_pb2.GenericHyperParameters] = None,
-          ranking_group: Optional[str] = None,
-          uplift_treatment: Optional[str] = None,
-          training_config: Optional[abstract_learner_pb2.TrainingConfig] = None,
-          deployment_config: Optional[
-              abstract_learner_pb2.DeploymentConfig] = None,
-          guide: Optional[data_spec_pb2.DataSpecificationGuide] = None,
-          model_dir: Optional[str] = None,
-          keep_model_in_resource: Optional[bool] = True,
-          try_resume_training: Optional[bool] = False,
-          has_validation_dataset: Optional[bool] = False) -> tf.Operation:
+def train(
+    input_ids: List[str],
+    label_id: str,
+    weight_id: Optional[str],
+    model_id: str,
+    learner: str,
+    task: Optional[TaskType] = Task.CLASSIFICATION,
+    generic_hparms: Optional[hyperparameter_pb2.GenericHyperParameters] = None,
+    ranking_group: Optional[str] = None,
+    uplift_treatment: Optional[str] = None,
+    training_config: Optional[abstract_learner_pb2.TrainingConfig] = None,
+    deployment_config: Optional[abstract_learner_pb2.DeploymentConfig] = None,
+    guide: Optional[data_spec_pb2.DataSpecificationGuide] = None,
+    model_dir: Optional[str] = None,
+    keep_model_in_resource: Optional[bool] = True,
+    try_resume_training: Optional[bool] = False,
+    has_validation_dataset: Optional[bool] = False) -> tf.Operation:
   """Trains a model on the dataset accumulated by collect_training_examples.
 
   Args:
@@ -795,7 +795,7 @@ def train(input_ids: List[str],
   """
 
   if generic_hparms is None:
-    generic_hparms = abstract_learner_pb2.GenericHyperParameters()
+    generic_hparms = hyperparameter_pb2.GenericHyperParameters()
 
   if training_config is None:
     training_config = abstract_learner_pb2.TrainingConfig()
@@ -854,8 +854,7 @@ def train_on_file_dataset(
     model_id: str,
     learner: str,
     task: Optional[TaskType] = Task.CLASSIFICATION,
-    generic_hparms: Optional[
-        abstract_learner_pb2.GenericHyperParameters] = None,
+    generic_hparms: Optional[hyperparameter_pb2.GenericHyperParameters] = None,
     ranking_group: Optional[str] = None,
     uplift_treatment: Optional[str] = None,
     training_config: Optional[abstract_learner_pb2.TrainingConfig] = None,
@@ -913,7 +912,7 @@ def train_on_file_dataset(
   """
 
   if generic_hparms is None:
-    generic_hparms = abstract_learner_pb2.GenericHyperParameters()
+    generic_hparms = hyperparameter_pb2.GenericHyperParameters()
 
   if training_config is None:
     training_config = abstract_learner_pb2.TrainingConfig()
@@ -1192,10 +1191,10 @@ def infer_semantic_from_dataframe(dataset: pd.DataFrame) -> Dict[str, Semantic]:
 
 def hparams_dict_to_generic_proto(
     hparams: Optional[HyperParameters] = None
-) -> abstract_learner_pb2.GenericHyperParameters:
+) -> hyperparameter_pb2.GenericHyperParameters:
   """Converts hyper-parameters from dict to proto representation."""
 
-  generic = abstract_learner_pb2.GenericHyperParameters()
+  generic = hyperparameter_pb2.GenericHyperParameters()
   if hparams is None:
     return generic
 
