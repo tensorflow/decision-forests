@@ -250,7 +250,7 @@ class HyperParameterTemplate(NamedTuple):
   description: str
 
 
-class AdvancedArguments(NamedTuple):
+class AdvancedArguments(object):
   """Advanced control of the model that most users won't need to use.
 
   Attributes:
@@ -280,15 +280,25 @@ class AdvancedArguments(NamedTuple):
     metadata_owner: Metadata describing who trained the model.
   """
 
-  infer_prediction_signature: Optional[bool] = True
-  yggdrasil_training_config: Optional[
-      YggdrasilTrainingConfig] = abstract_learner_pb2.TrainingConfig()
-  yggdrasil_deployment_config: Optional[
-      YggdrasilDeploymentConfig] = abstract_learner_pb2.DeploymentConfig()
-  fail_on_non_keras_compatible_feature_name: Optional[bool] = True
-  predict_single_probability_for_binary_classification: Optional[bool] = True
-  metadata_framework: Optional[str] = "TF Keras"
-  metadata_owner: Optional[str] = None
+  def __init__(
+      self,
+      infer_prediction_signature: Optional[bool] = True,
+      yggdrasil_training_config: Optional[YggdrasilTrainingConfig] = None,
+      yggdrasil_deployment_config: Optional[YggdrasilDeploymentConfig] = None,
+      fail_on_non_keras_compatible_feature_name: Optional[bool] = True,
+      predict_single_probability_for_binary_classification: Optional[
+          bool] = True,
+      metadata_framework: Optional[str] = "TF Keras",
+      metadata_owner: Optional[str] = None):
+    self.infer_prediction_signature = infer_prediction_signature
+    self.yggdrasil_training_config = yggdrasil_training_config or abstract_learner_pb2.TrainingConfig(
+    )
+    self.yggdrasil_deployment_config = yggdrasil_deployment_config or abstract_learner_pb2.DeploymentConfig(
+    )
+    self.fail_on_non_keras_compatible_feature_name = fail_on_non_keras_compatible_feature_name
+    self.predict_single_probability_for_binary_classification = predict_single_probability_for_binary_classification
+    self.metadata_framework = metadata_framework
+    self.metadata_owner = metadata_owner
 
 
 class CoreModel(models.Model):
