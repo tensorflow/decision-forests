@@ -18,6 +18,7 @@ from __future__ import print_function
 
 import os
 from absl import flags
+from absl import logging
 import pandas as pd
 import tensorflow as tf
 import tensorflow_decision_forests as tfdf
@@ -73,6 +74,24 @@ class TFDFTunerTest(tf.test.TestCase):
     model.compile(["accuracy"])
     evaluation = model.evaluate(test_ds, return_dict=True)
     self.assertGreater(evaluation["accuracy"], 0.87)
+
+    tuning_logs = model.make_inspector().tuning_logs()
+    logging.info("Tuning logs:\n%s", tuning_logs)
+
+    self.assertSetEqual(
+        set(tuning_logs.columns),
+        set([
+            "score", "evaluation_time", "best",
+            "num_candidate_attributes_ratio", "use_hessian_gain",
+            "growing_strategy", "max_depth", "max_num_nodes"
+        ]))
+    self.assertEqual(tuning_logs.shape, (30, 8))
+    self.assertEqual(tuning_logs["best"].sum(), 1)
+    self.assertNear(tuning_logs["score"][tuning_logs["best"]].values[0], -0.587,
+                    0.05)
+
+    # This is a lot of text.
+    _ = model.make_inspector().tuning_logs(return_format="proto")
 
 
 if __name__ == "__main__":

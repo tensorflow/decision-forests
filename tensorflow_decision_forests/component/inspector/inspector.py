@@ -42,8 +42,22 @@ import abc
 import collections
 import math
 import os
+import sys
 import typing
 from typing import List, Any, Optional, Generator, Callable, Dict, Tuple, Union
+import pandas as pd
+
+if sys.version_info >= (3, 8):
+  from typing import Literal
+else:
+
+  class LiteralClass(object):
+    """No-op imitation of typing.Literal."""
+
+    def __getitem__(self, key: Any) -> Any:
+      return Any
+
+  Literal = LiteralClass()
 
 import six
 import tensorflow as tf
@@ -53,6 +67,7 @@ from tensorflow_decision_forests.component.inspector import blob_sequence
 from yggdrasil_decision_forests.dataset import data_spec_pb2
 from yggdrasil_decision_forests.metric import metric_pb2
 from yggdrasil_decision_forests.model import abstract_model_pb2
+from yggdrasil_decision_forests.model import hyperparameter_pb2
 from yggdrasil_decision_forests.model.decision_tree import decision_tree_pb2
 from yggdrasil_decision_forests.model.gradient_boosted_trees import gradient_boosted_trees_pb2
 from yggdrasil_decision_forests.model.random_forest import random_forest_pb2
@@ -389,6 +404,53 @@ class AbstractInspector(object):
     """Gets the model's metadata."""
 
     return self._header.metadata
+
+  def tuning_logs(
+      self,
+      return_format: Literal["table", "proto"] = "table"
+  ) -> Optional[Union[pd.DataFrame,
+                      abstract_model_pb2.HyperparametersOptimizerLogs]]:
+    """Returns the hyperparameter tuning logs.
+
+    Those logs contain the candidate hyperparameters and score of each trial.
+    If the model was not trained with hyper-parameter tuning, return None.
+
+    Args:
+      return_format: Output format.
+        - table: A pandas dataframe.
+        - proto: A abstract_model_pb2.HyperparametersOptimizerLogs proto.
+
+    Returns:
+      The hyperparameter tuning logs, or None (if the model was trained without
+      hyperparameter tuning).
+    """
+
+    if not self._header.HasField("hyperparameter_optimizer_logs"):
+      return None
+
+    if return_format == "proto":
+      return self._header.hyperparameter_optimizer_logs
+
+    elif return_format == "table":
+      table_data = []
+      for step in self._header.hyperparameter_optimizer_logs.steps:
+        row = {
+            "score":
+                step.score,
+            "evaluation_time":
+                step.evaluation_time,
+            "best":
+                step.hyperparameters ==
+                self._header.hyperparameter_optimizer_logs.best_hyperparameters,
+        }
+        row.update(_generic_hyperparameter_to_dict(step.hyperparameters))
+        table_data.append(row)
+
+      return pd.DataFrame(table_data)
+
+    else:
+      raise ValueError(f"Unknown return_format:{return_format}. Possible "
+                       "values are: table and proto.")
 
   def _make_simple_column_spec(
       self, col_idx: int) -> py_tree.dataspec.SimpleColumnSpec:
@@ -760,6 +822,28 @@ def _gbt_log_entry_to_evaluation(logs: gradient_boosted_trees_pb2.TrainingLogs,
         evaluation = evaluation._replace(rmse=value)
 
   return evaluation
+
+
+def _generic_hyperparameter_to_dict(
+    src: hyperparameter_pb2.GenericHyperParameters) -> Dict[str, Any]:
+  """Converts a generic hyperparameter proto into a python dictionary."""
+
+  dst = {}
+  for field in src.fields:
+    if field.value.HasField("real"):
+      value = field.value.real
+    elif field.value.HasField("integer"):
+      value = field.value.integer
+    elif field.value.HasField("categorical"):
+      value = field.value.categorical
+    elif field.value.HasField("categorical_list"):
+      value = field.value.categorical_list.values[:]
+    else:
+      raise ValueError(f"Unknown hyperparameter value: {field}")
+
+    dst[field.name] = value
+
+  return dst
 
 
 MODEL_INSPECTORS = {

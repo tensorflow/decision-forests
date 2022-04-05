@@ -140,7 +140,7 @@ class InspectorTest(parameterized.TestCase, tf.test.TestCase):
     tensorboard_logs = os.path.join(tmp_path(), "tensorboard_logs")
     inspector.export_to_tensorboard(tensorboard_logs)
 
-    logging.info("@@@ tensorboard_logs: %s", tensorboard_logs)
+    logging.info("tensorboard_logs: %s", tensorboard_logs)
 
   def test_regression_random_forest(self):
     model_path = os.path.join(test_model_directory(), "abalone_regression_rf")
