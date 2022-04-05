@@ -1219,11 +1219,34 @@ class CoreModel(models.Model):
     super(CoreModel, self).compile(
         metrics=metrics, weighted_metrics=weighted_metrics)
 
+  def _keras_verbose(self, verbose: Optional[Any] = None) -> Optional[Any]:
+    """Transforms the "verbose" arg of "fit" before it is send to the parent.
+
+    If versbose is set in the constructor, and if verbose is not set in "fit",
+    the constructor verbose is used. Same goes for "evaluate".
+
+    Args:
+      verbose: The verbose level as passed to fit or evaluate.
+
+    Returns:
+      The verbose level effectively used by fit or evaluate.
+    """
+
+    if verbose is not None:
+      return verbose
+    else:
+      if self._verbose == 1:
+        # Keras's verbose cannot be "1" in case of distributed training (for
+        # "performance" reasons).
+        return "auto"
+      else:
+        return self._verbose
+
   def fit(self,
           x=None,
           y=None,
           callbacks=None,
-          verbose: Optional[int] = None,
+          verbose: Optional[Any] = None,
           **kwargs) -> tf.keras.callbacks.History:
     """Trains the model.
 
@@ -1287,9 +1310,6 @@ class CoreModel(models.Model):
       All other fields are filled as usual for `Keras.Mode.fit()`.
     """
 
-    if verbose is not None:
-      self._verbose = verbose
-
     self._clear_function_cache()
 
     # Check for a Pandas Dataframe without injecting a dependency.
@@ -1335,17 +1355,13 @@ class CoreModel(models.Model):
     # Reset the training status.
     self._is_trained.assign(False)
 
-    # Keras's verbose cannot be "1" in case of distributed training (for
-    # "performance" reasons).
-    keras_verbose = "auto" if self._verbose == 1 else self._verbose
-
     try:
       history = super(CoreModel, self).fit(
           x=x,
           y=y,
           epochs=1,
           callbacks=callbacks,
-          verbose=keras_verbose,
+          verbose=self._keras_verbose(verbose),
           **kwargs)
     finally:
       self._train_on_evaluate = False
@@ -1608,17 +1624,20 @@ class CoreModel(models.Model):
     super(CoreModel, self).save(
         filepath=filepath, overwrite=overwrite, **kwargs)
 
-  def evaluate(self, *args, **kwargs):
+  def evaluate(self, *args, verbose: Optional[Any] = None, **kwargs) -> Any:
     """Returns the loss value & metrics values for the model.
 
     See details on `keras.Model.evaluate`.
 
     Args:
       *args: Passed to `keras.Model.evaluate`.
-      **kwargs: Passed to `keras.Model.evaluate`.  Scalar test loss (if the
-        model has a single output and no metrics) or list of scalars (if the
-        model has multiple outputs and/or metrics). See details in
-        `keras.Model.evaluate`.
+      verbose: Verbose level. Is not set, uses the "verbose" of the constructor.
+      **kwargs: Passed to `keras.Model.evaluate`.
+
+    Returns:
+      Scalar test loss (if the model has a single output and no metrics) or list
+      of scalars (if the model has multiple outputs and/or metrics). See details
+      in `keras.Model.evaluate`.
     """
     if self._train_on_evaluate:
       if not self._is_trained.numpy():
@@ -1635,7 +1654,8 @@ class CoreModel(models.Model):
             "this is not yet supported in Decision Forests models, where one "
             "can only evaluate after the first epoch is finished and the "
             "model trained")
-    return super(CoreModel, self).evaluate(*args, **kwargs)
+    return super(CoreModel, self).evaluate(
+        verbose=self._keras_verbose(verbose), *args, **kwargs)
 
   def summary(self, line_length=None, positions=None, print_fn=None):
     """Shows information about the model."""
