@@ -64,9 +64,14 @@ def data_root_path() -> str:
   return ""
 
 
-def test_data_path() -> str:
+def ydf_test_data_path() -> str:
   return os.path.join(data_root_path(),
                       "external/ydf/yggdrasil_decision_forests/test_data")
+
+
+def tfdf_test_data_path() -> str:
+  return os.path.join(data_root_path(),
+                      "tensorflow_decision_forests/test_data")
 
 
 def tmp_path() -> str:
@@ -109,7 +114,7 @@ def adult_dataset() -> Dataset:
   """Adult/census binary classification dataset."""
 
   # Path to dataset.
-  dataset_directory = os.path.join(test_data_path(), "dataset")
+  dataset_directory = os.path.join(ydf_test_data_path(), "dataset")
   train_path = os.path.join(dataset_directory, "adult_train.csv")
   test_path = os.path.join(dataset_directory, "adult_test.csv")
 
@@ -130,7 +135,7 @@ def iris_dataset() -> Dataset:
   """Iris multi-class classification dataset."""
 
   # Path to dataset.
-  dataset_directory = os.path.join(test_data_path(), "dataset")
+  dataset_directory = os.path.join(ydf_test_data_path(), "dataset")
   dataset_path = os.path.join(dataset_directory, "iris.csv")
   dataset = pd.read_csv(dataset_path)
   train, test = train_test_split(dataset, ratio_second=0.30)
@@ -150,7 +155,7 @@ def abalone_dataset() -> Dataset:
   """Abalone regression dataset."""
 
   # Path to dataset.
-  dataset_directory = os.path.join(test_data_path(), "dataset")
+  dataset_directory = os.path.join(ydf_test_data_path(), "dataset")
   dataset_path = os.path.join(dataset_directory, "abalone.csv")
   dataset = pd.read_csv(dataset_path)
   train, test = train_test_split(dataset, ratio_second=0.30)
@@ -473,7 +478,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
               data_root_path(),
               "tensorflow_decision_forests/keras/test_runner"),
           "--model_path", saved_model_path, "--dataset_path",
-          os.path.join(test_data_path(), "dataset", "adult_test.csv")
+          os.path.join(ydf_test_data_path(), "dataset", "adult_test.csv")
       ],
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE)
@@ -1300,7 +1305,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
   def test_training_adult_from_file(self):
     # Path to dataset.
-    dataset_directory = os.path.join(test_data_path(), "dataset")
+    dataset_directory = os.path.join(ydf_test_data_path(), "dataset")
     train_path = os.path.join(dataset_directory, "adult_train.csv")
     test_path = os.path.join(dataset_directory, "adult_test.csv")
 
@@ -1335,7 +1340,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
   def test_training_adult_from_file_with_features(self):
     # Path to dataset.
-    dataset_directory = os.path.join(test_data_path(), "dataset")
+    dataset_directory = os.path.join(ydf_test_data_path(), "dataset")
     train_path = os.path.join(dataset_directory, "adult_train.csv")
     test_path = os.path.join(dataset_directory, "adult_test.csv")
 
@@ -1525,7 +1530,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
   def test_resume_training(self):
     # Path to dataset.
-    dataset_directory = os.path.join(test_data_path(), "dataset")
+    dataset_directory = os.path.join(ydf_test_data_path(), "dataset")
     train_path = os.path.join(dataset_directory, "adult_train.csv")
     test_path = os.path.join(dataset_directory, "adult_test.csv")
 
@@ -1634,7 +1639,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
   def test_uplift_sim_pte(self):
     # Path to dataset.
-    dataset_directory = os.path.join(test_data_path(), "dataset")
+    dataset_directory = os.path.join(ydf_test_data_path(), "dataset")
     train_path = os.path.join(dataset_directory, "sim_pte_train.csv")
     test_path = os.path.join(dataset_directory, "sim_pte_test.csv")
 
@@ -1672,7 +1677,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
   def test_uplift_honest_sim_pte(self):
     # Path to dataset.
-    dataset_directory = os.path.join(test_data_path(), "dataset")
+    dataset_directory = os.path.join(ydf_test_data_path(), "dataset")
     train_path = os.path.join(dataset_directory, "sim_pte_train.csv")
     test_path = os.path.join(dataset_directory, "sim_pte_test.csv")
 
@@ -1753,7 +1758,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
   def test_get_leaves(self):
 
-    dataset_directory = os.path.join(test_data_path(), "dataset")
+    dataset_directory = os.path.join(ydf_test_data_path(), "dataset")
     train_path = os.path.join(dataset_directory, "adult_train.csv")
     label = "income"
 
@@ -1839,6 +1844,16 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     self.assertEqual(model.num_threads, 2)
     self.assertEqual(model.learner_params["num_trees"], 5)
     self.assertEqual(model.exclude_non_specified_features, False)
+
+  def test_golden_model_gbt(self):
+    dataset = adult_dataset()
+    loaded_model = models.load_model(
+        os.path.join(tfdf_test_data_path(), "model/saved_model_adult_gbt"))
+    prediction = loaded_model.predict(
+        keras.pd_dataframe_to_tf_dataset(dataset.test, label="income"))
+    self.assertNear(prediction[0, 0], 0.13323984, 0.00001)
+    self.assertNear(prediction[1, 0], 0.47678572, 0.00001)
+    self.assertNear(prediction[2, 0], 0.81846154, 0.00001)
 
 
 if __name__ == "__main__":

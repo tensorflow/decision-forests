@@ -92,6 +92,7 @@ py_test(
     data = [
         ":synthetic_dataset",
         ":test_runner",
+        "//tensorflow_decision_forests/test_data",
         "@ydf//yggdrasil_decision_forests/test_data",
     ],
     python_version = "PY3",
