@@ -51,6 +51,7 @@ The following resources are available:
     API Reference and Tutorials)
 -   [Notebook tutorials (on Github)](documentation/tutorials)
 -   [Notebook tutorials (on tensorflow.org)](https://www.tensorflow.org/decision_forests/tutorials)
+-   [Notebook tutorials (on kaggle)][https://www.kaggle.com/jackfroster/tensorflow-decision-forests-example]
 -   [Migration guide from Neural Network to Decision Forests](documentation/migration.md)
 -   [Issue tracker](https://github.com/tensorflow/decision-forests/issues)
 -   [Known issues](documentation/known_issues.md)
