@@ -47,19 +47,17 @@ model.save("project/model")
 
 The following resources are available:
 
--   [TF-DF on TensorFlow.org](https://tensorflow.org/decision_forests) (with the
-    API Reference and Tutorials)
--   [Notebook tutorials (on Github)](documentation/tutorials)
--   [Notebook tutorials (on tensorflow.org)](https://www.tensorflow.org/decision_forests/tutorials)
--   [Migration guide from Neural Network to Decision Forests](documentation/migration.md)
+-   [TF-DF on TensorFlow.org](https://tensorflow.org/decision_forests) (API
+    Reference, Guides and Tutorials)
+-   [Tutorials](https://www.tensorflow.org/decision_forests/tutorials) (on
+    tensorflow.org)
 -   [Issue tracker](https://github.com/tensorflow/decision-forests/issues)
 -   [Known issues](documentation/known_issues.md)
 -   [Changelog](CHANGELOG.md)
--   [Discuss on TensorFlow.Org](https://discuss.tensorflow.org)
+-   [Forum](https://discuss.tensorflow.org) (on discuss.tensorflow.org)
 -   [Yggdrasil documentation](https://github.com/google/yggdrasil-decision-forests)
     (for advanced users and C++ serving)
--   [Distributed Training](documentation/distributed_training.md)
--   [TF-DF in TensorFlow Serving](documentation/tensorflow_serving.md)
+-   [More examples](documentation/more_examples)
 
 ## Installation
 
