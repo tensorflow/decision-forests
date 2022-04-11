@@ -6,7 +6,7 @@ TensorFlow and Keras is new, and some issues are expected -- we are trying to
 fix them as quickly as possible.
 
 See also the
-[known issues of Yggdrasil Decision Forests](https://github.com/google/yggdrasil-decision-forests/documentation/known_issues.md)
+[known issues of Yggdrasil Decision Forests](https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/known_issues.md)
 and the [migration guide](migration.md) for behavior that is different from
 other algorithms.
 
