@@ -233,7 +233,11 @@ class InspectorTest(parameterized.TestCase, tf.test.TestCase):
     self.assertEqual(inspector.model_type(), model_name)
     self.assertEqual(inspector.task, task)
 
-    logging.info("Variable importances:\n%s", inspector.variable_importances())
+    if model != "sst_binary_class_gbdt":
+      # Computing the variable importance of the SST model takes a lot of time.
+      logging.info("Variable importances:\n%s",
+                   inspector.variable_importances())
+
     logging.info("Evaluation:\n%s", inspector.evaluation())
     logging.info("Training logs:\n%s", inspector.training_logs())
 
