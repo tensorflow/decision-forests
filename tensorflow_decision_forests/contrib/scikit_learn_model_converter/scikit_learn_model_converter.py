@@ -89,10 +89,11 @@ def convert(
   # create another tf.keras.Model with the desired call signature.
   template_input = tf.keras.Input(shape=(sklearn_model.n_features_in_,))
   # Extracts the indices of the features that are used by the TFDF model.
-  feature_indices = tfdf_model.signatures[
+  # The features have names with the format "feature_<index-of-feature>".
+  feature_names = tfdf_model.signatures[
       "serving_default"].structured_input_signature[1].keys()
   template_output = tfdf_model(
-      {i: template_input[:, int(i)] for i in feature_indices})
+      {i: template_input[:, int(i.split("_")[1])] for i in feature_names})
   return tf.keras.Model(inputs=template_input, outputs=template_output)
 
 
@@ -298,7 +299,7 @@ def _convert_sklearn_node_to_tfdf_node(
   )
   if pos_child:
     feature = tfdf.py_tree.dataspec.SimpleColumnSpec(
-        name=str(node["feature"]),
+        name=f"feature_{node['feature']}",
         # In sklearn, all fields must be numerical.
         type=tfdf.py_tree.dataspec.ColumnType.NUMERICAL,
         col_idx=node["feature"],
