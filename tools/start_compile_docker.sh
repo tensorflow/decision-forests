@@ -68,4 +68,4 @@ TFDF_DIRNAME=${PWD##*/}
 docker pull ${DOCKER}
 
 # Start docker
-docker run -it -v ${PWD}/..:/working_dir -w /working_dir/${TFDF_DIRNAME} ${DOCKER}
+docker run -it -v ${PWD}/..:/working_dir -w /working_dir/${TFDF_DIRNAME} ${DOCKER} $@
