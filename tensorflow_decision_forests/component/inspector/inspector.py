@@ -119,6 +119,8 @@ class Evaluation(typing.NamedTuple):
   rmse: Optional[float] = None
   ndcg: Optional[float] = None
   aucs: Optional[List[float]] = None
+  auuc: Optional[float] = None
+  qini: Optional[float] = None
 
   def to_dict(self) -> Dict[str, Union[int, float, List[float]]]:
     """Convert the object into a dictionary of values."""
@@ -134,6 +136,8 @@ class Evaluation(typing.NamedTuple):
     add_if_not_none("rmse", self.rmse)
     add_if_not_none("ndcg", self.ndcg)
     add_if_not_none("aucs", self.aucs)
+    add_if_not_none("auuc", self.auuc)
+    add_if_not_none("qini", self.qini)
     return d
 
 
@@ -799,6 +803,13 @@ def _proto_evaluation_to_evaluation(
     rank = src.ranking
     if rank.HasField("ndcg"):
       dst = dst._replace(ndcg=rank.ndcg.value)
+
+  if src.HasField("uplift"):
+    uplift = src.uplift
+    if uplift.HasField("qini"):
+      dst = dst._replace(qini=uplift.qini)
+    if uplift.HasField("auuc"):
+      dst = dst._replace(auuc=uplift.auuc)
 
   return dst
 
