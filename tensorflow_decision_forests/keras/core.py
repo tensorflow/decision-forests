@@ -658,7 +658,7 @@ class CoreModel(models.Model):
   def make_predict_function(self):
     """Prediction of the model (!= evaluation)."""
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function(reduce_retracing=True)
     def predict_function_not_trained(iterator):
       """Prediction of a non-trained model. Returns "zeros"."""
 
@@ -667,7 +667,7 @@ class CoreModel(models.Model):
       batch_size = _batch_size(x)
       return tf.zeros([batch_size, 1])
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function(reduce_retracing=True)
     def predict_function_trained(iterator, model):
       """Prediction of a trained model.
 
@@ -700,14 +700,14 @@ class CoreModel(models.Model):
   def make_test_function(self):
     """Predictions for evaluation."""
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function(reduce_retracing=True)
     def test_function_not_trained(iterator):
       """Evaluation of a non-trained model."""
 
       next(iterator)
       return {}
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function(reduce_retracing=True)
     def step_function_trained(model, iterator):
       """Evaluation of a trained model.
 
@@ -745,7 +745,7 @@ class CoreModel(models.Model):
 
         if not self.run_eagerly:
           test_function = tf.function(
-              test_function, experimental_relax_shapes=True)
+              test_function, reduce_retracing=True)
 
         if self._cluster_coordinator:
           return lambda it: self._cluster_coordinator.schedule(  # pylint: disable=g-long-lambda
@@ -766,7 +766,7 @@ class CoreModel(models.Model):
 
         if not self.run_eagerly:
           test_function = tf.function(
-              test_function, experimental_relax_shapes=True)
+              test_function, reduce_retracing=True)
 
         return lambda it: self._cluster_coordinator.schedule(  # pylint: disable=g-long-lambda
             test_function,
@@ -781,13 +781,13 @@ class CoreModel(models.Model):
 
         if not self.run_eagerly:
           test_function = tf.function(
-              test_function, experimental_relax_shapes=True)
+              test_function, reduce_retracing=True)
         return test_function
 
     else:
       return test_function_not_trained
 
-  @tf.function(experimental_relax_shapes=True)
+  @tf.function(reduce_retracing=True)
   def _build_normalized_inputs(self, inputs) -> Dict[str, tf_core.AnyTensor]:
     """Computes the normalized input of the model.
 
@@ -830,7 +830,7 @@ class CoreModel(models.Model):
 
     return normalized_inputs
 
-  @tf.function(experimental_relax_shapes=True)
+  @tf.function(reduce_retracing=True)
   def call(self, inputs, training=False):
     """Inference of the model.
 
@@ -875,7 +875,7 @@ class CoreModel(models.Model):
 
     return predictions
 
-  @tf.function(experimental_relax_shapes=True)
+  @tf.function(reduce_retracing=True)
   def call_get_leaves(self, inputs):
     """Computes the index of the active leaf in each tree.
 
@@ -951,7 +951,7 @@ class CoreModel(models.Model):
 
   # This function should not be serialized in the SavedModel.
   @base_tracking.no_automatic_dependency_tracking
-  @tf.function(experimental_relax_shapes=True)
+  @tf.function(reduce_retracing=True)
   def valid_step(self, data):
     """Collects validation examples."""
 
@@ -959,7 +959,7 @@ class CoreModel(models.Model):
 
   # This function should not be serialized in the SavedModel.
   @base_tracking.no_automatic_dependency_tracking
-  @tf.function(experimental_relax_shapes=True)
+  @tf.function(reduce_retracing=True)
   def train_step(self, data):
     """Collects training examples."""
 
@@ -967,7 +967,7 @@ class CoreModel(models.Model):
 
   # This function should not be serialized in the SavedModel.
   @base_tracking.no_automatic_dependency_tracking
-  @tf.function(experimental_relax_shapes=True)
+  @tf.function(reduce_retracing=True)
   def collect_data_step(self, data, is_training_example):
     """Collect examples e.g. training or validation."""
 
@@ -1758,7 +1758,7 @@ class CoreModel(models.Model):
           "_collect_validation_data should be called by the 'evaluate' "
           "method in 'fit'.")
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function(reduce_retracing=True)
     def collect_validation(model, ds_iterator):
 
       def run_step(ds_data):
