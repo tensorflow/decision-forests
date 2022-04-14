@@ -37,11 +37,39 @@ class Tree(object):
     return self._label_classes
 
   def __repr__(self):
-    content = "Tree("
-    if self._root:
-      content += f"{self._root}"
-    else:
-      content += "None"
+    """Returns an inline string representation of a tree."""
 
-    content += ",label_classes={self.label_classes})"
+    root_str = repr(self._root) if self._root else "None"
+    return f"Tree(root={root_str}, label_classes={self.label_classes})"
+
+  def __str__(self):
+    # This method target users that try to debug or interpret trees.
+    return self.pretty()
+
+  def pretty(self, max_depth: Optional[int] = 4) -> str:
+    """Returns a readable textual representation of the tree.
+
+    Unlike `repr(tree)`, `tree.pretty()` format the representation (line return,
+    margin, hide class names) to improve readability.
+
+    This representation can be changed and codes should not try to parse the
+    output of `pretty`. To access programmatically the tree structure, use
+    `root()`.
+
+    Args:
+      max_depth: The maximum depth of the nodes to display. Deeper nodes are
+        skipped and replaced by "...". If not specified, prints the entire tree.
+
+    Returns:
+      A pretty-string representing the tree.
+    """
+
+    content = ""
+    if self._root:
+      content += self._root.pretty(
+          prefix="", is_pos=None, depth=1, max_depth=max_depth)
+    else:
+      content += "No root\n"
+    if self._label_classes is not None:
+      content += f"Label classes: {self.label_classes}\n"
     return content

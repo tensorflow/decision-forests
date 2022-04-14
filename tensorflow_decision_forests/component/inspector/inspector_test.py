@@ -21,15 +21,14 @@ import os
 from absl import flags
 from absl import logging
 from absl.testing import parameterized
-import tensorflow as tf
 import numpy as np
-import pandas as pd
+import tensorflow as tf
 
-from tensorflow_decision_forests.component.inspector import inspector as insp
+from tensorflow_decision_forests import keras
 from tensorflow_decision_forests.component import py_tree
+from tensorflow_decision_forests.component.inspector import inspector as insp
 from yggdrasil_decision_forests.metric import metric_pb2
 from yggdrasil_decision_forests.model.gradient_boosted_trees import gradient_boosted_trees_pb2
-from tensorflow_decision_forests import keras
 
 ColumnType = insp.ColumnType
 SimpleColumnSpec = insp.SimpleColumnSpec
@@ -141,6 +140,35 @@ class InspectorTest(parameterized.TestCase, tf.test.TestCase):
     inspector.export_to_tensorboard(tensorboard_logs)
 
     logging.info("tensorboard_logs: %s", tensorboard_logs)
+
+    # Note: The tree has been partially checked manually against ":show_model".
+    # :show_model --full_definition --model=...
+    self.assertEqual(
+        tree.pretty(),
+        """(capital_gain >= 7073.5; miss=False, score=0.06218588352203369)
+    ├─(pos)─ (education in ['Some-college', 'Bachelors', 'Masters', 'Assoc-voc', '11th', 'Assoc-acdm', '7th-8th', 'Prof-school', '12th', 'Doctorate', '5th-6th']; miss=False, score=0.019492337480187416)
+    │        ├─(pos)─ (age >= 62.5; miss=False, score=0.005498059559613466)
+    │        │        ├─(pos)─ (hours_per_week >= 49.0; miss=False, score=0.029734181240200996)
+    │        │        │    ...
+    │        │        └─(neg)─ ProbabilityValue([0.0, 1.0],n=785.0) (idx=596)
+    │        └─(neg)─ (age >= 34.5; miss=True, score=0.049639273434877396)
+    │                 ├─(pos)─ (workclass in ['Private', 'Local-gov', 'State-gov', 'Self-emp-inc', 'Federal-gov']; miss=True, score=0.06564109027385712)
+    │                 │    ...
+    │                 └─(neg)─ (hours_per_week >= 37.5; miss=True, score=0.6460905075073242)
+    │                      ...
+    └─(neg)─ (marital_status in ['Married-civ-spouse', 'Married-AF-spouse']; miss=True, score=0.10465919226408005)
+             ├─(pos)─ (education_num in ['13', '14', '15', '16']; miss=False, score=0.057999979704618454)
+             │        ├─(pos)─ (capital_loss >= 1782.5; miss=False, score=0.03205965831875801)
+             │        │    ...
+             │        └─(neg)─ (native_country in ['United-States', 'Philippines', 'Germany', 'Canada', 'Cuba', 'England', 'Jamaica', 'Dominican-Republic', 'South', 'Italy', 'Taiwan', 'Poland', 'Iran', 'Haiti', 'Peru', 'France', 'Ecuador', 'Thailand', 'Cambodia', 'Ireland', 'Yugoslavia', 'Trinadad&Tobago', 'Hungary', 'Hong']; miss=True, score=0.01416037604212761)
+             │             ...
+             └─(neg)─ (age >= 27.5; miss=True, score=0.01477713044732809)
+                      ├─(pos)─ (hours_per_week >= 40.5; miss=False, score=0.01574750244617462)
+                      │    ...
+                      └─(neg)─ (hours_per_week >= 58.5; miss=False, score=0.004579735919833183)
+                           ...
+Label classes: ['<=50K', '>50K']
+""")
 
   def test_regression_random_forest(self):
     model_path = os.path.join(test_model_directory(), "abalone_regression_rf")

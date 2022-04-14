@@ -12,6 +12,7 @@
 -   Add internal flag `hessian_split_score_subtract_parent` to subtract the
     parent score in the computation of an hessian split score.
 -   Add support for hyper-parameter optimizers (also called tuner).
+-   Add text pretty print of trees with `tree.pretty()` or `str(tree)`.
 
 ## 0.2.4 - 2021-02-04
 

@@ -15,8 +15,8 @@
 """Nodes (leaf and non-leafs) in a tree."""
 
 import abc
-from typing import Optional, List, Tuple, Dict
 from collections import defaultdict
+from typing import Optional, List, Tuple, Dict
 
 import six
 
@@ -27,6 +27,11 @@ from yggdrasil_decision_forests.model.decision_tree import decision_tree_pb2
 
 AbstractCondition = condition_lib.AbstractCondition
 AbstractValue = value_lib.AbstractValue
+
+# Number of spaces printed on the left side of nodes with pretty print.
+_PRETTY_MARGIN = 4
+# Length / number of characters (e.g. "-") in an edge with pretty print.
+_PRETTY_EDGE_LENGTH = 4
 
 
 class ConditionValueAndDefaultEvaluation(object):
@@ -54,6 +59,30 @@ class AbstractNode(object):
       self, conditions: ConditionValueAndDefaultEvaluation):
     """Extracts the condition values and default evaluations."""
     pass
+
+  @abc.abstractmethod
+  def pretty(self, prefix: str, is_pos: Optional[bool], depth: int,
+             max_depth: Optional[int]) -> str:
+    """Returns a recursive readable textual representation of a node.
+
+    Args:
+      prefix: Prefix printed on the left side. Used to print the surrounding
+        edges.
+      is_pos: True/False if the node is a positive/negative child. None if the
+        node is a root.
+      depth: Depth of the node in the tree. There is no assuption of on the
+        depth of a root.
+      max_depth: Maximum depth for representation. Deeper nodes are skipped.
+
+    Returns:
+      A pretty-string representing the node and its children.
+    """
+
+    raise NotImplementedError()
+
+  def __str__(self):
+    # Prints a node and its descendants.
+    return self.pretty("", None, 1, None)
 
 
 class LeafNode(AbstractNode):
@@ -83,6 +112,13 @@ class LeafNode(AbstractNode):
   @value.setter
   def leaf_idx(self, leaf_idx):
     self._leaf_idx = leaf_idx
+
+  def pretty(self, prefix: str, is_pos: Optional[bool], depth: int,
+             max_depth: Optional[int]) -> str:
+    text = prefix + _pretty_local_prefix(is_pos) + str(self._value)
+    if self._leaf_idx is not None:
+      text += f" (idx={self._leaf_idx})"
+    return text + "\n"
 
 
 class NonLeafNode(AbstractNode):
@@ -158,19 +194,75 @@ class NonLeafNode(AbstractNode):
           conditions)
 
   def __repr__(self):
-    text = "NonLeafNode(condition=" + str(self._condition)
+    # Note: Make sure to use `repr` instead of `str`.
+    text = "NonLeafNode(condition=" + repr(self._condition)
+
+    # Positive child.
     if self._pos_child is not None:
-      text += f", pos_child={self._pos_child}"
+      text += f", pos_child={repr(self._pos_child)}"
     else:
       text += ", pos_child=None"
+
+    # Negative child.
     if self._neg_child is not None:
-      text += f", neg_child={self._neg_child}"
+      text += f", neg_child={repr(self._neg_child)}"
     else:
       text += ", neg_child=None"
+
+    # Node value.
     if self._value is not None:
-      text += f", value={self._value}"
+      text += f", value={repr(self._value)}"
     text += ")"
     return text
+
+  def pretty(self, prefix: str, is_pos: Optional[bool], depth: int,
+             max_depth: Optional[int]) -> str:
+
+    # Prefix for the children of this node.
+    children_prefix = prefix
+    if is_pos is None:
+      pass
+    elif is_pos:
+      children_prefix += " " * _PRETTY_MARGIN + "│" + " " * _PRETTY_EDGE_LENGTH
+    elif not is_pos:
+      children_prefix += " " * (_PRETTY_MARGIN + 1 + _PRETTY_EDGE_LENGTH)
+
+    # Node's condition.
+    text = prefix + _pretty_local_prefix(is_pos) + str(self._condition) + "\n"
+
+    # Children of the node.
+    if max_depth is not None and depth >= max_depth:
+      if self._pos_child is not None or self._neg_child is not None:
+        text += children_prefix + "...\n"
+    else:
+      if self._pos_child is not None:
+        text += self._pos_child.pretty(children_prefix, True, depth + 1,
+                                       max_depth)
+      if self._neg_child is not None:
+        text += self._neg_child.pretty(children_prefix, False, depth + 1,
+                                       max_depth)
+    return text
+
+
+def _pretty_local_prefix(is_pos: Optional[bool]) -> str:
+  """Prefix added in front of a node with pretty print.
+
+  Args:
+    is_pos: True/False if the node is a positive/negative child. None if the
+      node is a root.
+
+  Returns:
+    The node prefix.
+  """
+
+  if is_pos is None:
+    # Root node. No prefix.
+    return ""
+  elif is_pos:
+    # Positive nodes are assumed to be printed before negative ones.
+    return " " * _PRETTY_MARGIN + "├─(pos)─ "
+  else:
+    return " " * _PRETTY_MARGIN + "└─(neg)─ "
 
 
 def core_node_to_node(

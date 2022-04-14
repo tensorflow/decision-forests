@@ -41,12 +41,19 @@ class AbstractCondition(object):
       during inference to handle missing values.
   """
 
-  def __init__(self, missing_evaluation: Optional[bool]):
+  def __init__(self,
+               missing_evaluation: Optional[bool],
+               split_score: Optional[float] = None):
     self._missing_evaluation = missing_evaluation
+    self._split_score = split_score
 
   @property
   def missing_evaluation(self):
     return self._missing_evaluation
+
+  @property
+  def split_score(self) -> Optional[float]:
+    return self._split_score
 
   @abc.abstractmethod
   def features(self) -> List[SimpleColumnSpec]:
@@ -56,21 +63,24 @@ class AbstractCondition(object):
 
   def __repr__(self):
     return (f"AbstractCondition({self.features()}, "
-            f"missing_evaluation={self._missing_evaluation})")
+            f"missing_evaluation={self._missing_evaluation}, "
+            f"split_score={self._split_score})")
 
 
 class IsMissingInCondition(AbstractCondition):
   """Condition of the form "attribute is missing"."""
 
-  def __init__(self, feature: SimpleColumnSpec):
-    super(IsMissingInCondition, self).__init__(None)
+  def __init__(self,
+               feature: SimpleColumnSpec,
+               split_score: Optional[float] = None):
+    super(IsMissingInCondition, self).__init__(None, split_score)
     self._feature = feature
 
   def features(self):
     return [self._feature]
 
   def __repr__(self):
-    return f"({self._feature.name} is missing)"
+    return f"({self._feature.name} is missing, score={self._split_score})"
 
   def __eq__(self, other):
     if not isinstance(other, IsMissingInCondition):
@@ -85,16 +95,19 @@ class IsMissingInCondition(AbstractCondition):
 class IsTrueCondition(AbstractCondition):
   """Condition of the form "attribute is true"."""
 
-  def __init__(self, feature: SimpleColumnSpec,
-               missing_evaluation: Optional[bool]):
-    super(IsTrueCondition, self).__init__(missing_evaluation)
+  def __init__(self,
+               feature: SimpleColumnSpec,
+               missing_evaluation: Optional[bool],
+               split_score: Optional[float] = None):
+    super(IsTrueCondition, self).__init__(missing_evaluation, split_score)
     self._feature = feature
 
   def features(self):
     return [self._feature]
 
   def __repr__(self):
-    return f"({self._feature.name} is true; miss={self.missing_evaluation})"
+    return (f"({self._feature.name} is true; miss={self.missing_evaluation}, "
+            f"score={self._split_score})")
 
   def __eq__(self, other):
     if not isinstance(other, IsTrueCondition):
@@ -109,9 +122,13 @@ class IsTrueCondition(AbstractCondition):
 class NumericalHigherThanCondition(AbstractCondition):
   """Condition of the form "attribute >= threhsold"."""
 
-  def __init__(self, feature: SimpleColumnSpec, threshold: float,
-               missing_evaluation: Optional[bool]):
-    super(NumericalHigherThanCondition, self).__init__(missing_evaluation)
+  def __init__(self,
+               feature: SimpleColumnSpec,
+               threshold: float,
+               missing_evaluation: Optional[bool],
+               split_score: Optional[float] = None):
+    super(NumericalHigherThanCondition, self).__init__(missing_evaluation,
+                                                       split_score)
     self._feature = feature
     self._threshold = threshold
 
@@ -120,7 +137,8 @@ class NumericalHigherThanCondition(AbstractCondition):
 
   def __repr__(self):
     return (f"({self._feature.name} >= {self._threshold}; "
-            f"miss={self.missing_evaluation})")
+            f"miss={self.missing_evaluation}, "
+            f"score={self._split_score})")
 
   def __eq__(self, other):
     if not isinstance(other, NumericalHigherThanCondition):
@@ -140,10 +158,13 @@ class NumericalHigherThanCondition(AbstractCondition):
 class CategoricalIsInCondition(AbstractCondition):
   """Condition of the form "attribute in [...set of items...]"."""
 
-  def __init__(self, feature: SimpleColumnSpec, mask: Union[List[str],
-                                                            List[int]],
-               missing_evaluation: Optional[bool]):
-    super(CategoricalIsInCondition, self).__init__(missing_evaluation)
+  def __init__(self,
+               feature: SimpleColumnSpec,
+               mask: Union[List[str], List[int]],
+               missing_evaluation: Optional[bool],
+               split_score: Optional[float] = None):
+    super(CategoricalIsInCondition, self).__init__(missing_evaluation,
+                                                   split_score)
     self._feature = feature
     self._mask = mask
 
@@ -152,7 +173,8 @@ class CategoricalIsInCondition(AbstractCondition):
 
   def __repr__(self):
     return (f"({self._feature.name} in {self._mask}; "
-            f"miss={self.missing_evaluation})")
+            f"miss={self.missing_evaluation}, "
+            f"score={self._split_score})")
 
   def __eq__(self, other):
     if not isinstance(other, CategoricalIsInCondition):
@@ -171,10 +193,13 @@ class CategoricalIsInCondition(AbstractCondition):
 class CategoricalSetContainsCondition(AbstractCondition):
   """Condition of the form "attribute intersect [...set of items...]!=empty"."""
 
-  def __init__(self, feature: SimpleColumnSpec, mask: Union[List[str],
-                                                            List[int]],
-               missing_evaluation: Optional[bool]):
-    super(CategoricalSetContainsCondition, self).__init__(missing_evaluation)
+  def __init__(self,
+               feature: SimpleColumnSpec,
+               mask: Union[List[str], List[int]],
+               missing_evaluation: Optional[bool],
+               split_score: Optional[float] = None):
+    super(CategoricalSetContainsCondition,
+          self).__init__(missing_evaluation, split_score)
     self._feature = feature
     self._mask = mask
 
@@ -183,7 +208,8 @@ class CategoricalSetContainsCondition(AbstractCondition):
 
   def __repr__(self):
     return (f"({self._feature.name} intersect {self._mask} != empty; "
-            f"miss={self.missing_evaluation})")
+            f"miss={self.missing_evaluation}, "
+            f"score={self._split_score})")
 
   def __eq__(self, other):
     if not isinstance(other, CategoricalSetContainsCondition):
@@ -202,9 +228,14 @@ class CategoricalSetContainsCondition(AbstractCondition):
 class NumericalSparseObliqueCondition(AbstractCondition):
   """Condition of the form "attributes * weights >= threshold"."""
 
-  def __init__(self, features: List[SimpleColumnSpec], weights: List[float],
-               threshold: float, missing_evaluation: Optional[bool]):
-    super(NumericalSparseObliqueCondition, self).__init__(missing_evaluation)
+  def __init__(self,
+               features: List[SimpleColumnSpec],
+               weights: List[float],
+               threshold: float,
+               missing_evaluation: Optional[bool],
+               split_score: Optional[float] = None):
+    super(NumericalSparseObliqueCondition,
+          self).__init__(missing_evaluation, split_score)
     self._features = features
     self._weights = weights
     self._threshold = threshold
@@ -214,7 +245,8 @@ class NumericalSparseObliqueCondition(AbstractCondition):
 
   def __repr__(self):
     return (f"({self._features} . {self._weights} >= {self._threshold}; "
-            f"miss={self.missing_evaluation})")
+            f"miss={self.missing_evaluation}, "
+            f"score={self._split_score})")
 
   def __eq__(self, other):
     if not isinstance(other, NumericalSparseObliqueCondition):
@@ -243,25 +275,28 @@ def core_condition_to_condition(
   column_spec = dataspec.columns[core_condition.attribute]
 
   if condition_type.HasField("na_condition"):
-    return IsMissingInCondition(attribute)
+    return IsMissingInCondition(attribute, core_condition.split_score)
 
   if condition_type.HasField("higher_condition"):
     return NumericalHigherThanCondition(
         attribute, condition_type.higher_condition.threshold,
-        core_condition.na_value)
+        core_condition.na_value, core_condition.split_score)
 
   if condition_type.HasField("true_value_condition"):
-    return IsTrueCondition(attribute, core_condition.na_value)
+    return IsTrueCondition(attribute, core_condition.na_value,
+                           core_condition.split_score)
 
   if condition_type.HasField("contains_bitmap_condition"):
     items = column_spec_bitmap_to_items(
         dataspec.columns[core_condition.attribute],
         condition_type.contains_bitmap_condition.elements_bitmap)
     if attribute.type == ColumnType.CATEGORICAL:
-      return CategoricalIsInCondition(attribute, items, core_condition.na_value)
+      return CategoricalIsInCondition(attribute, items, core_condition.na_value,
+                                      core_condition.split_score)
     elif attribute.type == ColumnType.CATEGORICAL_SET:
       return CategoricalSetContainsCondition(attribute, items,
-                                             core_condition.na_value)
+                                             core_condition.na_value,
+                                             core_condition.split_score)
 
   if condition_type.HasField("contains_condition"):
     items = condition_type.contains_condition.elements
@@ -271,16 +306,19 @@ def core_condition_to_condition(
           for item in items
       ]
     if attribute.type == ColumnType.CATEGORICAL:
-      return CategoricalIsInCondition(attribute, items, core_condition.na_value)
+      return CategoricalIsInCondition(attribute, items, core_condition.na_value,
+                                      core_condition.split_score)
     elif attribute.type == ColumnType.CATEGORICAL_SET:
       return CategoricalSetContainsCondition(attribute, items,
-                                             core_condition.na_value)
+                                             core_condition.na_value,
+                                             core_condition.split_score)
 
   if condition_type.HasField("discretized_higher_condition"):
     threshold = dataspec_lib.discretized_numerical_to_numerical(
         column_spec, condition_type.discretized_higher_condition.threshold)
     return NumericalHigherThanCondition(attribute, threshold,
-                                        core_condition.na_value)
+                                        core_condition.na_value,
+                                        core_condition.split_score)
 
   if condition_type.HasField("oblique_condition"):
     attributes = [
@@ -289,7 +327,8 @@ def core_condition_to_condition(
     ]
     return NumericalSparseObliqueCondition(
         attributes, list(condition_type.oblique_condition.weights),
-        condition_type.oblique_condition.threshold, core_condition.na_value)
+        condition_type.oblique_condition.threshold, core_condition.na_value,
+        core_condition.split_score)
 
   raise ValueError(f"Non supported condition type: {core_condition}")
 
@@ -329,6 +368,10 @@ def set_core_node(condition: AbstractCondition,
 
   core_condition = core_node.condition
   core_condition.na_value = condition.missing_evaluation
+
+  if condition.split_score is not None:
+    core_condition.split_score = condition.split_score
+
   features = condition.features()
   if not features:
     raise ValueError("Condition without features")

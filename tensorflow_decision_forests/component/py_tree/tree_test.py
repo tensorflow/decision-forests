@@ -47,7 +47,22 @@ class TreeTest(parameterized.TestCase, tf.test.TestCase):
             neg_child=node_lib.LeafNode(
                 value=value_lib.ProbabilityValue(
                     probability=[0.5, 0.4, 0.1], num_examples=10))))
-    logging.info("Tree:\n%s", tree)
+
+    tree_repr = repr(tree)
+    logging.info("Tree repr:\n%s", tree_repr)
+    # The "repr" is a single line that does not contain any line return.
+    self.assertNotIn("\n", tree_repr)
+
+    logging.info("Tree str:\n%s", tree)
+
+    pretty = tree.pretty()
+    logging.info("Pretty:\n%s", pretty)
+
+    self.assertEqual(
+        pretty, """(f1 >= 1.5; miss=False, score=None)
+    ├─(pos)─ RegressionValue(value=5.0,sd=1.0,n=10)
+    └─(neg)─ ProbabilityValue([0.5, 0.4, 0.1],n=10)
+""")
 
   def test_stump_with_label_classes(self):
     tree = tree_lib.Tree(
