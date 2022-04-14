@@ -1,6 +1,6 @@
 # Directory Structure
 
-The project is organised as follow:
+The project is organized as follow:
 
 ```
 ├── examples: Collection of usage examples.

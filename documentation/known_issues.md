@@ -53,7 +53,7 @@ tensorflow_decision_forests | tensorflow
 0.1.1 - 0.1.8               | 2.5
 0.1.0                       | 2.4
 
--   *Solution #2:* Wrapps your preprocessing function into another function that
+-   *Solution #2:* Wraps your preprocessing function into another function that
     [squeeze](https://www.tensorflow.org/api_docs/python/tf/squeeze) its inputs.
 
 ## No all models support distributed training and distribute strategies
