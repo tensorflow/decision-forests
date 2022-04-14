@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Beginner-friendly  usage example of TensorFlow Decision Forests (TF-DF).
-
-This example trains, display and evaluate a Random Forest model on the pima India's Diabetes dataset
+"""This example trains, display and evaluate a Random Forest model on the pima India's Diabetes dataset
 
 This example works with the pip package.
 
@@ -34,8 +32,7 @@ TensorFlow Decision Forests (TF-DF) is a collection of state-of-the-art algorith
  for more details [link](https://pypi.org/project/tensorflow-decision-forests/)
 """
 
-# Installing the tensorflow_decision_forests
-# NOTE: Uncomment the below command If you don't have tensorflow_decision_forests package
+# NOTE: Uncomment the command below if you don't have tensorflow_decision_forests package installed
 # !pip install tensorflow_decision_forests
 
 # Python libraries
@@ -49,11 +46,8 @@ import tensorflow_decision_forests as tfdf
 # Check the current version of TensorFlow Decision Forests
 print("Found TF-DF v" + tfdf.__version__)
 
-"""# NOTE:
-This notebook is to train the same model that I had trained in July 2021 using Decision Tree algorithm 
-[Pima Indians Diabetes - EDA & Prediction](https://www.kaggle.com/code/qasimhassan/eda-decision-tree) 
-but now in this notebook  will all about how to use **TensorFlow Decision Forests (TF-DF**). 
-You can access the dataset from this [link](https://www.kaggle.com/code/qasimhassan/eda-decision-tree/data)
+"""
+Dataset used in this notebook can be found [here](https://www.kaggle.com/datasets/uciml/pima-indians-diabetes-database).
 """
 
 # loading dataset
@@ -93,11 +87,4 @@ model.save("/temp/my_saved_model")
 
 # Look at the feature importances.
 model.make_inspector().variable_importances()
-
-"""Comparison
-
-When I had used Simple Decision Tree from sklearn after optimizing the final testing accuracy that I got 
-was 77% (reference: [check link](https://www.kaggle.com/code/qasimhassan/eda-decision-tree)) 
-but by using TensorFlow Decision Forests (TF-DF) I got the testing accuracy of about 81%.
-"""
 
