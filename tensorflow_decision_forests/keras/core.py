@@ -1220,9 +1220,9 @@ class CoreModel(models.Model):
         metrics=metrics, weighted_metrics=weighted_metrics)
 
   def _keras_verbose(self, verbose: Optional[Any] = None) -> Optional[Any]:
-    """Transforms the "verbose" arg of "fit" before it is send to the parent.
+    """Transforms the "verbose" arg of "fit" before it is sent to the parent.
 
-    If versbose is set in the constructor, and if verbose is not set in "fit",
+    If versbose is set in the constructor and if verbose is not set in "fit",
     the constructor verbose is used. Same goes for "evaluate".
 
     Args:
@@ -1250,7 +1250,7 @@ class CoreModel(models.Model):
           **kwargs) -> tf.keras.callbacks.History:
     """Trains the model.
 
-    On most cases, you want to prepare the dataset as a Pandas Dataframe, and
+    In most cases, you want to prepare a dataset as a Pandas Dataframe and
     use the method "dataframe_to_tf_dataset" to convert it into a TensorFlow
     Dataset.
 
@@ -1676,7 +1676,7 @@ class CoreModel(models.Model):
     They can be used directly with the `hyperparameter_template` argument of the
     model constructor.
 
-    These hyper-parameters outperforms the default hyper-parameters (either
+    These hyper-parameters outperform the default hyper-parameters (either
     generally or in specific scenarios). Like default hyper-parameters, existing
     pre-defined hyper-parameters cannot change.
     """
