@@ -1,6 +1,6 @@
 # TensorFlow Decision Forests tutorials
 
-The following colabs are available:
+The following notebooks are available:
 
 [Beginner Colab](beginner_colab.ipynb): Learn about the basic about model
 training, evaluation and exportation.
@@ -13,3 +13,7 @@ structures directly.
 
 [Model composition Colab](model_composition_colab.ipynb): How to compose
 decision forests and neural networks together.
+
+[Proximities and Prototypes with Random Forests](proximities_colab.ipynb):
+Measure the distance between tabular examples and use it to understand a model
+and its predictions.
