@@ -513,7 +513,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     self._check_adult_model(
         model=model,
         dataset=dataset,
-        minimum_accuracy=0.865,
+        minimum_accuracy=0.864,
         check_serialization=check_serialization)
 
   def _check_adult_model_with_one_hot(self,
