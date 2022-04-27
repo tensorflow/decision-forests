@@ -744,8 +744,7 @@ class CoreModel(models.Model):
           return step_function_trained(self, iterator)
 
         if not self.run_eagerly:
-          test_function = tf.function(
-              test_function, reduce_retracing=True)
+          test_function = tf.function(test_function, reduce_retracing=True)
 
         if self._cluster_coordinator:
           return lambda it: self._cluster_coordinator.schedule(  # pylint: disable=g-long-lambda
@@ -765,8 +764,7 @@ class CoreModel(models.Model):
           return outputs
 
         if not self.run_eagerly:
-          test_function = tf.function(
-              test_function, reduce_retracing=True)
+          test_function = tf.function(test_function, reduce_retracing=True)
 
         return lambda it: self._cluster_coordinator.schedule(  # pylint: disable=g-long-lambda
             test_function,
@@ -780,8 +778,7 @@ class CoreModel(models.Model):
           return outputs
 
         if not self.run_eagerly:
-          test_function = tf.function(
-              test_function, reduce_retracing=True)
+          test_function = tf.function(test_function, reduce_retracing=True)
         return test_function
 
     else:
@@ -810,7 +807,11 @@ class CoreModel(models.Model):
       # Native format
       pass
     elif isinstance(inputs, tf.Tensor):
-      assert len(self._semantics) == 1
+      if len(self._semantics) != 1:
+        raise ValueError(
+            "Calling model with input shape different from the "
+            "input shape provided during training: Feeding a single array "
+            f"{inputs} while the model was trained on {self._semantics}.")
       inputs = {next(iter(self._semantics.keys())): inputs}
     elif isinstance(inputs, list) or isinstance(inputs, tuple):
       # Note: The name of a tensor (value.name) can change between the training
