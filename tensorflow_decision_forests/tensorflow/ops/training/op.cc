@@ -184,6 +184,8 @@ REGISTER_OP("SimpleMLChiefFinalizeFeatureOnFile")
 //   has_validation_dataset: If true, a validation dataset is available. The
 //     name of the tf resources containing the data are similar to the one of
 //     the training dataset with the "__VALIDATION" postfix.
+//   use_file_prefix: If true, the model files are prefixed with the model_id.
+//     For internal use only.
 //
 // Output:
 //   success: True iif. the training succeeded. The op can fail if: There are
@@ -202,6 +204,7 @@ REGISTER_OP("SimpleMLModelTrainer")
     .Attr("deployment_config: string")
     .Attr("guide: string = ''")
     .Attr("has_validation_dataset: bool = false")
+    .Attr("use_file_prefix: bool = true")
     .Output("success: bool");
 
 // Trains a model on a dataset stored on file.
@@ -223,6 +226,7 @@ REGISTER_OP("SimpleMLModelTrainerOnFile")
     .Attr("training_config: string")
     .Attr("deployment_config: string")
     .Attr("guide: string = ''")
+    .Attr("use_file_prefix: bool = true")
     .Output("success: bool");
 
 // Built a human readable description of the model.

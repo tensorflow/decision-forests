@@ -176,6 +176,7 @@ from tensorflow.python.training.tracking import base as trackable_base
 from tensorflow.python.training.tracking import tracking
 # pylint: enable=g-direct-tensorflow-import
 
+from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
 from tensorflow_decision_forests.tensorflow.ops.inference import op
 from yggdrasil_decision_forests.dataset import data_spec_pb2
 from yggdrasil_decision_forests.model import abstract_model_pb2
@@ -290,7 +291,7 @@ class Model(object):
 
 
 class ModelV2(tracking.AutoTrackable):
-  """Applies a Yggdrasil model.
+  """Applies an Yggdrasil model.
 
   For TensorFlow V2.
   """
@@ -298,7 +299,8 @@ class ModelV2(tracking.AutoTrackable):
   def __init__(self,
                model_path: Text,
                verbose: Optional[bool] = True,
-               output_types: Optional[List[str]] = []):
+               output_types: Optional[List[str]] = None,
+               file_prefix: Optional[str] = None):
     """Initialize the model.
 
     The model content will be serialized as an asset if necessary.
@@ -307,13 +309,19 @@ class ModelV2(tracking.AutoTrackable):
       model_path: Path to the Yggdrasil model.
       verbose: Should details about the calls be printed.
       output_types: List of special outputs of the model. Can be: LEAVES.
+      file_prefix: Prefix of the model files on disk.
     """
 
+    if output_types is None:
+      output_types = []
+
     super(ModelV2).__init__()
+    if file_prefix is None:
+      file_prefix = inspector_lib.detect_model_file_prefix(model_path)
     self._input_builder = _InferenceArgsBuilder(verbose)
-    self._input_builder.build_from_model_path(model_path)
+    self._input_builder.build_from_model_path(model_path, file_prefix)
     self._compiled_model = _CompiledSimpleMLModelResource(
-        _DiskModelLoader(model_path, output_types))
+        _DiskModelLoader(model_path, output_types, file_prefix))
 
   def apply_get_leaves(self, features: Dict[Text, Tensor]) -> Any:
     """Applies the model and returns the active leaves.
@@ -367,7 +375,7 @@ class ModelV2(tracking.AutoTrackable):
 def _create_model_identifier() -> Text:
   """Creates a unique identifier for the model.
 
-  This identifier is used internally by the library.
+  This identifier is used internally by the Model class.
 
   Returns:
     String identifier.
@@ -404,14 +412,16 @@ class _InferenceArgsBuilder(tracking.AutoTrackable):
 
     super(_InferenceArgsBuilder, self).__init__()
 
-  def build_from_model_path(self, model_path: Text):
+  def build_from_model_path(self, model_path: str, file_prefix: str = ""):
     # Load model meta-data.
     header = abstract_model_pb2.AbstractModel()
-    with tf.io.gfile.GFile(os.path.join(model_path, "header.pb"), "rb") as f:
+    header_path = os.path.join(model_path, file_prefix + "header.pb")
+    with tf.io.gfile.GFile(header_path, "rb") as f:
       header.ParseFromString(f.read())
 
     data_spec = data_spec_pb2.DataSpecification()
-    with tf.io.gfile.GFile(os.path.join(model_path, "data_spec.pb"), "rb") as f:
+    data_spec_path = os.path.join(model_path, file_prefix + "data_spec.pb")
+    with tf.io.gfile.GFile(data_spec_path, "rb") as f:
       data_spec.ParseFromString(f.read())
 
     self.build_from_dataspec_and_header(data_spec, header)
@@ -883,7 +893,7 @@ class _DiskModelLoader(_AbstractModelLoader, tracking.AutoTrackable):
     google3/third_party/tensorflow/python/ops/lookup_ops.py
   """
 
-  def __init__(self, model_path, output_types: List[str]):
+  def __init__(self, model_path, output_types: List[str], file_prefix: str):
 
     super(_DiskModelLoader).__init__()
     if not isinstance(model_path, tf.Tensor) and not model_path:
@@ -892,11 +902,12 @@ class _DiskModelLoader(_AbstractModelLoader, tracking.AutoTrackable):
     self._output_types = output_types
     self._all_files = []
     self._done_file = None
+    self._file_prefix = file_prefix
     for directory, _, filenames in tf.io.gfile.walk(model_path):
       for filename in filenames:
         path = os.path.join(directory, filename)
         asset = tf.saved_model.Asset(path)
-        if filename == "done":
+        if filename == file_prefix + "done":
           self._done_file = asset
         self._all_files.append(asset)
     if self._done_file is None:
@@ -907,14 +918,16 @@ class _DiskModelLoader(_AbstractModelLoader, tracking.AutoTrackable):
 
   def initialize(self, model: _CompiledSimpleMLModelResource) -> tf.Operation:
 
-    model_path = tf.strings.regex_replace(self._done_file.asset_path, "done",
-                                          "")
+    model_path = self.get_model_path()
     with ops.name_scope("simple_ml", "load_model_from_disk",
                         (model.resource_handle,)):
+      additional_args = {}
+      additional_args["file_prefix"] = self._file_prefix
       init_op = op.SimpleMLLoadModelFromPathWithHandle(
           model_handle=model.resource_handle,
           path=model_path,
-          output_types=self._output_types)
+          output_types=self._output_types,
+          **additional_args)
 
     ops.add_to_collection(ops.GraphKeys.TABLE_INITIALIZERS, init_op)
     return init_op
@@ -922,4 +935,10 @@ class _DiskModelLoader(_AbstractModelLoader, tracking.AutoTrackable):
   def get_model_path(self) -> Tensor:
     """Gets the path to the model on disk."""
 
-    return tf.strings.regex_replace(self._done_file.asset_path, "done", "")
+    return tf.strings.regex_replace(self._done_file.asset_path,
+                                    self._file_prefix + "done", "")
+
+  def get_model_prefix(self) -> str:
+    """Gets the prefix of the model on disk."""
+
+    return self._file_prefix
