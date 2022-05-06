@@ -13,9 +13,6 @@
     parent score in the computation of an hessian split score.
 -   Add support for hyper-parameter optimizers (also called tuner).
 -   Add text pretty print of trees with `tree.pretty()` or `str(tree)`.
--   Add support for loading YDF models with file prefixes. Newly created models
-    have a random prefix attached to them. This allows combining multiple models
-    in Keras.
 
 ## 0.2.4 - 2021-02-04
 

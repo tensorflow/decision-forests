@@ -45,7 +45,6 @@
 #include <algorithm>
 
 #include "absl/status/status.h"
-#include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/resource_mgr.h"
@@ -107,7 +106,6 @@ constexpr char kInputCategoricalSetIntFeaturesRowSplitsDim2[] =
     "categorical_set_int_features_row_splits_dim_2";
 constexpr char kInputModelHandle[] = "model_handle";
 constexpr char kInputOutputTypes[] = "output_types";
-constexpr char kInputFilePrefix[] = "file_prefix";
 
 constexpr char kOutputDensePredictions[] = "dense_predictions";
 constexpr char kOutputDenseColRepresentation[] = "dense_col_representation";
@@ -947,11 +945,9 @@ class YggdrasilModelResource : public tf::ResourceBase {
 
   // Loads the model from disk.
   tf::Status LoadModelFromDisk(const absl::string_view model_path,
-                               const std::string& file_prefix,
                                const OutputTypesBitmap& output_types = {}) {
     std::unique_ptr<model::AbstractModel> model;
-    TF_RETURN_IF_ERROR(utils::FromUtilStatus(
-        LoadModel(model_path, &model, {/*.file_prefix=*/file_prefix})));
+    TF_RETURN_IF_ERROR(utils::FromUtilStatus(LoadModel(model_path, &model)));
     task_ = model->task();
     TF_RETURN_IF_ERROR(
         feature_index_.Initialize(model->input_features(), model->data_spec()));
@@ -1114,8 +1110,7 @@ class SimpleMLLoadModelFromPath : public OpKernel {
     OP_REQUIRES_OK(ctx, GetModelPath(ctx, &model_path));
 
     auto* model_container = new YggdrasilModelResource();
-    const auto load_status =
-        model_container->LoadModelFromDisk(model_path, /*file_prefix=*/"");
+    const auto load_status = model_container->LoadModelFromDisk(model_path);
     if (!load_status.ok()) {
       model_container->Unref();  // Call delete on "model_container".
       OP_REQUIRES_OK(ctx, load_status);
@@ -1145,7 +1140,6 @@ class SimpleMLLoadModelFromPathWithHandle : public OpKernel {
     std::vector<std::string> output_types;
     OP_REQUIRES_OK(ctx, ctx->GetAttr(kInputOutputTypes, &output_types));
     OP_REQUIRES_OK(ctx, GetOutputTypesBitmap(output_types, &output_types_));
-    OP_REQUIRES_OK(ctx, ctx->GetAttr(kInputFilePrefix, &file_prefix_));
   }
 
   void Compute(OpKernelContext* ctx) override {
@@ -1156,15 +1150,13 @@ class SimpleMLLoadModelFromPathWithHandle : public OpKernel {
     OP_REQUIRES_OK(ctx, GetModel(ctx, &model_container));
     tf::core::ScopedUnref unref_me(model_container);
 
-    LOG(INFO) << "Loading model from path " << model_path << " with prefix "
-              << file_prefix_;
-    OP_REQUIRES_OK(ctx, model_container->LoadModelFromDisk(
-                            model_path, file_prefix_, output_types_));
+    LOG(INFO) << "Loading model from path";
+    OP_REQUIRES_OK(
+        ctx, model_container->LoadModelFromDisk(model_path, output_types_));
   }
 
  private:
   OutputTypesBitmap output_types_;
-  std::string file_prefix_;
 };
 
 REGISTER_KERNEL_BUILDER(

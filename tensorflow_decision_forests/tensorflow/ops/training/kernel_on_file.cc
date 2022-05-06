@@ -73,7 +73,6 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
                    ctx->GetAttr("valid_dataset_path", &valid_dataset_path_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("model_dir", &model_dir_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("model_id", &model_id_));
-    OP_REQUIRES_OK(ctx, ctx->GetAttr("use_file_prefix", &use_file_prefix_));
 
     std::string serialized_guide;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("guide", &serialized_guide));
@@ -164,20 +163,10 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
 
     // Export model to disk.
     if (!model_dir_.empty()) {
-      if (use_file_prefix_) {
-        LOG(INFO) << "Export model in log directory: " << model_dir_
-                  << " with prefix " << model_id_;
-        OP_REQUIRES_OK(
-            ctx, utils::FromUtilStatus(SaveModel(
-                     tf::io::JoinPath(model_dir_, "model"), model.value().get(),
-                     {/*.file_prefix =*/model_id_})));
-      } else {
-        LOG(INFO) << "Export model in log directory: " << model_dir_
-                  << " without prefix";
-        OP_REQUIRES_OK(ctx, utils::FromUtilStatus(
-                                SaveModel(tf::io::JoinPath(model_dir_, "model"),
-                                          model.value().get())));
-      }
+      LOG(INFO) << "Export model in log directory: " << model_dir_;
+      OP_REQUIRES_OK(ctx, utils::FromUtilStatus(
+                              SaveModel(tf::io::JoinPath(model_dir_, "model"),
+                                        model.value().get())));
     }
 
     // Export model to model resource.
@@ -195,7 +184,6 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
   std::string model_id_;
   std::string train_dataset_path_;
   std::string valid_dataset_path_;
-  bool use_file_prefix_;
 
   model::proto::GenericHyperParameters hparams_;
   model::proto::TrainingConfig training_config_;

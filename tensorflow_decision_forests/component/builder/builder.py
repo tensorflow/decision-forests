@@ -36,13 +36,6 @@ observed values in the tree conditions. Alternatively, dictionaries can be
 get/set manually with "{get,set}_dictionary()" or imported from an existing
 dataspec with the "import_dataspec" constructor argument.
 
-About "file prefix": Multiple Yggdrasil decision forests models can be stored in
-a single directory. This is a requirement of the TensorFlow SavedModel API. To
-implement this logic, the files of each individual model are prefixed with a
-unique identifier. When loading a model from a directory path, this prefix can
-be provided or detected automatically. Note that the automatic detection will
-fail if a directory contains more than one model.
-
 
 Usage:
 
@@ -158,8 +151,7 @@ class AbstractBuilder(object):
       self, path: str, objective: py_tree.objective.AbstractObjective,
       model_format: Optional[ModelFormat],
       import_dataspec: Optional[data_spec_pb2.DataSpecification],
-      input_model_signature_fn: Optional[tf_core.InputModelSignatureFn],
-      file_prefix: Optional[str] = None):
+      input_model_signature_fn: Optional[tf_core.InputModelSignatureFn]):
 
     if not path:
       raise ValueError("The path cannot be empty")
@@ -171,9 +163,6 @@ class AbstractBuilder(object):
     self._dataspec = data_spec_pb2.DataSpecification()
     self._closed = False
     self._input_model_signature_fn = input_model_signature_fn
-    self._file_prefix = file_prefix
-    if self._file_prefix is None:
-      self._file_prefix = keras_core.generate_training_id()
 
     self._header.name = self.model_type()
     self._header.task = objective.task
@@ -209,24 +198,24 @@ class AbstractBuilder(object):
                                            len(self._dataspec.columns))
 
     # Write the model header.
-    filename_header = self._file_prefix + inspector_lib.BASE_FILENAME_HEADER
     _write_binary_proto(
         self._header,
-        os.path.join(self.yggdrasil_model_path(), filename_header))
+        os.path.join(self.yggdrasil_model_path(),
+                     inspector_lib.FILENAME_HEADER))
 
     # Write the dataspec.
-    filename_dataspec = self._file_prefix + inspector_lib.BASE_FILENAME_DATASPEC
     _write_binary_proto(
         self._dataspec,
-        os.path.join(self.yggdrasil_model_path(), filename_dataspec))
+        os.path.join(self.yggdrasil_model_path(),
+                     inspector_lib.FILENAME_DATASPEC))
 
     # Write the "done" file.
     #
-    # The file is empty and a model is considered invalid without it.
-    filename_done = self._file_prefix + inspector_lib.BASE_FILENAME_DONE
+    # A model is considered invalid without it.
     with tf.io.gfile.GFile(
-        os.path.join(self.yggdrasil_model_path(), filename_done), "wb") as f:
-      f.write("")
+        os.path.join(self.yggdrasil_model_path(), inspector_lib.FILENAME_DONE),
+        "wb") as f:
+      f.write("done")
 
     if self._model_format == ModelFormat.TENSORFLOW_SAVED_MODEL:
       # Wrap the Yggdrasil model into a tensorflow Saved Model.
@@ -503,12 +492,11 @@ class AbstractDecisionForestBuilder(AbstractBuilder):
                import_dataspec: Optional[data_spec_pb2.DataSpecification],
                input_signature_example_fn: Optional[
                    tf_core.InputModelSignatureFn] = tf_core
-               .build_default_input_model_signature,
-               file_prefix: Optional[str] = None):
+               .build_default_input_model_signature):
 
     super(AbstractDecisionForestBuilder,
           self).__init__(path, objective, model_format, import_dataspec,
-                         input_signature_example_fn, file_prefix)
+                         input_signature_example_fn)
 
     self._trees = []
 
@@ -517,9 +505,9 @@ class AbstractDecisionForestBuilder(AbstractBuilder):
     self.specialized_header().node_format = "BLOB_SEQUENCE"
     self._node_writer = blob_sequence.Writer(
         os.path.join(
-            self.yggdrasil_model_path(), "{}{}-{:05d}-of-{:05d}".format(
-                self._file_prefix, inspector_lib.BASE_FILENAME_NODES_SHARD, 0,
-                num_node_shards)))
+            self.yggdrasil_model_path(),
+            "{}-{:05d}-of-{:05d}".format(inspector_lib.FILENAME_NODES_SHARD, 0,
+                                         num_node_shards)))
 
   def close(self):
 
@@ -691,15 +679,14 @@ class RandomForestBuilder(AbstractDecisionForestBuilder):
       import_dataspec: Optional[data_spec_pb2.DataSpecification] = None,
       input_signature_example_fn: Optional[
           tf_core.InputModelSignatureFn] = tf_core
-      .build_default_input_model_signature,
-      file_prefix: Optional[str] = None):
+      .build_default_input_model_signature):
     self._specialized_header = random_forest_pb2.Header(
         winner_take_all_inference=winner_take_all)
 
     # Should be called last.
     super(RandomForestBuilder,
           self).__init__(path, objective, model_format, import_dataspec,
-                         input_signature_example_fn, file_prefix)
+                         input_signature_example_fn)
 
   def model_type(self) -> str:
     return "RANDOM_FOREST"
@@ -708,7 +695,7 @@ class RandomForestBuilder(AbstractDecisionForestBuilder):
     return self._specialized_header
 
   def specialized_header_filename(self) -> str:
-    return self._file_prefix + inspector_lib.BASE_FILENAME_RANDOM_FOREST_HEADER
+    return "random_forest_header.pb"
 
   def check_leaf(self, node: py_tree.node.LeafNode):
 
@@ -764,8 +751,7 @@ class GradientBoostedTreeBuilder(AbstractDecisionForestBuilder):
       import_dataspec: Optional[data_spec_pb2.DataSpecification] = None,
       input_signature_example_fn: Optional[
           tf_core.InputModelSignatureFn] = tf_core
-      .build_default_input_model_signature,
-      file_prefix: Optional[str] = None):
+      .build_default_input_model_signature):
 
     # Compute the number of tree per iterations and loss.
     #
@@ -813,7 +799,7 @@ class GradientBoostedTreeBuilder(AbstractDecisionForestBuilder):
     # Should be called last.
     super(GradientBoostedTreeBuilder,
           self).__init__(path, objective, model_format, import_dataspec,
-                         input_signature_example_fn, file_prefix)
+                         input_signature_example_fn)
 
   def model_type(self) -> str:
     return "GRADIENT_BOOSTED_TREES"
@@ -835,7 +821,7 @@ class GradientBoostedTreeBuilder(AbstractDecisionForestBuilder):
     return self._specialized_header
 
   def specialized_header_filename(self) -> str:
-    return self._file_prefix + inspector_lib.BASE_FILENAME_GBT_HEADER
+    return "gradient_boosted_trees_header.pb"
 
   def check_leaf(self, node: py_tree.node.LeafNode):
     if not isinstance(node.value, py_tree.value.RegressionValue):

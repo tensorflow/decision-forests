@@ -30,7 +30,6 @@ from tensorflow_decision_forests.component.inspector import inspector as insp
 from yggdrasil_decision_forests.metric import metric_pb2
 from yggdrasil_decision_forests.model.gradient_boosted_trees import gradient_boosted_trees_pb2
 
-
 ColumnType = insp.ColumnType
 SimpleColumnSpec = insp.SimpleColumnSpec
 CATEGORICAL = insp.ColumnType.CATEGORICAL
@@ -333,43 +332,6 @@ Label classes: ['<=50K', '>50K']
         insp._gbt_log_entry_to_evaluation(logs, 1).accuracy, 0.2, delta=0.0001)
     self.assertAlmostEqual(
         insp._gbt_log_entry_to_evaluation(logs, 1).ndcg, 0.3, delta=0.0001)
-
-  def test_inspect_combined_model(self):
-    features = tf.random.uniform(shape=[100, 2], minval=1, maxval=100)
-    target = tf.random.uniform(shape=[100, 1], minval=25, maxval=50)
-    dataset = tf.data.Dataset.from_tensor_slices((features, target)).batch(32)
-    inputs = tf.keras.Input(shape=(2,))
-
-    model_rf = keras.RandomForestModel(num_trees=10, task=keras.Task.REGRESSION)
-    model_gbt = keras.GradientBoostedTreesModel(task=keras.Task.REGRESSION)
-
-    def model_gbt_preprocessing(x):
-      return tf.concat([model_rf(x), x], axis=1)
-    model_gbt_pred = model_gbt(model_gbt_preprocessing(inputs))
-
-    combined_model = tf.keras.models.Model(inputs, model_gbt_pred)
-
-    # Train first model.
-    model_rf.fit(dataset)
-
-    # Train second model.
-    def mix(x, y):
-      return model_gbt_preprocessing(x), y
-    model_gbt.fit(dataset.map(mix))
-
-    combined_model_path = os.path.join(tmp_path(), "combined_model")
-    combined_model.save(combined_model_path, overwrite=True)
-
-    combined_model_assets_path = os.path.join(combined_model_path, "assets")
-    with self.assertRaises(ValueError):
-      insp.make_inspector(combined_model_assets_path)
-
-    inspector_rf = insp.make_inspector(
-        combined_model_assets_path, file_prefix=model_rf.training_model_id)
-    inspector_gbt = insp.make_inspector(
-        combined_model_assets_path, file_prefix=model_gbt.training_model_id)
-    self.assertEqual(inspector_rf.model_type(), "RANDOM_FOREST")
-    self.assertEqual(inspector_gbt.model_type(), "GRADIENT_BOOSTED_TREES")
 
 
 if __name__ == "__main__":

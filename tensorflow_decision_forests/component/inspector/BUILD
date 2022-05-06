@@ -52,6 +52,7 @@ py_test(
         # absl/logging dep,
         # absl/testing:parameterized dep,
         # numpy dep,
+        # pandas dep,
         # TensorFlow Python,
         "//tensorflow_decision_forests/component/py_tree",
         "//tensorflow_decision_forests/keras",

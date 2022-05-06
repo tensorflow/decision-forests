@@ -842,9 +842,7 @@ def train(
       training_config=training_config.SerializeToString(),
       deployment_config=deployment_config.SerializeToString(),
       guide=guide.SerializeToString(),
-      has_validation_dataset=has_validation_dataset,
-      # Only use file prefixes after the forward compatibility window.
-      use_file_prefix=tf.compat.forward_compatible(2022, 5, 25))
+      has_validation_dataset=has_validation_dataset)
 
 
 def train_on_file_dataset(
@@ -980,9 +978,7 @@ def train_on_file_dataset(
       hparams=generic_hparms.SerializeToString(),
       training_config=training_config.SerializeToString(),
       deployment_config=deployment_config.SerializeToString(),
-      guide=guide.SerializeToString(),
-      # Only use file prefixes after the forward compatibility window.
-      use_file_prefix=tf.compat.forward_compatible(2022, 5, 25))
+      guide=guide.SerializeToString())
 
 
 def finalize_distributed_dataset_collection(cluster_coordinator,
