@@ -67,14 +67,17 @@ def test_dataset_directory() -> str:
 
 class BuilderTest(parameterized.TestCase, tf.test.TestCase):
 
-  def test_classification_random_forest(self):
+  @parameterized.parameters((None,), ("",), ("prefix_",))
+  def test_classification_random_forest(self, file_prefix):
+
     model_path = os.path.join(tmp_path(), "classification_rf")
     logging.info("Create model in %s", model_path)
     builder = builder_lib.RandomForestBuilder(
         path=model_path,
         model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
         objective=py_tree.objective.ClassificationObjective(
-            label="color", classes=["red", "blue", "green"]))
+            label="color", classes=["red", "blue", "green"]),
+        file_prefix=file_prefix)
 
     #  f1>=1.5
     #    │
@@ -110,6 +113,11 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
 
     builder.close()
 
+    if file_prefix is not None:
+      self.assertEqual(
+          inspector_lib.detect_model_file_prefix(
+              os.path.join(model_path, "assets")), file_prefix)
+
     logging.info("Loading model")
     loaded_model = tf.keras.models.load_model(model_path)
 
@@ -122,14 +130,16 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
     self.assertAllClose(predictions,
                         [[0.1, 0.1, 0.8], [0.8, 0.1, 0.1], [0.1, 0.8, 0.1]])
 
-  def test_classification_cart(self):
+  @parameterized.parameters((None,), ("",), ("prefix_",))
+  def test_classification_cart(self, file_prefix):
     model_path = os.path.join(tmp_path(), "classification_cart")
     logging.info("Create model in %s", model_path)
     builder = builder_lib.CARTBuilder(
         path=model_path,
         model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
         objective=py_tree.objective.ClassificationObjective(
-            label="color", classes=["red", "blue", "green"]))
+            label="color", classes=["red", "blue", "green"]),
+        file_prefix=file_prefix)
 
     #  f1>=1.5
     #    ├─(pos)─ f2 in ["cat","dog"]
@@ -162,6 +172,11 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
                         probability=[0.1, 0.1, 0.8], num_examples=30)))))
 
     builder.close()
+
+    if file_prefix is not None:
+      self.assertEqual(
+          inspector_lib.detect_model_file_prefix(
+              os.path.join(model_path, "assets")), file_prefix)
 
     logging.info("Loading model")
     loaded_model = tf.keras.models.load_model(model_path)
@@ -252,14 +267,16 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
         predictions,
         [[1.0 / (1.0 + math.exp(0.0))], [1.0 / (1.0 + math.exp(-2.0))]])
 
-  def test_multi_class_classification_gbt(self):
+  @parameterized.parameters((None,), ("",), ("prefix_",))
+  def test_multi_class_classification_gbt(self, file_prefix):
     model_path = os.path.join(tmp_path(), "multi_class_classification_gbt")
     logging.info("Create model in %s", model_path)
     builder = builder_lib.GradientBoostedTreeBuilder(
         path=model_path,
         model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
         objective=py_tree.objective.ClassificationObjective(
-            label="color", classes=["red", "blue", "green"]))
+            label="color", classes=["red", "blue", "green"]),
+        file_prefix=file_prefix)
 
     #  f1>=1.5
     #    ├─(pos)─ +1.0 (toward "red")
@@ -287,6 +304,11 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
                       value=RegressionValue(value=-1, num_examples=30)))))
 
     builder.close()
+
+    if file_prefix is not None:
+      self.assertEqual(
+          inspector_lib.detect_model_file_prefix(
+              os.path.join(model_path, "assets")), file_prefix)
 
     logging.info("Loading model")
     loaded_model = tf.keras.models.load_model(model_path)

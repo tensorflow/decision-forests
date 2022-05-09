@@ -59,6 +59,7 @@ REGISTER_OP("SimpleMLLoadModelFromPathWithHandle")
     .Attr("output_types: list(string) = []")
     .Input("model_handle: resource")
     .Input("path: string")
+    .Attr("file_prefix: string = ''")
     .Doc(R"(
 Applies a model and returns its predictions.
 
@@ -70,6 +71,8 @@ output_types: A list of keywords describing what the model can do. The possible
   SimpleMLInferenceLeafIndexOpWithHandle. There is no need to specify anything
   for classical model prediction. Adding output_type constraints might lead to
   the selection of a slower model inference logic.
+
+file_prefix: The prefix of the model files.
 
 )");
 

@@ -75,6 +75,9 @@ optimizers = tf.keras.optimizers
 losses = tf.keras.losses
 backend = tf.keras.backend
 
+# The length of a model identifier
+MODEL_IDENTIFIER_LENGTH = 16
+
 # Task solved by a model (e.g. classification, regression, ranking);
 Task = tf_core.Task
 TaskType = "abstract_model_pb2.Task"  # pylint: disable=invalid-name
@@ -540,7 +543,7 @@ class CoreModel(models.Model):
     self._is_trained = tf.Variable(False, trainable=False, name="is_trained")
 
     # Unique ID to identify the model during training.
-    self._training_model_id = str(uuid.uuid4())
+    self._training_model_id = generate_training_id()
 
     # The following fields contain the trained model. They are set during the
     # graph construction and training process.
@@ -603,6 +606,11 @@ class CoreModel(models.Model):
   def exclude_non_specified_features(self) -> Optional[bool]:
     """If true, only use the features specified in "features"."""
     return self._exclude_non_specified
+
+  @property
+  def training_model_id(self) -> str:
+    """Identifier of the model."""
+    return self._training_model_id
 
   def make_inspector(self) -> inspector_lib.AbstractInspector:
     """Creates an inspector to access the internal model structure.
@@ -1888,11 +1896,17 @@ class CoreModel(models.Model):
 
       # Load and optimize the model in memory.
       # Register the model as a SavedModel asset.
-      self._model = tf_op.ModelV2(model_path=model_path, verbose=False)
+      additional_args = {}
+      additional_args["file_prefix"] = self._training_model_id
+      self._model = tf_op.ModelV2(
+          model_path=model_path,
+          verbose=False,
+          **additional_args)
 
   def _set_from_yggdrasil_model(self,
                                 inspector: inspector_lib.AbstractInspector,
                                 path: str,
+                                file_prefix: Optional[str] = None,
                                 input_model_signature_fn: Optional[
                                     tf_core.InputModelSignatureFn] = tf_core
                                 .build_default_input_model_signature):
@@ -1909,7 +1923,8 @@ class CoreModel(models.Model):
     self._semantics = semantics
     self._normalized_input_keys = sorted(list(semantics.keys()))
     self._is_trained.assign(True)
-    self._model = tf_op.ModelV2(model_path=path, verbose=False)
+    self._model = tf_op.ModelV2(
+        model_path=path, verbose=False, file_prefix=file_prefix)
 
     # Instantiate the model's graph
     input_model_signature = input_model_signature_fn(inspector)
@@ -2167,7 +2182,8 @@ def yggdrasil_model_to_keras_model(
     src_path: str,
     dst_path: str,
     input_model_signature_fn: Optional[tf_core.InputModelSignatureFn] = tf_core
-    .build_default_input_model_signature):
+    .build_default_input_model_signature,
+    file_prefix: Optional[str] = None):
   """Converts an Yggdrasil model into a Keras model.
 
   Args:
@@ -2181,9 +2197,10 @@ def yggdrasil_model_to_keras_model(
       "input_model_signature_fn" if an numerical input feature (which is
       consumed as DenseTensorSpec(float32) by default) will be feed differently
       (e.g. RaggedTensor(int64)).
+    file_prefix: Prefix of the model files. Auto-detected if None.
   """
 
-  inspector = inspector_lib.make_inspector(src_path)
+  inspector = inspector_lib.make_inspector(src_path, file_prefix=file_prefix)
   objective = inspector.objective()
 
   model = CoreModel(
@@ -2195,6 +2212,7 @@ def yggdrasil_model_to_keras_model(
   model._set_from_yggdrasil_model(  # pylint: disable=protected-access
       inspector,
       src_path,
+      file_prefix=file_prefix,
       input_model_signature_fn=input_model_signature_fn)
 
   model.save(dst_path)
@@ -2554,6 +2572,11 @@ def _reduce_per_replica(values, strategy, reduction="first"):
                        f"reduction={reduction}.")
 
   return tf.nest.map_structure(_reduce, values)
+
+
+def generate_training_id() -> str:
+  """Generates random hexadecimal string of length `MODEL_IDENTIFIER_LENGTH`."""
+  return uuid.uuid4().hex[:MODEL_IDENTIFIER_LENGTH]
 
 
 # pylint: enable=g-doc-args
