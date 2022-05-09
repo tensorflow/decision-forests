@@ -152,9 +152,6 @@ py_test(
     python_version = "PY3",
     shard_count = 10,
     deps = [
-        ":core",
-        ":keras",
-        "@com_google_protobuf//:python_srcs",
         # absl/flags dep,
         # absl/logging dep,
         # absl/testing:parameterized dep,
@@ -164,6 +161,7 @@ py_test(
         # TensorFlow Python,
         # TensorFlow /distribute:distribute_lib,
         "//tensorflow_decision_forests",
+        "@ydf//yggdrasil_decision_forests/learner/distributed_gradient_boosted_trees:distributed_gradient_boosted_trees_py_proto",
     ],
 )
 

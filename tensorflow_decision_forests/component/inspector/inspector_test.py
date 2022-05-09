@@ -212,7 +212,7 @@ Label classes: ['<=50K', '>50K']
     # It is very unlikely that the model contains less than 10 trees.
     self.assertGreater(inspector.num_trees(), 10)
 
-    self.assertAlmostEqual(inspector.bias, -0.023836, delta=0.0001)
+    self.assertAlmostEqual(inspector.bias, -0.023836, delta=0.006)
     self.assertEqual(inspector.num_trees_per_iter, 1)
 
     matching_log = [
