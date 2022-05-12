@@ -20,7 +20,7 @@ Replacement of absl's logging primitives that are always visible to the user.
 from contextlib import contextmanager  # pylint: disable=g-importing-member
 import io
 import sys
-from typing import Union
+from typing import Union, Any, List
 
 from tensorflow_decision_forests.tensorflow.ops.training import op as training_op
 
@@ -71,7 +71,7 @@ def set_training_logs_redirection(value: Union[str, bool]):
   REDIRECT_YGGDRASIL_CPP_OUTPUT_TO_PYTHON_OUTPUT = value
 
 
-def info(msg, *args):
+def info(msg: str, *args: List[Any]) -> None:
   """Print an info message visible to the user.
 
   To use instead of absl.logging.info (to be visible in colabs).
@@ -84,19 +84,23 @@ def info(msg, *args):
     *args: Placeholder replacement values.
   """
 
-  print(msg % args)
+  print(msg % args, flush=True)
 
 
-def warning(msg, *args):
+def warning(msg: str, *args: List[Any]) -> None:
   """Print a warning message visible to the user.
 
   To use instead of absl.logging.info (to be visible in colabs).
 
   Usage example:
     logging_warning("Hello %s", "world")
+
+  Args:
+    msg: String message with replacement placeholders e.g. %s.
+    *args: Placeholder replacement values.
   """
 
-  print("Warning: ", msg % args)
+  print("Warning:", msg % args, flush=True)
 
 
 def capture_cpp_log_context(verbose=False):

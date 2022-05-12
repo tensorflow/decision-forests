@@ -46,7 +46,6 @@ from __future__ import print_function
 
 import copy
 from datetime import datetime  # pylint: disable=g-importing-member
-from datetime import timedelta  # pylint: disable=g-importing-member
 from functools import partial  # pylint: disable=g-importing-member
 import inspect
 import os
@@ -68,6 +67,9 @@ from yggdrasil_decision_forests.dataset import data_spec_pb2
 from yggdrasil_decision_forests.learner import abstract_learner_pb2
 from yggdrasil_decision_forests.model import abstract_model_pb2  # pylint: disable=unused-import
 from yggdrasil_decision_forests.utils.distribute.implementations.grpc import grpc_pb2  # pylint: disable=unused-import
+
+import keras.engine.data_adapter as data_adapter
+get_data_handler = data_adapter.get_data_handler
 
 layers = tf.keras.layers
 models = tf.keras.models
@@ -281,6 +283,13 @@ class AdvancedArguments(object):
     metadata_framework: Metadata describing the framework used to train the
       model.
     metadata_owner: Metadata describing who trained the model.
+    populate_history_with_yggdrasil_logs: If false (default) and if a validation
+      dataset is provided, populate the model's history with the final
+      validation evaluation computed by the Keras metric (i.e. one evaluation).
+      If true or if no validation dataset is provided, populate the model's
+      history with the yggdrasil training logs. The yggdrasil training logs
+      contains more metrics, but those might not be comparable with other non
+      TF-DF models.
   """
 
   def __init__(
@@ -292,7 +301,8 @@ class AdvancedArguments(object):
       predict_single_probability_for_binary_classification: Optional[
           bool] = True,
       metadata_framework: Optional[str] = "TF Keras",
-      metadata_owner: Optional[str] = None):
+      metadata_owner: Optional[str] = None,
+      populate_history_with_yggdrasil_logs: bool = False):
     self.infer_prediction_signature = infer_prediction_signature
     self.yggdrasil_training_config = yggdrasil_training_config or abstract_learner_pb2.TrainingConfig(
     )
@@ -302,6 +312,7 @@ class AdvancedArguments(object):
     self.predict_single_probability_for_binary_classification = predict_single_probability_for_binary_classification
     self.metadata_framework = metadata_framework
     self.metadata_owner = metadata_owner
+    self.populate_history_with_yggdrasil_logs = populate_history_with_yggdrasil_logs
 
 
 class CoreModel(models.Model):
@@ -473,10 +484,9 @@ class CoreModel(models.Model):
     self._check_dataset = check_dataset
     self._tuner = tuner
 
-    # Internal, indicates whether the first evaluation during training,
-    # triggered by providing validation data, should trigger the training
-    # itself.
-    self._train_on_evaluate: bool = False
+    # Number of examples. Populated during training
+    self._num_training_examples = None
+    self._num_validation_examples = None
 
     # Determine the optimal number of threads.
     if self._num_threads is None:
@@ -574,11 +584,6 @@ class CoreModel(models.Model):
     # True if the user provides a validation dataset to `fit`.
     self._has_validation_dataset = False
 
-    self._time_begin_data_feed: Optional[datetime] = None
-    self._time_end_data_feed: Optional[datetime] = None
-    self._time_begin_training: Optional[datetime] = None
-    self._time_end_training: Optional[datetime] = None
-
   @property
   def learner_params(self) -> Optional[HyperParameters]:
     """Gets the dictionary of hyper-parameters passed in the model constructor.
@@ -601,6 +606,16 @@ class CoreModel(models.Model):
   def num_threads(self) -> Optional[int]:
     """Number of threads used to train the model."""
     return self._num_threads
+
+  @property
+  def num_training_examples(self) -> Optional[int]:
+    """Number of training examples."""
+    return self._num_training_examples
+
+  @property
+  def num_validation_examples(self) -> Optional[int]:
+    """Number of validation examples."""
+    return self._num_validation_examples
 
   @property
   def exclude_non_specified_features(self) -> Optional[bool]:
@@ -630,7 +645,7 @@ class CoreModel(models.Model):
     path = self.yggdrasil_model_path_tensor().numpy().decode("utf-8")
     return inspector_lib.make_inspector(path)
 
-  def load_weights(self, *args, **kwargs):
+  def load_weights(self, *args, **kwargs):  # pylint: disable=useless-super-delegation
     """No-op for TensorFlow Decision Forests models.
 
     `load_weights` is not supported by TensorFlow Decision Forests models.
@@ -933,8 +948,6 @@ class CoreModel(models.Model):
       Index of the active leaf for each tree in the model.
     """
 
-    # TODO(gbm): Use get_data_handler when Keras makes it public.
-
     self._ensure_model_get_leaves_ready()
 
     leaves = []
@@ -1201,8 +1214,8 @@ class CoreModel(models.Model):
             model_id=self._training_model_id,
             dataset_path=self._distributed_partial_dataset_cache_path())
 
-    # Not metrics are returned during the collection of training examples.
-    return {}
+    # Number of scanned examples.
+    return tf.shape(train_y)[0]
 
   def _distributed_partial_dataset_cache_path(self):
     """Directory accessible from all workers containing the partial cache."""
@@ -1228,42 +1241,25 @@ class CoreModel(models.Model):
     super(CoreModel, self).compile(
         metrics=metrics, weighted_metrics=weighted_metrics)
 
-  def _keras_verbose(self, verbose: Optional[Any] = None) -> Optional[Any]:
-    """Transforms the "verbose" arg of "fit" before it is send to the parent.
-
-    If versbose is set in the constructor, and if verbose is not set in "fit",
-    the constructor verbose is used. Same goes for "evaluate".
-
-    Args:
-      verbose: The verbose level as passed to fit or evaluate.
-
-    Returns:
-      The verbose level effectively used by fit or evaluate.
-    """
-
-    if verbose is not None:
-      return verbose
-    else:
-      if self._verbose == 1:
-        # Keras's verbose cannot be "1" in case of distributed training (for
-        # "performance" reasons).
-        return "auto"
-      else:
-        return self._verbose
-
   def fit(self,
           x=None,
           y=None,
           callbacks=None,
           verbose: Optional[Any] = None,
+          validation_steps: Optional[int] = None,
+          validation_data: Optional[Any] = None,
+          sample_weight: Optional[Any] = None,
+          steps_per_epoch: Optional[Any] = None,
+          class_weight: Optional[Any] = None,
           **kwargs) -> tf.keras.callbacks.History:
     """Trains the model.
 
-    On most cases, you want to prepare the dataset as a Pandas Dataframe, and
-    use the method "dataframe_to_tf_dataset" to convert it into a TensorFlow
-    Dataset.
+    Local training
+    ==============
 
-    For example:
+    It is recommended to use a Pandas Dataframe dataset and to convert it to
+    a TensorFlow dataset with "pd_dataframe_to_tf_dataset()":
+
       pd_dataset = pandas.Dataframe(...)
       tf_dataset = pd_dataframe_to_tf_dataset(dataset, label="my_label")
       model.fit(pd_dataset)
@@ -1280,9 +1276,8 @@ class CoreModel(models.Model):
       3. "x" is a numpy-array, list of numpy-arrays or dictionary of
          numpy-arrays containing the input features. "y" is a numpy-array.
 
-    IMPORTANT: Unlike classical neural networks that train with mini-batching,
-    this algorithm trains on the entire dataset at once. This has the following
-    consequences:
+    IMPORTANT: This model trains on the entire dataset at once. This has the
+    following consequences:
 
       1. The dataset need to be read exactly once. If you use a TensorFlow
          dataset, make sure NOT to add a "repeat" operation.
@@ -1290,28 +1285,118 @@ class CoreModel(models.Model):
          TensorFlow dataset, make sure NOT to add a "shuffle" operation.
       3. The dataset needs to be batched (i.e. with a "batch" operation).
          However, the number of elements per batch has not impact on the model.
-         Generally, it is recommanded to use batches as large as possible as its
+         Generally, it is recommended to use batches as large as possible as its
          speeds-up reading the dataset in TensorFlow.
-
 
     Input features do not need to be normalized (e.g. dividing numerical values
     by the variance) or indexed (e.g. replacing categorical string values by
     an integer). Additionnaly, missing values can be consumed natigely.
 
-    Some of the learning algorithm will support distributed training with the
-    ParameterServerStrategy e.g.:
+    Distributed training
+    ====================
 
-      with tf.distribute.experimental.ParameterServerStrategy(...).scope():
+    Some of the learning algorithms will support distributed training with the
+    ParameterServerStrategy.
+
+    In this case, the dataset is read asynchronously in between the workers. The
+    distribution of the training depends on the learning algorithm.
+
+    Like for non-distributed training, the dataset should be read eactly once.
+    The simplest solution is to divide the dataset into different files (i.e.
+    shards) and have each of the worker read a non overlapping subset of shards.
+
+    IMPORTANT: The training dataset should not be infinite i.e. the training
+    dataset should not contain any repeat operation.
+
+    Currently (to be changed), the validation dataset (if provided) is simply
+    feed to the "model.evaluate()" method. Therefore, it should satify Keras'
+    evaluate API. Notably, for distributed training, the validation dataset
+    should be infinite (i.e. have a repeat operation).
+
+    Here is a full example of distributed training:
+
+      def dataset_fn(context, paths, training=True):
+        ds_path = tf.data.Dataset.from_tensor_slices(paths)
+
+        # Train on at least 2 workers.
+        current_worker = tfdf.keras.get_worker_idx_and_num_workers(context)
+        assert current_worker.num_workers > 2
+
+        # Split the dataset's examples among the workers.
+        ds_path = ds_path.shard(
+            num_shards=current_worker.num_workers,
+            index=current_worker.worker_idx)
+
+        def read_csv_file(path):
+          numerical = tf.constant([math.nan], dtype=tf.float32)
+          categorical_string = tf.constant([""], dtype=tf.string)
+          csv_columns = [
+              numerical,  # age
+              categorical_string,  # workclass
+              numerical,  # fnlwgt
+              ...
+          ]
+          column_names = [
+            "age", "workclass", "fnlwgt", ...
+          ]
+          label_name = "label"
+          return tf.data.experimental.CsvDataset(path, csv_columns, header=True)
+
+        ds_columns = ds_path.interleave(read_csv_file)
+
+        def map_features(*columns):
+          assert len(column_names) == len(columns)
+          features = {column_names[i]: col for i, col in enumerate(columns)}
+          label = label_table.lookup(features.pop(label_name))
+          return features, label
+
+        ds_dataset = ds_columns.map(map_features)
+        if not training:
+          dataset = dataset.repeat(None)
+        ds_dataset = ds_dataset.batch(batch_size)
+        return ds_dataset
+
+      strategy = tf.distribute.experimental.ParameterServerStrategy(...)
+      sharded_train_paths = [list of dataset files]
+      with strategy.scope():
         model = DistributedGradientBoostedTreesModel()
-      model.fit(...)
+        train_dataset = strategy.distribute_datasets_from_function(
+          lambda context: dataset_fn(context, sharded_train_paths))
+
+        test_dataset = strategy.distribute_datasets_from_function(
+          lambda context: dataset_fn(context, sharded_test_paths))
+
+      model.fit(sharded_train_paths)
+      evaluation = model.evaluate(test_dataset, steps=num_test_examples //
+        batch_size)
 
     Args:
       x: Training dataset (See details above for the supported formats).
       y: Label of the training dataset. Only used if "x" does not contains the
         labels.
-      callbacks: Callbacks triggered during the training.
+      callbacks: Callbacks triggered during the training. The training runs in a
+        single epoch, itself run in a single step. Therefore, callback logic can
+        be called equivalently before/after the fit function.
       verbose: Verbosity mode. 0 = silent, 1 = small details, 2 = full details.
-      **kwargs: Arguments passed to the core keras model's fit.
+      validation_steps: Number of steps in the evaluation dataset when
+        evaluating the trained model with model.evaluate(). If not specified,
+        evaluates the model on the entire dataset (generally recommended; not
+        yet supported for distributed datasets).
+      validation_data: Validation dataset. If specified, the learner might use
+        this dataset to help training e.g. early stopping.
+      sample_weight: Training weights. Note: training weights can also be
+        provided as the third output in a tf.data.Dataset e.g. (features, label,
+        weights).
+      steps_per_epoch: [Parameter will be removed] Number of training batch to
+        load before training the model. Currently, only supported for
+        distributed training.
+      class_weight: For binary classification only. Mapping class indices
+        (integers) to a weight (float) value. Only available for non-Distributed
+        training. For maximum compatibility, feed example weights through the
+        tf.data.Dataset or using the `weight` argument of
+        pd_dataframe_to_tf_dataset.
+      **kwargs: Extra arguments passed to the core keras model's fit. Note that
+        not all keras' model fit arguments are supported.
 
     Returns:
       A `History` object. Its `History.history` attribute is not yet
@@ -1320,6 +1405,10 @@ class CoreModel(models.Model):
     """
 
     self._clear_function_cache()
+
+    # Override the verbose
+    if verbose is not None:
+      self._verbose = verbose
 
     # Check for a Pandas Dataframe without injecting a dependency.
     if str(type(x)) == "<class 'pandas.core.frame.DataFrame'>":
@@ -1347,37 +1436,393 @@ class CoreModel(models.Model):
     if not self._is_compiled:
       self.compile()
 
-    if "epochs" in kwargs:
-      if kwargs["epochs"] != 1:
-        raise ValueError("all decision forests algorithms train with only 1 " +
-                         "epoch, epochs={} given".format(kwargs["epochs"]))
-      del kwargs["epochs"]  # Not needed since we force it to 1 below.
+    for extra_key, extra_values in kwargs.items():
+      if extra_key == "epochs":
+        # TODO(gbm): Remove epoch argument.
+        if extra_values != 1:
+          raise ValueError(
+              "all decision forests algorithms train with only 1 " +
+              "epoch, epochs={} given".format(kwargs["epochs"]))
+      else:
+        tf_logging.warning(
+            "Model constructor argument %s=%s not supported. "
+            "See https://www.tensorflow.org/decision_forests/migration for an "
+            "explanation about the specificities of TF-DF.", extra_key,
+            extra_values)
 
-    # This callback will trigger the training at the end of the first epoch.
-    callbacks = [_TrainerCallBack(self)] + (callbacks if callbacks else [])
-
-    # We want the model trained before any evaluation is done at the
-    # end of the epoch. This may fail in case any of the `on_train_batch_*`
-    # callbacks calls `evaluate()` before the end of the 1st epoch.
-    self._train_on_evaluate = True
+    if steps_per_epoch is not None:
+      tf_logging.warning(
+          "The steps_per_epoch argument is deprecated. Instead, feed a "
+          "finite dataset (i.e. a dataset without repeat statement) and remove "
+          "the steps_per_epoch argument.")
 
     # Reset the training status.
     self._is_trained.assign(False)
 
-    try:
-      history = super(CoreModel, self).fit(
+    return self._fit_implementation(
+        x=x,
+        y=y,
+        callbacks=callbacks,
+        verbose=verbose,
+        validation_steps=validation_steps,
+        validation_data=validation_data,
+        sample_weight=sample_weight,
+        steps_per_epoch=steps_per_epoch,
+        class_weight=class_weight)
+
+  @base_tracking.no_automatic_dependency_tracking
+  @tf.function(reduce_retracing=True)
+  def _consumes_training_examples_until_eof(self, iterator):
+    """Consumes all the available training examples.
+
+    The examples are either loaded in memory (local training) or indexed
+    (distributed training). Returns the total number of consumed examples.
+
+    Args:
+      iterator: Iterator of examples.
+
+    Returns:
+      Number of read examples.
+    """
+
+    num_examples = 0
+    for data in iterator:
+      num_examples += self.train_step(data)
+    return num_examples
+
+  @base_tracking.no_automatic_dependency_tracking
+  @tf.function(reduce_retracing=True)
+  def _consumes_validation_examples_until_eof(self, iterator):
+    """Consumes all the available validation examples.
+
+    The examples are either loaded in memory (local training) or indexed
+    (distributed training). Returns the total number of consumed examples.
+
+    Args:
+      iterator: Iterator of examples.
+
+    Returns:
+      Number of read examples.
+    """
+
+    num_examples = 0
+    for data in iterator:
+      num_examples += self.valid_step(data)
+    return num_examples
+
+  def _fit_implementation(
+      self, x, y, verbose, callbacks, sample_weight, validation_data,
+      validation_steps, steps_per_epoch, class_weight
+  ) -> tf.keras.callbacks.History:  # pylint: disable=g-doc-args,g-doc-return-or-yield
+    """Train the model.
+
+    This method performs operations that resembles as the Keras' fit function.
+
+    Details:
+      1. Load the training dataset in Yggdrasil (locally or remotely).
+      2. Load the validation dataset in Yggdrasil (locally or ignored).
+      3. Train the Yggdrasil model. Depending on the learner, this might also
+        evaluate the model (on the validation dataset or with out-of-bag).
+      4. Evaluate the model using the Keras metrics.
+
+      We recommend training / validating models with finite datasets. For
+      backward compatibility with the early version of TF-DF, we also support
+      infinite dataset with specified number of steps (steps_per_epoch and
+      validation_steps arguments). Using a number of steps currently raises
+      a warning, and will later raise an error (and the logic be removed).
+    """
+
+    # Create the callback manager
+    if not isinstance(callbacks, tf.keras.callbacks.CallbackList):
+      callbacks = tf.keras.callbacks.CallbackList(
+          callbacks, model=self, add_history=False)
+
+    # Manages the history manually.
+    # Note: The both the History and CallbackList object will override the
+    # "model.history" field.
+    history = tf.keras.callbacks.History()
+    history.model = self
+    history.on_train_begin()
+    history.on_epoch_begin(0)
+
+    callbacks.on_train_begin()
+    callbacks.on_epoch_begin(0)
+
+    # Check if the training is local or distributed.
+    distribution_config = tf_core.get_distribution_configuration(
+        self.distribute_strategy)
+
+    # Instantiate the validation data handler.
+    # We create the handler before the training such that if it is
+    # misconfigured, the error is raised immediately (instead of after
+    # training).
+    validation_data_handler = None
+    if validation_data:
+      val_x, val_y, val_sample_weight = (
+          tf.keras.utils.unpack_x_y_sample_weight(validation_data))
+
+      if distribution_config is None:
+        # TODO(gbm): The validation_data is currently not used for distributed
+        # training (except for the model validation evaluation). Creating
+        # and not using the validation_data_handler for distributed training
+        # seems to cause some issues.
+
+        # Create data_handler for evaluation and cache it.
+        validation_data_handler = get_data_handler(
+            x=val_x,
+            y=val_y,
+            sample_weight=val_sample_weight,
+            model=self,
+            steps_per_epoch=validation_steps,
+            class_weight=class_weight)
+
+    time_begin_train_dataset_reading = datetime.now()
+    if self._verbose >= 1:
+      tf_logging.info("Reading training dataset...")
+
+    coordinator = None
+    if distribution_config is None:
+      # Local training.
+
+      # Wraps the input training dataset into a tf.data.Dataset like object.
+      # This is a noop if the training dataset is already provided as a
+      # tf.data.Dataset.
+      data_handler = get_data_handler(
           x=x,
           y=y,
-          epochs=1,
-          callbacks=callbacks,
-          verbose=self._keras_verbose(verbose),
-          **kwargs)
-    finally:
-      self._train_on_evaluate = False
+          sample_weight=sample_weight,
+          model=self,
+          class_weight=class_weight)
+      iterator = iter(data_handler._dataset)  # pylint: disable=protected-access
 
+      if steps_per_epoch is None:
+        # Local training with finite dataset.
+
+        # Load the entire training dataset in Yggdrasil in a single TensorFlow
+        # step.
+        self._num_training_examples = self._consumes_training_examples_until_eof(
+            iterator)
+
+      else:
+        # Local training with number of steps.
+
+        # TODO(gbm): Make this case an error and remove this code.
+        tf_logging.warning(
+            "You are using non-distributed training with steps_per_epoch. "
+            "This solution will lead to a sub-optimal model. Instead, "
+            "use a finite training dataset (e.g. a dataset without "
+            "repeat operation) and remove the `steps_per_epoch` argument. "
+            "This warning will be turned into an error in the future.")
+
+        def consumes_one_training_batch(iterator):
+          data = next(iterator)
+          return self.train_step(data)
+
+        tf_consumes_one_training_batch = tf.function(
+            consumes_one_training_batch, reduce_retracing=True)
+
+        num_examples = 0
+        try:
+          for _ in range(steps_per_epoch):
+            num_examples += tf_consumes_one_training_batch(iterator)
+        except tf.errors.OutOfRangeError:
+          pass
+        self._num_training_examples = num_examples
+
+        # End of the logic to remove as mentionned in the TODO above.
+
+    else:
+
+      if class_weight is not None:
+        raise ValueError("class_weight not support for distributed training. "
+                         "Feed the example weights through the dataset.")
+
+      # Distributed training
+      if not self.capabilities().support_partial_cache_dataset_format:
+        raise ValueError(
+            f"The model {type(self)} does not support training with a TF "
+            "Distribution strategy (i.e. model.capabilities()."
+            "support_partial_cache_dataset_format == False). If the dataset "
+            "is small, simply remove the distribution strategy scope (i.e. `with "
+            "strategy.scope():` around the model construction). If the dataset "
+            "is large, use a distributed version of the model. For example, "
+            "use DistributedGradientBoostedTreesModel instead of "
+            "GradientBoostedTreesModel.")
+
+      # Make the workers read the entire dataset.
+      # If a worker is interrupted, it restarts reading its part of the dataset
+      # from the start.
+      coordinator = tf.distribute.experimental.coordinator.ClusterCoordinator(
+          self.distribute_strategy)
+      with self.distribute_strategy.scope():
+        per_worker_dataset = coordinator.create_per_worker_dataset(x)
+      per_worker_iter = iter(per_worker_dataset)
+
+      if steps_per_epoch is not None:
+        # Distributed training with number of steps.
+
+        # TODO(gbm): Deprecated logic. To remove.
+
+        tf_logging.warning(
+            "You are using distributed training with steps_per_epoch. "
+            "This solution will lead to a sub-optimal model. Instead, "
+            "use a finite training dataset (e.g. a dataset without "
+            "repeat operation) and remove the `steps_per_epoch` argument.")
+
+        def remote_consumes_one_training_batch(iterator):
+          data = next(iterator)
+          self.train_step(data)
+
+        tf_remote_consumes_one_training_batch = tf.function(
+            remote_consumes_one_training_batch, reduce_retracing=True)
+
+        tf_logging.info("Scheduling of %d steps", steps_per_epoch)
+        for _ in range(steps_per_epoch):
+          coordinator.schedule(
+              tf_remote_consumes_one_training_batch, args=(per_worker_iter,))
+        tf_logging.info("Waiting for scheduled steps to complete")
+        coordinator.join()
+
+        # The number of training examples is unknown.
+        self._num_training_examples = -1
+
+        # End of the logic to remove as mentionned in the TODO above.
+
+      else:
+        # Distributed training with finite dataset.
+
+        def remote_consumes_training_examples_until_eof(iterator):
+          return self._consumes_training_examples_until_eof(iterator)
+
+        tf_remote_consumes_training_examples_until_eof = tf.function(
+            remote_consumes_training_examples_until_eof, reduce_retracing=True)
+
+        # TODO(gbm): Replace with an coordinator.schedule version when
+        # available.
+        self._num_training_examples = tf_core.execute_function_on_each_worker(
+            coordinator, tf_remote_consumes_training_examples_until_eof,
+            (per_worker_iter,))
+
+    if self._verbose >= 1:
+      tf_logging.info("Training dataset read in %s. Found %d examples.",
+                      datetime.now() - time_begin_train_dataset_reading,
+                      self._num_training_examples)
+
+    # Load the validation dataset
+    if validation_data is not None:
+
+      # Collect the validation dataset in Yggdrasil.
+      if coordinator is not None:
+
+        # TODO(gbm): Collect the validation dataset in yggdrasil when using
+        # distributed training.
+        assert validation_data_handler is None
+
+        tf_logging.warning(
+            "With distributed training, the validation dataset is not (yet) "
+            "used for early stopping.")
+        self._num_validation_examples = None
+
+      else:
+        assert validation_data_handler is not None
+
+        time_begin_valid_dataset_reading = datetime.now()
+        if self._verbose >= 1:
+          tf_logging.info("Reading validation dataset...")
+
+        # Load the validation examples in Yggdrasil.
+        iterator = iter(validation_data_handler._dataset)  # pylint: disable=protected-access
+
+        if validation_steps is None:
+          # Validation with finite dataset.
+
+          self._num_validation_examples = self._consumes_validation_examples_until_eof(
+              iterator)
+
+        else:
+
+          # Validation with number of steps.
+          # TODO(gbm): Make this case an error and remove this code.
+          tf_logging.warning(
+              "You are using non-distributed validation with steps_per_epoch. "
+              "This solution will lead to a sub-optimal model. Instead, "
+              "use a finite validation dataset (e.g. a dataset without "
+              "repeat operation) and remove the `validation_steps` argument. "
+              "This warning will be turned into an error in the future.")
+
+          def consumes_one_valid_batch(iterator):
+            data = next(iterator)
+            return self.valid_step(data)
+
+          tf_consumes_one_valid_batch = tf.function(
+              consumes_one_valid_batch, reduce_retracing=True)
+
+          num_examples = 0
+          try:
+            for _ in range(validation_steps):
+              num_examples += tf_consumes_one_valid_batch(iterator)
+          except tf.errors.OutOfRangeError:
+            pass
+          self._num_validation_examples = num_examples
+
+          # End of the logic to remove as mentionned in the TODO above.
+
+        tf_logging.info("Num validation examples: %s",
+                        self.num_validation_examples)
+
+        if self._verbose >= 1:
+          tf_logging.info("Validation dataset read in %s. Found %d examples.",
+                          datetime.now() - time_begin_valid_dataset_reading,
+                          self._num_validation_examples)
+
+    # Train the model
+    # Note: The model should be trained after having collected both the training
+    # and validation datasets.
+
+    time_begin_training_model = datetime.now()
+    if self._verbose >= 1:
+      tf_logging.info("Training model...")
+
+    self._train_model(cluster_coordinator=coordinator)
+
+    if self._verbose >= 1:
+      tf_logging.info("Model trained in %s",
+                      datetime.now() - time_begin_training_model)
+
+    # Load the inference ops of the model.
     self._build(x)
 
-    return history
+    # Evaluate the model using Keras
+    if (validation_data is not None and
+        not self._advanced_arguments.populate_history_with_yggdrasil_logs):
+      # Note: the "validation_data_handler" is exausted and cannot be reused
+      # with the model evaluation (i.e. _use_cached_eval_dataset=True).
+
+      # TODO(gbm): Even in the case of distributed training, implement an exact
+      # evaluation of the model i.e. each validation example is evaluated once
+      # and exactly once.history
+
+      # Evaluate the model using Keras metrics.
+      val_logs = self.evaluate(
+          x=val_x,
+          y=val_y,
+          sample_weight=val_sample_weight,
+          return_dict=True,
+          steps=validation_steps,
+          callbacks=callbacks)
+
+      val_logs = {"val_" + name: val for name, val in val_logs.items()}
+      callbacks.on_epoch_end(0, val_logs)
+      history.on_epoch_end(0, val_logs)
+
+    else:
+      last_logs = self._add_training_logs_to_history(history=history)
+      callbacks.on_epoch_end(0, last_logs)
+      history.on_epoch_end(0, last_logs)
+
+    callbacks.on_train_end()
+    self.history = history
+    return self.history
 
   def fit_on_dataset_path(
       self,
@@ -1462,10 +1907,8 @@ class CoreModel(models.Model):
       All other fields are filled as usual for `Keras.Mode.fit()`.
     """
 
-    self._time_begin_training = datetime.now()
-
     if self._verbose >= 1:
-      tf_logging.info("Training model on dataset %s", train_path)
+      tf_logging.info("Training model on file dataset %s", train_path)
 
     self._clear_function_cache()
 
@@ -1565,13 +2008,6 @@ class CoreModel(models.Model):
           distribution_config=distribution_config,
           try_resume_training=try_resume_training)
 
-      self._time_end_training = datetime.now()
-      if self._verbose >= 1:
-        self._print_timer_training()
-
-      if self._verbose >= 1:
-        tf_logging.info("Compiling model")
-
       # Request and store a description of the model.
       self._description = training_op.SimpleMLShowModel(
           model_identifier=self._training_model_id).numpy().decode("utf-8")
@@ -1585,19 +2021,43 @@ class CoreModel(models.Model):
         input_model_signature_fn=input_model_signature_fn)
 
     # Build the model history.
-    history = tf.keras.callbacks.History()
-    history.model = self
-    history.on_train_begin()
+    history = self._training_logs_to_history(inspector)
+    self.history = history  # Expected by Keras.
+    return history
+
+  def _add_training_logs_to_history(
+      self,
+      history: tf.keras.callbacks.History,
+      inspector: Optional[inspector_lib.AbstractInspector] = None
+  ) -> Optional[Dict[str, Any]]:
+    if inspector is None:
+      inspector = self.make_inspector()
 
     training_logs = inspector.training_logs()
+    last_logs = None
     if training_logs is not None:
       for src_logs in training_logs:
         if src_logs.evaluation is not None:
-          history.on_epoch_end(src_logs.num_trees,
-                               src_logs.evaluation.to_dict())
-    self.history = history
+          last_logs = src_logs.evaluation.to_dict()
+          # TF-DF does not have the concept of "batches" for training.
+          # Instead, we use the "batch/step" counter to represent the Number
+          # of "iteration/trees".
+          history.on_batch_end(src_logs.num_trees, last_logs)
+    return last_logs
 
-    return self.history
+  def _training_logs_to_history(
+      self,
+      inspector: Optional[inspector_lib.AbstractInspector] = None
+  ) -> tf.keras.callbacks.History:
+    history = tf.keras.callbacks.History()
+    history.model = self
+    history.on_train_begin()
+    history.on_epoch_begin(0)
+    last_logs = self._add_training_logs_to_history(
+        history=history, inspector=inspector)
+    history.on_epoch_end(0, last_logs)
+    history.on_train_end()
+    return history
 
   def save(self, filepath: str, overwrite: Optional[bool] = True, **kwargs):
     """Saves the model as a TensorFlow SavedModel.
@@ -1632,39 +2092,6 @@ class CoreModel(models.Model):
 
     super(CoreModel, self).save(
         filepath=filepath, overwrite=overwrite, **kwargs)
-
-  def evaluate(self, *args, verbose: Optional[Any] = None, **kwargs) -> Any:
-    """Returns the loss value & metrics values for the model.
-
-    See details on `keras.Model.evaluate`.
-
-    Args:
-      *args: Passed to `keras.Model.evaluate`.
-      verbose: Verbose level. Is not set, uses the "verbose" of the constructor.
-      **kwargs: Passed to `keras.Model.evaluate`.
-
-    Returns:
-      Scalar test loss (if the model has a single output and no metrics) or list
-      of scalars (if the model has multiple outputs and/or metrics). See details
-      in `keras.Model.evaluate`.
-    """
-    if self._train_on_evaluate:
-      if not self._is_trained.numpy():
-
-        if tf_core.get_distribution_configuration(
-            self.distribute_strategy) is None:
-          self._collect_validation_data()
-
-        self._train_model()
-      else:
-        raise ValueError(
-            "evaluate() requested training of an already trained model -- "
-            "did you call `Model.evaluate` from a `on_train_batch*` callback ?"
-            "this is not yet supported in Decision Forests models, where one "
-            "can only evaluate after the first epoch is finished and the "
-            "model trained")
-    return super(CoreModel, self).evaluate(
-        verbose=self._keras_verbose(verbose), *args, **kwargs)
 
   def summary(self, line_length=None, positions=None, print_fn=None):
     """Shows information about the model."""
@@ -1748,6 +2175,9 @@ class CoreModel(models.Model):
       x: Training dataset in the same format as "fit".
     """
 
+    if self._verbose >= 1:
+      tf_logging.info("Compiling model...")
+
     # Note: Build does not support dtypes other than float32.
     super(CoreModel, self).build([])
 
@@ -1759,45 +2189,14 @@ class CoreModel(models.Model):
       if sample is not None:
         self.predict(sample)
 
-  def _collect_validation_data(self):
-    """Collects the user provided validation dataset."""
-    if getattr(self, "_eval_data_handler", None) is None:
-      raise ValueError(
-          "eval_data_handler not available. "
-          "_collect_validation_data should be called by the 'evaluate' "
-          "method in 'fit'.")
+    if self._verbose >= 1:
+      tf_logging.info("Model compiled.")
 
-    @tf.function(reduce_retracing=True)
-    def collect_validation(model, ds_iterator):
-
-      def run_step(ds_data):
-        return model.valid_step(ds_data)
-
-      ds_data = next(ds_iterator)
-      outputs = model.distribute_strategy.run(run_step, args=(ds_data,))
-      outputs = _reduce_per_replica(
-          outputs, self.distribute_strategy, reduction="first")
-      return outputs
-
-    data_handler = self._eval_data_handler
-    for _, iterator in data_handler.enumerate_epochs():
-      self.reset_metrics()
-      with data_handler.catch_stop_iteration():
-        for _ in data_handler.steps():
-          collect_validation(self, iterator)
-
-  def _train_model(self):
+  def _train_model(self, cluster_coordinator=None):
     """Effectively train the model."""
 
     if self._normalized_input_keys is None:
       raise Exception("The training graph was not built.")
-
-    self._time_end_data_feed = datetime.now()
-    if self._verbose >= 1:
-      self._print_timer_feed_data()
-      tf_logging.info("Training model")
-
-    self._time_begin_training = datetime.now()
 
     train_model_path = self._temp_directory
     model_path = os.path.join(train_model_path, "model")
@@ -1850,7 +2249,7 @@ class CoreModel(models.Model):
 
       else:
         tf_core.finalize_distributed_dataset_collection(
-            cluster_coordinator=self._cluster_coordinator,
+            cluster_coordinator=cluster_coordinator,
             input_ids=self._normalized_input_keys + [_LABEL] +
             ([_WEIGHTS] if self._weighted_training else []),
             model_id=self._training_model_id,
@@ -1888,20 +2287,12 @@ class CoreModel(models.Model):
 
       self._is_trained.assign(True)
 
-      self._time_end_training = datetime.now()
-
-      if self._verbose >= 1:
-        self._print_timer_training()
-        tf_logging.info("Compiling model")
-
       # Load and optimize the model in memory.
       # Register the model as a SavedModel asset.
       additional_args = {}
       additional_args["file_prefix"] = self._training_model_id
       self._model = tf_op.ModelV2(
-          model_path=model_path,
-          verbose=False,
-          **additional_args)
+          model_path=model_path, verbose=False, **additional_args)
 
   def _set_from_yggdrasil_model(self,
                                 inspector: inspector_lib.AbstractInspector,
@@ -1945,63 +2336,6 @@ class CoreModel(models.Model):
     """Lists the capabilities of the learning algorithm."""
 
     return abstract_learner_pb2.LearnerCapabilities()
-
-  def _print_timer_feed_data(self):
-
-    if self._time_end_data_feed and self._time_begin_data_feed:
-      if self._verbose == 1:
-        # Escape the keras progress bar.
-        tf_logging.info("")
-      tf_logging.info("Dataset read in %s",
-                      self._time_end_data_feed - self._time_begin_data_feed)
-
-  def _print_timer_training(self):
-
-    if self._time_end_training and self._time_begin_training:
-      tf_logging.info("Model trained in %s",
-                      self._time_end_training - self._time_begin_training)
-
-      # Comparison to data feed stage.
-      if self._time_end_data_feed and self._time_begin_data_feed:
-        duration_training = self._time_end_training - self._time_begin_training
-        duration_data_feed = self._time_end_data_feed - self._time_begin_data_feed
-        # Note: The tf tracing takes ~5s with 20 features.
-        warning_offset = timedelta(seconds=5.0)
-        if duration_training >= timedelta(seconds=0.1):
-          ratio = duration_data_feed / (
-              duration_data_feed + duration_training + warning_offset)
-          if ratio > 0.5:
-            tf_logging.warning(
-                "Tracing the TF graph and reading the dataset took more than "
-                "50%% of the time to effectively train the model "
-                "(tracing+dataset reading: %s, training: %s). This might "
-                "indicates that the dataset reading operation e.g. "
-                "tf.data.Dataset is not well configured. "
-                "In mose cases, this ratio should be <<10%%.",
-                duration_data_feed, duration_training)
-
-
-class _TrainerCallBack(tf.keras.callbacks.Callback):
-  """Callback that trains the model at the end of the first epoch."""
-
-  def __init__(self, model: CoreModel):
-    self._model = model
-
-  def on_epoch_begin(self, epoch, logs=None):
-    del logs
-    if epoch == 0 and not self._model._is_trained.numpy():
-      if self._model._verbose >= 1:  # pylint:disable=protected-access
-        tf_logging.info("Starting reading the dataset")
-      self._model._time_begin_data_feed = datetime.now()  # pylint:disable=protected-access
-
-  def on_epoch_end(self, epoch, logs=None):
-    del logs
-    if epoch == 0 and not self._model._is_trained.numpy():  # pylint:disable=protected-access
-      self._model._train_model()  # pylint:disable=protected-access
-
-    # After this the model is trained, and evaluations shouldn't attempt
-    # to retrain.
-    self._model._train_on_evaluate = False  # pylint:disable=protected-access
 
 
 def _batch_size(inputs: Union[tf.Tensor, Dict[str, tf.Tensor]]) -> tf.Tensor:

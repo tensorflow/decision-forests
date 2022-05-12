@@ -1046,34 +1046,41 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     else:
       assert False
 
-    # Test that `on_epoch_end` callbacks can call `Model.evaluate` and will have
-    # the results proper for a trained model.
     class _TestEvalCallback(tf.keras.callbacks.Callback):
 
-      def on_epoch_end(self, epoch, logs=None):
+      def on_train_end(self, logs=None):
         self.evaluation = model.evaluate(test_dataset)
 
     callback = _TestEvalCallback()
-    history = None
+
     if fit_raises is not None:
       with self.assertRaises(fit_raises):
         model.fit(
             train_dataset, validation_data=test_dataset, callbacks=[callback])
-    else:
-      history = model.fit(
-          train_dataset, validation_data=test_dataset, callbacks=[callback])
-    if history is None:
       return
+
+    history = model.fit(
+        train_dataset, validation_data=test_dataset, callbacks=[callback])
     model.summary()
 
+    # Compare the different model evaluations.
+
+    # Trainin evaluation
     train_evaluation = model.evaluate(train_dataset)
     logging.info("Train evaluation: %s", train_evaluation)
+
+    # Test evaluation (computed with model.evaluate)
     test_evaluation = model.evaluate(test_dataset)
     logging.info("Test evaluation: %s", test_evaluation)
+
+    # Test evaluation (computed with fit)
+    logging.info("Train history: %s", history.history)
     val_evaluation = [history.history[key][0] for key in val_keys]
     logging.info(
         "Validation evaluation in training "
         "(validation_data=test_dataset): %s", val_evaluation)
+
+    # Test evaluation (computed with the callback)
     logging.info("Callback evaluation (test_dataset): %s", callback.evaluation)
 
     # The training evaluation is capped by the ratio of missing value (5%).
@@ -1697,9 +1704,9 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     task = keras.Task.CATEGORICAL_UPLIFT
     train_ds = keras.pd_dataframe_to_tf_dataset(
-        train_df, label=outcome_key, task=task)
+        train_df, label=outcome_key, task=task, batch_size=200)
     test_ds = keras.pd_dataframe_to_tf_dataset(
-        test_df, label=outcome_key, task=task)
+        test_df, label=outcome_key, task=task, batch_size=200)
 
     model = keras.RandomForestModel(
         task=task,
@@ -1709,6 +1716,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         bootstrap_size_ratio=0.5,
         honest=True)
     model.fit(train_ds)
+    self.assertEqual(model.num_training_examples, 1000)
 
     logging.info("Trained model:")
     model.summary()
