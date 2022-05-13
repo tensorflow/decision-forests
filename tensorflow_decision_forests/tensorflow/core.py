@@ -104,6 +104,14 @@ class Semantic(enum.Enum):
       multiple values, its size should be constant, and each dimension is
       threaded independently (and each dimension should always have the same
       "meaning").
+    DISCRETIZED_NUMERICAL: Numerical values automatically discretized into bins.
+      Discretized numerical features are faster to train than (non-discretized)
+      numerical features. If the number of unique values of these features is
+      lower than the number of bins, the discretization is lossless from the
+      point of view of the model. If the number of unique values of this
+      features is greater than the number of bins, the discretization is lossy
+      from the point of view of the model. Lossy discretization can reduce and
+      sometime increase (due to regularization) the quality of the model.
   """
 
   NUMERICAL = 1
@@ -111,6 +119,7 @@ class Semantic(enum.Enum):
   HASH = 3
   CATEGORICAL_SET = 4
   BOOLEAN = 5
+  DISCRETIZED_NUMERICAL = 6
 
 
 # Any tensorflow tensor.
@@ -385,7 +394,9 @@ def collect_training_examples(
               semantic_tensor.tensor.dtype, semantic_tensor.semantic, key))  # pylint: disable=cell-var-from-loop
 
     input_id = _input_key_to_id(model_id, key, collect_training_data)
-    if semantic_tensor.semantic == Semantic.NUMERICAL:
+    if semantic_tensor.semantic in [
+        Semantic.NUMERICAL, Semantic.DISCRETIZED_NUMERICAL
+    ]:
       if semantic_tensor.tensor.dtype == NormalizedNumericalType:
         ops.append(
             training_op.simple_ml_numerical_feature(
@@ -535,7 +546,9 @@ def normalize_inputs(
   normalized_inputs = {}
 
   for key, semantic_tensor in inputs.items():
-    if semantic_tensor.semantic == Semantic.NUMERICAL:
+    if semantic_tensor.semantic in [
+        Semantic.NUMERICAL, Semantic.DISCRETIZED_NUMERICAL
+    ]:
       if semantic_tensor.tensor.dtype in FlexibleNumericalTypes:
         _unroll_and_normalize(
             tf.cast(semantic_tensor.tensor, tf.float32),

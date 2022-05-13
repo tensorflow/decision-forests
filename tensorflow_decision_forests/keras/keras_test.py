@@ -1958,5 +1958,62 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     logging.info("Prediction result 2 is %s",
                   loaded_model_2.predict(examples_2))
 
+  def test_adult_discretize_age_feature(self):
+    dataset = adult_dataset()
+    features = [
+        keras.FeatureUsage(
+            "age",
+            keras.FeatureSemantic.DISCRETIZED_NUMERICAL,
+            num_discretized_numerical_bins=16)
+    ]
+    model = keras.RandomForestModel(features=features)
+    tf_train, tf_test = dataset_to_tf_dataset(dataset)
+    model.fit(tf_train)
+    model.summary()
+    model.compile(metrics=["accuracy"])
+    evaluation = model.evaluate(tf_test, return_dict=True)
+    self.assertGreaterEqual(evaluation["accuracy"], 0.864)
+
+    inspector = model.make_inspector()
+    for feature in inspector.features():
+      if feature.name == "age":
+        self.assertEqual(feature.type,
+                         inspector_lib.ColumnType.DISCRETIZED_NUMERICAL)
+        self.assertLessEqual(
+            inspector.dataspec.columns[
+                feature.col_idx].discretized_numerical.maximum_num_bins, 16)
+
+      elif feature.name in [
+          "age", "capital_gain", "capital_loss", "education_num", "fnlwgt",
+          "hours_per_week"
+      ]:
+        self.assertEqual(feature.type, inspector_lib.ColumnType.NUMERICAL)
+      else:
+        self.assertEqual(feature.type, inspector_lib.ColumnType.CATEGORICAL)
+
+  def test_adult_discretize_all_features(self):
+    dataset = adult_dataset()
+    model = keras.RandomForestModel(
+        discretize_numerical_features=True, num_discretized_numerical_bins=64)
+    tf_train, tf_test = dataset_to_tf_dataset(dataset)
+    model.fit(tf_train)
+    model.compile(metrics=["accuracy"])
+    evaluation = model.evaluate(tf_test, return_dict=True)
+    self.assertGreaterEqual(evaluation["accuracy"], 0.864)
+
+    inspector = model.make_inspector()
+    for feature in inspector.features():
+      if feature.name in [
+          "age", "capital_gain", "capital_loss", "education_num", "fnlwgt",
+          "hours_per_week"
+      ]:
+        self.assertEqual(feature.type,
+                         inspector_lib.ColumnType.DISCRETIZED_NUMERICAL)
+        self.assertLessEqual(
+            inspector.dataspec.columns[
+                feature.col_idx].discretized_numerical.maximum_num_bins, 64)
+      else:
+        self.assertEqual(feature.type, inspector_lib.ColumnType.CATEGORICAL)
+
 if __name__ == "__main__":
   tf.test.main()

@@ -49,6 +49,7 @@
 #include "absl/strings/substitute.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/resource_mgr.h"
+#include "yggdrasil_decision_forests/dataset/data_spec.h"
 #include "yggdrasil_decision_forests/dataset/data_spec.pb.h"
 #include "yggdrasil_decision_forests/model/abstract_model.h"
 #include "yggdrasil_decision_forests/model/decision_tree/decision_forest_interface.h"
@@ -211,6 +212,7 @@ class FeatureIndex {
       const auto& feature_spec = data_spec.columns(feature_idx);
       switch (feature_spec.type()) {
         case dataset::proto::ColumnType::NUMERICAL:
+        case dataset::proto::ColumnType::DISCRETIZED_NUMERICAL:
           numerical_features_.push_back(feature_idx);
           break;
         case dataset::proto::ColumnType::BOOLEAN:
@@ -508,17 +510,31 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
     for (int col_idx = 0; col_idx < feature_index.numerical_features().size();
          col_idx++) {
       const int feature_idx = feature_index.numerical_features()[col_idx];
-      auto* col = cache->dataset_.MutableColumnWithCastOrNull<
+
+      auto* num_col = cache->dataset_.MutableColumnWithCastOrNull<
           dataset::VerticalDataset::NumericalColumn>(feature_idx);
-      if (col == nullptr) {
+      auto* discretized_num_col = cache->dataset_.MutableColumnWithCastOrNull<
+          dataset::VerticalDataset::DiscretizedNumericalColumn>(feature_idx);
+      if (num_col) {
+        num_col->Resize(inputs.batch_size);
+        auto& dst = *num_col->mutable_values();
+        for (int example_idx = 0; example_idx < inputs.batch_size;
+             example_idx++) {
+          // Missing represented as NaN.
+          dst[example_idx] = inputs.numerical_features(example_idx, col_idx);
+        }
+      } else if (discretized_num_col) {
+        const auto& col_spec = cache->dataset_.data_spec().columns(feature_idx);
+        discretized_num_col->Resize(inputs.batch_size);
+        auto& dst = *discretized_num_col->mutable_values();
+        for (int example_idx = 0; example_idx < inputs.batch_size;
+             example_idx++) {
+          const float value = inputs.numerical_features(example_idx, col_idx);
+          dst[example_idx] =
+              dataset::NumericalToDiscretizedNumerical(col_spec, value);
+        }
+      } else {
         return tf::Status(tf::error::INTERNAL, "Unexpected column type.");
-      }
-      col->Resize(inputs.batch_size);
-      auto& dst = *col->mutable_values();
-      for (int example_idx = 0; example_idx < inputs.batch_size;
-           example_idx++) {
-        // Missing represented as NaN.
-        dst[example_idx] = inputs.numerical_features(example_idx, col_idx);
       }
     }
 

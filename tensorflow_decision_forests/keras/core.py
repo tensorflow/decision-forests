@@ -174,10 +174,8 @@ class FeatureUsage(object):
       Using the wrong semantic (e.g. numerical instead of categorical) will hurt
       your model. See "FeatureSemantic" and "Semantic" for the definition of the
       of available semantics.
-    discretized: For NUMERICAL features only. If set, the numerical values are
-      discretized into a small set of unique values. This makes the training
-      faster but often lead to worst models. A reasonable discretization value
-      is 255.
+    num_discretized_numerical_bins: For DISCRETIZED_NUMERICAL features only.
+      Number of bins used to discretize DISCRETIZED_NUMERICAL features.
     max_vocab_count: For CATEGORICAL and CATEGORICAL_SET features only. Number
       of unique categorical values stored as string. If more categorical values
       are present, the least frequent values are grouped into a
@@ -187,7 +185,7 @@ class FeatureUsage(object):
   def __init__(self,
                name: Text,
                semantic: Optional[FeatureSemantic] = None,
-               discretized: Optional[int] = None,
+               num_discretized_numerical_bins: Optional[int] = None,
                max_vocab_count: Optional[int] = None):
 
     self._name = name
@@ -195,9 +193,10 @@ class FeatureUsage(object):
     self._guide = data_spec_pb2.ColumnGuide()
 
     # Check matching between hyper-parameters and semantic.
-    if semantic != FeatureSemantic.NUMERICAL:
-      if discretized is not None:
-        raise ValueError("\"discretized\" only works for NUMERICAL semantic.")
+    if semantic != FeatureSemantic.DISCRETIZED_NUMERICAL:
+      if num_discretized_numerical_bins is not None:
+        raise ValueError("\"discretized\" only works for DISCRETIZED_NUMERICAL"
+                         " semantic.")
 
     if semantic not in [
         FeatureSemantic.CATEGORICAL, FeatureSemantic.CATEGORICAL_SET
@@ -211,10 +210,11 @@ class FeatureUsage(object):
       pass
 
     elif semantic == FeatureSemantic.NUMERICAL:
-      self._guide.type = (
-          data_spec_pb2.DISCRETIZED_NUMERICAL
-          if discretized else data_spec_pb2.NUMERICAL)
-
+      self._guide.type = data_spec_pb2.NUMERICAL
+    elif semantic == FeatureSemantic.DISCRETIZED_NUMERICAL:
+      self._guide.type = data_spec_pb2.DISCRETIZED_NUMERICAL
+      if num_discretized_numerical_bins is not None:
+        self._guide.discretized_numerical.maximum_num_bins = num_discretized_numerical_bins
     elif semantic in [
         FeatureSemantic.CATEGORICAL, FeatureSemantic.CATEGORICAL_SET
     ]:
@@ -444,27 +444,40 @@ class CoreModel(models.Model):
       this tuner. If the model is trained with distribution (i.e. the model
       definition is wrapper in a TF Distribution strategy, the tuning is
       distributed.
+    discretize_numerical_features: If true, discretize all the numerical
+      features before training. Discretized numerical features are faster to
+      train with, but they can have a negative impact on the model quality.
+      Using discretize_numerical_features=True is equivalent as setting the
+      feature semantic DISCRETIZED_NUMERICAL in the `feature` argument. See the
+      definition of DISCRETIZED_NUMERICAL for more details.
+    num_discretize_numerical_bins: Number of bins used when disretizing
+      numerical features. The value `num_discretized_numerical_bins` defined in
+      a `FeatureUsage` (if any) takes precedence.
   """
 
-  def __init__(self,
-               task: Optional[TaskType] = Task.CLASSIFICATION,
-               learner: Optional[str] = "RANDOM_FOREST",
-               learner_params: Optional[HyperParameters] = None,
-               features: Optional[List[FeatureUsage]] = None,
-               exclude_non_specified_features: Optional[bool] = False,
-               preprocessing: Optional["models.Functional"] = None,
-               postprocessing: Optional["models.Functional"] = None,
-               ranking_group: Optional[str] = None,
-               uplift_treatment: Optional[str] = None,
-               temp_directory: Optional[str] = None,
-               verbose: int = 1,
-               advanced_arguments: Optional[AdvancedArguments] = None,
-               num_threads: Optional[int] = None,
-               name: Optional[str] = None,
-               max_vocab_count: Optional[int] = 2000,
-               try_resume_training: Optional[bool] = True,
-               check_dataset: Optional[bool] = True,
-               tuner: Optional[tuner_lib.Tuner] = None) -> None:
+  def __init__(
+      self,
+      task: Optional[TaskType] = Task.CLASSIFICATION,
+      learner: Optional[str] = "RANDOM_FOREST",
+      learner_params: Optional[HyperParameters] = None,
+      features: Optional[List[FeatureUsage]] = None,
+      exclude_non_specified_features: Optional[bool] = False,
+      preprocessing: Optional["models.Functional"] = None,
+      postprocessing: Optional["models.Functional"] = None,
+      ranking_group: Optional[str] = None,
+      uplift_treatment: Optional[str] = None,
+      temp_directory: Optional[str] = None,
+      verbose: int = 1,
+      advanced_arguments: Optional[AdvancedArguments] = None,
+      num_threads: Optional[int] = None,
+      name: Optional[str] = None,
+      max_vocab_count: Optional[int] = 2000,
+      try_resume_training: Optional[bool] = True,
+      check_dataset: Optional[bool] = True,
+      tuner: Optional[tuner_lib.Tuner] = None,
+      discretize_numerical_features: bool = False,
+      num_discretized_numerical_bins: int = 255,
+  ) -> None:
     super(CoreModel, self).__init__(name=name)
 
     self._task = task
@@ -483,6 +496,8 @@ class CoreModel(models.Model):
     self._try_resume_training = try_resume_training
     self._check_dataset = check_dataset
     self._tuner = tuner
+    self._discretize_numerical_features = discretize_numerical_features
+    self._num_discretized_numerical_bins = num_discretized_numerical_bins
 
     # Number of examples. Populated during training
     self._num_training_examples = None
@@ -1922,9 +1937,12 @@ class CoreModel(models.Model):
     # Create the dataspec guide.
     guide = data_spec_pb2.DataSpecificationGuide(
         ignore_columns_without_guides=self._exclude_non_specified,
-        max_num_scanned_rows_to_accumulate_statistics=max_num_scanned_rows_to_accumulate_statistics
-    )
+        max_num_scanned_rows_to_accumulate_statistics=max_num_scanned_rows_to_accumulate_statistics,
+        detect_numerical_as_discretized_numerical=self
+        ._discretize_numerical_features)
     guide.default_column_guide.categorial.max_vocab_count = self._max_vocab_count
+    guide.default_column_guide.discretized_numerical.maximum_num_bins = self._num_discretized_numerical_bins
+
     self._normalized_input_keys = []
     for feature in self._features:
       col_guide = copy.deepcopy(feature.guide)
@@ -2202,8 +2220,12 @@ class CoreModel(models.Model):
     model_path = os.path.join(train_model_path, "model")
 
     # Create the dataspec guide.
-    guide = data_spec_pb2.DataSpecificationGuide()
+    guide = data_spec_pb2.DataSpecificationGuide(
+        detect_numerical_as_discretized_numerical=self
+        ._discretize_numerical_features)
     guide.default_column_guide.categorial.max_vocab_count = self._max_vocab_count
+    guide.default_column_guide.discretized_numerical.maximum_num_bins = self._num_discretized_numerical_bins
+
     for feature in self._features:
       col_guide = copy.deepcopy(feature.guide)
       col_guide.column_name_pattern = tf_core.normalize_inputs_regexp(

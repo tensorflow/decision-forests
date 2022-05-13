@@ -16,6 +16,7 @@
 -   Add support for loading YDF models with file prefixes. Newly created models
     have a random prefix attached to them. This allows combining multiple models
     in Keras.
+-   Add support for discretized numerical features.
 
 ## 0.2.4 - 2021-02-04
 

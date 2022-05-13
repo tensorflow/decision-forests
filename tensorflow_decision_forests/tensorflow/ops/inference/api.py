@@ -567,7 +567,9 @@ class _InferenceArgsBuilder(tracking.AutoTrackable):
       raise Exception("The feature \"{}\" was already registered.".format(name))
 
     feature_spec = self._data_spec.columns[feature_idx]
-    if feature_spec.type == ColumnType.NUMERICAL:
+    if feature_spec.type in [
+        ColumnType.NUMERICAL, ColumnType.DISCRETIZED_NUMERICAL
+    ]:
       value = self._prepare_and_check_numerical_feature(name, value)
       feature_maps.numerical_features[feature_idx] = value
 

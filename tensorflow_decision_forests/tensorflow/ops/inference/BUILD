@@ -115,6 +115,7 @@ cc_library(
     deps = [
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
+        "@ydf//yggdrasil_decision_forests/dataset:data_spec",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_cc_proto",
         "@ydf//yggdrasil_decision_forests/dataset:vertical_dataset",
         "@ydf//yggdrasil_decision_forests/model:abstract_model",
