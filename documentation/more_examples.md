@@ -8,3 +8,5 @@ This page lists examples created by TF-DF users.
     (on github.com)
 -   [Classification with TensorFlow Decision Forests](https://keras.io/examples/structured_data/classification_with_tfdf/)
     (on keras.io)
+-   [Text classification using Decision Forests and pretrained embeddings](https://keras.io/examples/nlp/tweet-classification-using-tfdf/)
+    (on keras.io)
