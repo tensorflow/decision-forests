@@ -1195,7 +1195,7 @@ def infer_one_semantic(value: AnyTensor) -> Semantic:
 
   dtype = value.dtype
   numerical_types = [
-      float, np.float, np.int16, np.int32, np.int64, int, np.float32, np.float64
+      float, np.int16, np.int32, np.int64, int, np.float32, np.float64
   ]
 
   if isinstance(value, tf.Tensor):
@@ -1209,7 +1209,7 @@ def infer_one_semantic(value: AnyTensor) -> Semantic:
     else:
       return Semantic.CATEGORICAL
   elif isinstance(value, tf.RaggedTensor):
-    if dtype in [float, np.float, np.float32, np.float64]:
+    if dtype in [float, np.float32, np.float64]:
       raise ValueError("Only categorical-set features can be represented as a "
                        "ragged tensor. {} look numerical.".format(value))
     return Semantic.CATEGORICAL_SET
@@ -1262,7 +1262,7 @@ def infer_semantic_from_dataframe(dataset: pd.DataFrame) -> Dict[str, Semantic]:
   semantics = {}
   for col in dataset.columns:
     dtype = dataset[col].dtype
-    if dtype in [float, np.float, np.int16, np.int32, np.int64, int]:
+    if dtype in [float, np.int16, np.int32, np.int64, int]:
       semantics[col] = Semantic.NUMERICAL
     elif dtype in [str, object]:
       semantics[col] = Semantic.CATEGORICAL
