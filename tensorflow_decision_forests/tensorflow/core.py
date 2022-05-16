@@ -20,6 +20,7 @@ import logging
 import math
 import os
 import re
+import threading
 from typing import Optional, List, Tuple, Dict, Union, NamedTuple, Callable, Text, Any
 
 import numpy as np
@@ -28,6 +29,7 @@ import tensorflow as tf
 
 from tensorflow.python.distribute import distribute_lib
 from tensorflow.python.distribute import parameter_server_strategy_v2
+from tensorflow.python.distribute.coordinator import cluster_coordinator as cluster_coordinator_lib
 from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
 from tensorflow_decision_forests.tensorflow.distribute import tf_distribution_pb2
 from tensorflow_decision_forests.tensorflow.ops.training import op as training_op
@@ -36,15 +38,17 @@ from yggdrasil_decision_forests.learner import abstract_learner_pb2
 from yggdrasil_decision_forests.model import abstract_model_pb2
 from yggdrasil_decision_forests.model import hyperparameter_pb2
 
+# pylint: disable=g-import-not-at-top,import-error,unused-import,broad-except
 try:
-  from tensorflow_decision_forests.tensorflow.distribute import op as distributed_op  # pytype: disable=import-error
-  from tensorflow.python.distribute.coordinator import coordinator_context  # pytype: disable=import-error
+  from tensorflow_decision_forests.tensorflow.distribute import op as distributed_op
+  from tensorflow.python.distribute.coordinator import coordinator_context
 except Exception as e:
   distributed_op = None
   coordinator_context = None
   logging.warning(
       "TF Parameter Server distributed training not available (this is "
       "expected for the pre-build release).")
+# pylint: enable=g-import-not-at-top,import-error,unused-import,broad-except
 
 # Suffix added to the name of the tf resource to hold the validation
 # dataset for the feature, when present. For example, if a column with id
@@ -100,6 +104,14 @@ class Semantic(enum.Enum):
       multiple values, its size should be constant, and each dimension is
       threaded independently (and each dimension should always have the same
       "meaning").
+    DISCRETIZED_NUMERICAL: Numerical values automatically discretized into bins.
+      Discretized numerical features are faster to train than (non-discretized)
+      numerical features. If the number of unique values of these features is
+      lower than the number of bins, the discretization is lossless from the
+      point of view of the model. If the number of unique values of this
+      features is greater than the number of bins, the discretization is lossy
+      from the point of view of the model. Lossy discretization can reduce and
+      sometime increase (due to regularization) the quality of the model.
   """
 
   NUMERICAL = 1
@@ -107,6 +119,7 @@ class Semantic(enum.Enum):
   HASH = 3
   CATEGORICAL_SET = 4
   BOOLEAN = 5
+  DISCRETIZED_NUMERICAL = 6
 
 
 # Any tensorflow tensor.
@@ -381,7 +394,9 @@ def collect_training_examples(
               semantic_tensor.tensor.dtype, semantic_tensor.semantic, key))  # pylint: disable=cell-var-from-loop
 
     input_id = _input_key_to_id(model_id, key, collect_training_data)
-    if semantic_tensor.semantic == Semantic.NUMERICAL:
+    if semantic_tensor.semantic in [
+        Semantic.NUMERICAL, Semantic.DISCRETIZED_NUMERICAL
+    ]:
       if semantic_tensor.tensor.dtype == NormalizedNumericalType:
         ops.append(
             training_op.simple_ml_numerical_feature(
@@ -465,8 +480,8 @@ def collect_distributed_training_examples(inputs: Dict[str, SemanticTensor],
       # pylint: disable=cell-var-from-loop
       raise Exception(
           f"Non supported tensor dtype {semantic_tensor.tensor.dtype} "
-          f"and semantic {semantic_tensor.semantic} for feature {feature_name} for "
-          "distributed  training")
+          f"and semantic {semantic_tensor.semantic} for feature {feature_name} "
+          "for distributed training")
       # pylint: enable=cell-var-from-loop
 
     resource_id = _input_key_to_id(model_id, feature_name, training_column=True)
@@ -531,7 +546,9 @@ def normalize_inputs(
   normalized_inputs = {}
 
   for key, semantic_tensor in inputs.items():
-    if semantic_tensor.semantic == Semantic.NUMERICAL:
+    if semantic_tensor.semantic in [
+        Semantic.NUMERICAL, Semantic.DISCRETIZED_NUMERICAL
+    ]:
       if semantic_tensor.tensor.dtype in FlexibleNumericalTypes:
         _unroll_and_normalize(
             tf.cast(semantic_tensor.tensor, tf.float32),
@@ -842,7 +859,9 @@ def train(
       training_config=training_config.SerializeToString(),
       deployment_config=deployment_config.SerializeToString(),
       guide=guide.SerializeToString(),
-      has_validation_dataset=has_validation_dataset)
+      has_validation_dataset=has_validation_dataset,
+      # Only use file prefixes after the forward compatibility window.
+      use_file_prefix=tf.compat.forward_compatible(2022, 5, 25))
 
 
 def train_on_file_dataset(
@@ -978,7 +997,9 @@ def train_on_file_dataset(
       hparams=generic_hparms.SerializeToString(),
       training_config=training_config.SerializeToString(),
       deployment_config=deployment_config.SerializeToString(),
-      guide=guide.SerializeToString())
+      guide=guide.SerializeToString(),
+      # Only use file prefixes after the forward compatibility window.
+      use_file_prefix=tf.compat.forward_compatible(2022, 5, 25))
 
 
 def finalize_distributed_dataset_collection(cluster_coordinator,
@@ -1003,7 +1024,7 @@ def finalize_distributed_dataset_collection(cluster_coordinator,
     training_op.SimpleMLWorkerFinalizeFeatureOnFile(
         feature_resource_ids=feature_resource_ids, dataset_path=dataset_path)
 
-  _execute_function_on_each_worker(cluster_coordinator, worker_fn)
+  execute_function_on_each_worker(cluster_coordinator, worker_fn)
 
   training_op.SimpleMLChiefFinalizeFeatureOnFile(
       feature_names=sorted_input_ids,
@@ -1011,17 +1032,81 @@ def finalize_distributed_dataset_collection(cluster_coordinator,
       dataset_path=dataset_path)
 
 
-def _execute_function_on_each_worker(cluster_coordinator, call_fn):
-  """Executes `call_fn` once on each of the workers."""
+def execute_function_on_each_worker(coordinator, call_fn, args=None):
+  """Blocking execution of `call_fn` once on each of the workers in parallel.
 
-  # TODO(gbm): Call in parallel using multi-threading.
-  # TODO(gbm): Test for stability when a worker is rescheduled.
+  Unlike "execute_function_on_each_worker" that use directly the "device" API,
+  this function uses the closure API of the coordinator: The call_fn is
+  automatically with coordinator data, and args can be a PerWorker iterator.
 
+  Returns the sum (+) of all the individual call_fn calls.
+
+  Args:
+    coordinator: PSStrategy coordinate.
+    call_fn: Function to run remotely.
+    args: Arguments of call_fn. If args contains PerWorkers arguments, each
+      worker will only receive the arguments for them.
+
+  Returns:
+    The numpy sum (+) of the call_fn return values.
+  """
   # pylint: disable=protected-access
-  num_workers = cluster_coordinator._strategy._extended._num_workers
-  for worker_idx in range(num_workers):
-    with tf.device(f"/job:worker/task:{worker_idx}"):
-      call_fn()
+
+  args = args or ()
+
+  class Result(object):
+    """Mutable structure containing the accumulated data."""
+
+    def __init__(self):
+      self.value = None
+      self.lock = threading.Lock()
+
+    def add(self, value):
+      if value is None:
+        return
+      self.lock.acquire()
+      if self.value is None:
+        self.value = value
+      else:
+        self.value += value
+      self.lock.release()
+
+  result = Result()
+
+  def thread_body(worker_idx, result):
+
+    closure = cluster_coordinator_lib.Closure(
+        call_fn,
+        coordinator._cluster.closure_queue._cancellation_mgr,
+        args=args)
+    ret = closure.build_output_remote_value()
+
+    def run_my_closure():
+      closure.execute_on(coordinator._cluster.workers[worker_idx])
+
+    with coordinator._cluster.failure_handler.wait_on_failure(
+        on_recovery_fn=run_my_closure,
+        worker_device_name=f"worker {worker_idx}"):
+      run_my_closure()
+
+    ret_value = ret.get()
+    if ret_value is not None:
+      result.add(ret_value.numpy())
+
+  threads = []
+  for worker_idx in range(coordinator._strategy._extended._num_workers):
+    thread = threading.Thread(
+        target=thread_body, args=(
+            worker_idx,
+            result,
+        ), daemon=True)
+    thread.start()
+    threads.append(thread)
+
+  for thread in threads:
+    thread.join()
+
+  return result.value
   # pylint: enable=protected-access
 
 

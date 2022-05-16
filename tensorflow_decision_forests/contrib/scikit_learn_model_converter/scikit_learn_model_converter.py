@@ -66,7 +66,8 @@ def convert(
       process, a TFDF model is written to disk. If intermediate_write_path is
       specified, the TFDF model is written to this directory. Otherwise, a
       temporary directory is created that is immediately removed after this
-      function executes.
+      function executes. Note that in order to save the converted model and
+      load it again later, this argument must be provided.
 
   Returns:
     a keras Model that emulates the provided scikit-learn model.

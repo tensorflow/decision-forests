@@ -513,7 +513,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     self._check_adult_model(
         model=model,
         dataset=dataset,
-        minimum_accuracy=0.865,
+        minimum_accuracy=0.864,
         check_serialization=check_serialization)
 
   def _check_adult_model_with_one_hot(self,
@@ -1046,34 +1046,41 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     else:
       assert False
 
-    # Test that `on_epoch_end` callbacks can call `Model.evaluate` and will have
-    # the results proper for a trained model.
     class _TestEvalCallback(tf.keras.callbacks.Callback):
 
-      def on_epoch_end(self, epoch, logs=None):
+      def on_train_end(self, logs=None):
         self.evaluation = model.evaluate(test_dataset)
 
     callback = _TestEvalCallback()
-    history = None
+
     if fit_raises is not None:
       with self.assertRaises(fit_raises):
         model.fit(
             train_dataset, validation_data=test_dataset, callbacks=[callback])
-    else:
-      history = model.fit(
-          train_dataset, validation_data=test_dataset, callbacks=[callback])
-    if history is None:
       return
+
+    history = model.fit(
+        train_dataset, validation_data=test_dataset, callbacks=[callback])
     model.summary()
 
+    # Compare the different model evaluations.
+
+    # Trainin evaluation
     train_evaluation = model.evaluate(train_dataset)
     logging.info("Train evaluation: %s", train_evaluation)
+
+    # Test evaluation (computed with model.evaluate)
     test_evaluation = model.evaluate(test_dataset)
     logging.info("Test evaluation: %s", test_evaluation)
+
+    # Test evaluation (computed with fit)
+    logging.info("Train history: %s", history.history)
     val_evaluation = [history.history[key][0] for key in val_keys]
     logging.info(
         "Validation evaluation in training "
         "(validation_data=test_dataset): %s", val_evaluation)
+
+    # Test evaluation (computed with the callback)
     logging.info("Callback evaluation (test_dataset): %s", callback.evaluation)
 
     # The training evaluation is capped by the ratio of missing value (5%).
@@ -1697,9 +1704,9 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     task = keras.Task.CATEGORICAL_UPLIFT
     train_ds = keras.pd_dataframe_to_tf_dataset(
-        train_df, label=outcome_key, task=task)
+        train_df, label=outcome_key, task=task, batch_size=200)
     test_ds = keras.pd_dataframe_to_tf_dataset(
-        test_df, label=outcome_key, task=task)
+        test_df, label=outcome_key, task=task, batch_size=200)
 
     model = keras.RandomForestModel(
         task=task,
@@ -1709,6 +1716,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         bootstrap_size_ratio=0.5,
         honest=True)
     model.fit(train_ds)
+    self.assertEqual(model.num_training_examples, 1000)
 
     logging.info("Trained model:")
     model.summary()
@@ -1855,6 +1863,157 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     self.assertNear(prediction[1, 0], 0.47678572, 0.00001)
     self.assertNear(prediction[2, 0], 0.81846154, 0.00001)
 
+  @parameterized.parameters(
+      ("adult_binary_class_rf", 0.040936, False),
+      ("prefixed_adult_binary_class_rf", 0.040936, True),
+      ("adult_binary_class_gbdt", 0.012131, False),
+      ("prefixed_adult_binary_class_gbdt", 0.012131, True))
+  def test_ydf_to_keras_model(self, ydf_model_directory, expected_prediction,
+                              uses_prefixes):
+    ygg_model_path = os.path.join(ydf_test_data_path(), "model",
+                                  ydf_model_directory)
+    tfdf_model_path = os.path.join(tmp_path(), ydf_model_directory)
+    # Extract a piece of this model
+    def custom_model_input_signature(
+        inspector: inspector_lib.AbstractInspector) -> Any:
+      input_spec = keras.build_default_input_model_signature(inspector)
+      # Those features are stored as int64 in the dataset.
+      for feature_name in [
+          "age", "capital_gain", "capital_loss", "education_num", "fnlwgt",
+          "hours_per_week"
+      ]:
+        input_spec[feature_name] = tf.TensorSpec(shape=[None], dtype=tf.int64)
+      return input_spec
+
+    core.yggdrasil_model_to_keras_model(
+        ygg_model_path,
+        tfdf_model_path,
+        input_model_signature_fn=custom_model_input_signature)
+    loaded_model = models.load_model(tfdf_model_path)
+    dataset = adult_dataset()
+    prediction = loaded_model.predict(
+        keras.pd_dataframe_to_tf_dataset(dataset.test, label="income"))
+    self.assertNear(prediction[0, 0], expected_prediction, 0.00001)
+
+  def test_load_combined_model(self):
+    target = tf.random.uniform(shape=[100, 1], minval=25, maxval=50)
+    features = {
+        "my_feature": tf.random.uniform(shape=[100, 2], minval=1, maxval=100)
+    }
+    dataset = tf.data.Dataset.from_tensor_slices((features, target)).batch(32)
+    inputs = {"my_feature": tf.keras.Input(shape=(2,))}
+
+    model_1 = keras.RandomForestModel(num_trees=10, task=keras.Task.REGRESSION)
+    model_2 = keras.RandomForestModel(num_trees=20, task=keras.Task.REGRESSION)
+
+    def model_2_preprocessing(x):
+      return {"f2": model_1(x), "f3": x["my_feature"]}
+    model_2_pred = model_2(model_2_preprocessing(inputs))
+
+    combined_model = models.Model(inputs, model_2_pred)
+
+    # Train first model.
+    model_1.fit(dataset)
+
+    # Train second model.
+    def mix(x, y):
+      return model_2_preprocessing(x), y
+    model_2.fit(dataset.map(mix))
+
+    combined_model_path = os.path.join(tmp_path(), "combined_model")
+    combined_model.save(combined_model_path, overwrite=True)
+    combined_model_prediction = combined_model.predict([[1, 1]])
+    loaded_combined_model = models.load_model(combined_model_path)
+
+    # Check if inference is working on the combined model.
+    loaded_combined_model_prediction = loaded_combined_model.predict([[1, 1]])
+    self.assertEqual(combined_model_prediction,
+                      loaded_combined_model_prediction)
+
+    # Load and use the individual models
+    examples_1 = tf.data.Dataset.from_tensor_slices({
+        "my_feature.0": [1.0],
+        "my_feature.1": [1.0]
+    }).batch(2)
+    loaded_model_1_path = os.path.join(tmp_path(), "model_1")
+    core.yggdrasil_model_to_keras_model(
+        os.path.join(combined_model_path, "assets"),
+        loaded_model_1_path,
+        file_prefix=model_1.training_model_id)
+    loaded_model_1 = models.load_model(loaded_model_1_path)
+    logging.info("Prediction result 1 is %s",
+                  loaded_model_1.predict(examples_1))
+
+    examples_2 = tf.data.Dataset.from_tensor_slices({
+        "f2": [1.0],
+        "f3.0": [1.0],
+        "f3.1": [1.0]
+    }).batch(2)
+    loaded_model_2_path = os.path.join(tmp_path(), "model_2")
+    core.yggdrasil_model_to_keras_model(
+        os.path.join(combined_model_path, "assets"),
+        loaded_model_2_path,
+        file_prefix=model_2.training_model_id)
+    loaded_model_2 = models.load_model(loaded_model_2_path)
+    logging.info("Prediction result 2 is %s",
+                  loaded_model_2.predict(examples_2))
+
+  def test_adult_discretize_age_feature(self):
+    dataset = adult_dataset()
+    features = [
+        keras.FeatureUsage(
+            "age",
+            keras.FeatureSemantic.DISCRETIZED_NUMERICAL,
+            num_discretized_numerical_bins=16)
+    ]
+    model = keras.RandomForestModel(features=features)
+    tf_train, tf_test = dataset_to_tf_dataset(dataset)
+    model.fit(tf_train)
+    model.summary()
+    model.compile(metrics=["accuracy"])
+    evaluation = model.evaluate(tf_test, return_dict=True)
+    self.assertGreaterEqual(evaluation["accuracy"], 0.864)
+
+    inspector = model.make_inspector()
+    for feature in inspector.features():
+      if feature.name == "age":
+        self.assertEqual(feature.type,
+                         inspector_lib.ColumnType.DISCRETIZED_NUMERICAL)
+        self.assertLessEqual(
+            inspector.dataspec.columns[
+                feature.col_idx].discretized_numerical.maximum_num_bins, 16)
+
+      elif feature.name in [
+          "age", "capital_gain", "capital_loss", "education_num", "fnlwgt",
+          "hours_per_week"
+      ]:
+        self.assertEqual(feature.type, inspector_lib.ColumnType.NUMERICAL)
+      else:
+        self.assertEqual(feature.type, inspector_lib.ColumnType.CATEGORICAL)
+
+  def test_adult_discretize_all_features(self):
+    dataset = adult_dataset()
+    model = keras.RandomForestModel(
+        discretize_numerical_features=True, num_discretized_numerical_bins=64)
+    tf_train, tf_test = dataset_to_tf_dataset(dataset)
+    model.fit(tf_train)
+    model.compile(metrics=["accuracy"])
+    evaluation = model.evaluate(tf_test, return_dict=True)
+    self.assertGreaterEqual(evaluation["accuracy"], 0.864)
+
+    inspector = model.make_inspector()
+    for feature in inspector.features():
+      if feature.name in [
+          "age", "capital_gain", "capital_loss", "education_num", "fnlwgt",
+          "hours_per_week"
+      ]:
+        self.assertEqual(feature.type,
+                         inspector_lib.ColumnType.DISCRETIZED_NUMERICAL)
+        self.assertLessEqual(
+            inspector.dataspec.columns[
+                feature.col_idx].discretized_numerical.maximum_num_bins, 64)
+      else:
+        self.assertEqual(feature.type, inspector_lib.ColumnType.CATEGORICAL)
 
 if __name__ == "__main__":
   tf.test.main()

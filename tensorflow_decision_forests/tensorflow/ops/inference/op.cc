@@ -52,13 +52,17 @@ path: Path to the Yggdrasil model. Note: a Yggdrasil model directory should
   contains a "header.pb" file.
 
 Returns a type-less OP that loads the model when called.
-)");
+)")
+    .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
+      return Status::OK();
+    });
 
 REGISTER_OP("SimpleMLLoadModelFromPathWithHandle")
     .SetIsStateful()
     .Attr("output_types: list(string) = []")
     .Input("model_handle: resource")
     .Input("path: string")
+    .Attr("file_prefix: string = ''")
     .Doc(R"(
 Applies a model and returns its predictions.
 
@@ -71,7 +75,11 @@ output_types: A list of keywords describing what the model can do. The possible
   for classical model prediction. Adding output_type constraints might lead to
   the selection of a slower model inference logic.
 
-)");
+file_prefix: The prefix of the model files.
+)")
+    .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
+      return Status::OK();
+    });
 
 Status SimpleMLInferenceOpSetShapeGeneric(shape_inference::InferenceContext* c,
                                           const bool output_leaves) {

@@ -43,12 +43,14 @@ upper_tabs:
         path: /decision_forests/tutorials/index
       - title: Build, train and evaluate
         path: /decision_forests/tutorials/beginner_colab
-      - title: Text features and pre-trained embeddings
+      - title: Text and pre-trained embeddings
         path: /decision_forests/tutorials/intermediate_colab
       - title: Inspect and debug
         path: /decision_forests/tutorials/advanced_colab
-      - title: Model composition with the Functional API
+      - title: Model composition
         path: /decision_forests/tutorials/model_composition_colab
+      - title: Proximities and Prototypes
+        path: /decision_forests/tutorials/proximities_colab
       - heading: Developer
       - title: Developer manual
         path: /decision_forests/developer_manual

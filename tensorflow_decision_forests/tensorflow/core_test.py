@@ -12,10 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from absl import logging
 import pandas as pd
 import tensorflow as tf
-
-from absl import logging
 
 from tensorflow_decision_forests.tensorflow import core
 from yggdrasil_decision_forests.dataset import data_spec_pb2

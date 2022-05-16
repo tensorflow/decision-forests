@@ -30,6 +30,7 @@ import tensorflow as tf
 
 from tensorflow.python.distribute import distribute_lib
 import tensorflow_decision_forests as tfdf
+from yggdrasil_decision_forests.learner.distributed_gradient_boosted_trees import distributed_gradient_boosted_trees_pb2
 
 
 def data_root_path() -> str:
@@ -119,7 +120,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     # https://www.tensorflow.org/tutorials/distribute/parameter_server_training
 
     # Create a distributed dataset.
-    global_batch_size = 100
+    batch_size = 10
     num_examples = 1000
     num_features = 2
 
@@ -128,7 +129,9 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
       y = x[:, 0] + (x[:, 1] - 0.5) * 0.1 >= 0.5
       return tf.data.Dataset.from_tensor_slices((x, y))
 
-    def dataset_fn(context: distribute_lib.InputContext, seed: int):
+    def dataset_fn(context: distribute_lib.InputContext,
+                   seed: int,
+                   infinite: bool = False) -> tf.data.Dataset:
       dataset = make_dataset(seed=seed)
 
       if context is not None:
@@ -139,15 +142,11 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
             num_shards=current_worker.num_workers,
             index=current_worker.worker_idx)
 
-      # Currently, if any of the workers runs out of training examples, the
-      # keras training will either fail or raise a wall of warnings and
-      # continue.
-      #
       # TODO(gbm): Remove repeat when possible.
-      dataset = dataset.repeat(None)
+      if infinite:
+        dataset = dataset.repeat(None)
 
-      dataset = dataset.batch(global_batch_size)
-      dataset = dataset.prefetch(2)
+      dataset = dataset.batch(batch_size)
       return dataset
 
     # Create the workers
@@ -161,26 +160,29 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
       model.compile(metrics=["accuracy"])
       # Note: "tf.keras.utils.experimental.DatasetCreator" seems to also work.
       train_dataset_creator = strategy.distribute_datasets_from_function(
-          lambda context: dataset_fn(context, 111))
+          lambda context: dataset_fn(context, seed=111))
+
+      # TODO(gbm): Remove "infinite" when the valuation support finite datasets.
       valid_dataset_creator = strategy.distribute_datasets_from_function(
-          lambda context: dataset_fn(context, 222))
+          lambda context: dataset_fn(context, seed=222, infinite=True))
       # Note: A distributed dataset cannot be reused twice.
       valid_dataset_creator_again = strategy.distribute_datasets_from_function(
-          lambda context: dataset_fn(context, 333))
+          lambda context: dataset_fn(context, seed=333, infinite=True))
 
     # Train model
     training_history = model.fit(
         train_dataset_creator,
-        steps_per_epoch=num_examples // global_batch_size,
         validation_data=valid_dataset_creator,
-        validation_steps=num_examples / global_batch_size)
+        validation_steps=num_examples / batch_size)
+    self.assertEqual(model.num_training_examples, num_examples)
+
     logging.info("Training history: %s", training_history.history)
     self.assertGreaterEqual(training_history.history["val_accuracy"][0], 0.98)
 
     # Re-evaluate the model on a validation dataset.
     valid_evaluation_again = model.evaluate(
         valid_dataset_creator_again,
-        steps=num_examples // global_batch_size,
+        steps=num_examples // batch_size,
         return_dict=True)
     logging.info("Valid evaluation (again): %s", valid_evaluation_again)
     self.assertGreaterEqual(valid_evaluation_again["accuracy"], 0.98)
@@ -244,16 +246,22 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
       d.to_csv(output_path, index=False)
     return output_paths
 
-  def test_distributed_training_adult(self):
+  @parameterized.named_parameters(
+      ("finite_dataset", True, False),
+      ("infinite_dataset", False, False),
+      ("finite_dataset_with_failures", True, True),
+  )
+  def test_distributed_training_adult(self, use_finite_dataset,
+                                      simulate_failures):
 
-    # Shard the dataset.
+    # Split the dataset into multiple files.
     train_path = os.path.join(test_data_path(), "dataset", "adult_train.csv")
     test_path = os.path.join(test_data_path(), "dataset", "adult_test.csv")
 
     sharded_train_paths = self._shard_dataset(train_path)
     logging.info("Num sharded paths: %d", len(sharded_train_paths))
 
-    global_batch_size = 100
+    batch_size = 100
     num_train_examples = pd.read_csv(train_path).shape[0]
     num_test_examples = pd.read_csv(test_path).shape[0]
     logging.info("num_train_examples: %d", num_train_examples)
@@ -301,17 +309,28 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
 
       ds_columns = ds_path.interleave(read_csv_file)
 
+      column_names = [
+          "age", "workclass", "fnlwgt", "education", "education_num",
+          "marital_status", "occupation", "relationship", "race", "sex",
+          "capital_gain", "capital_loss", "hours_per_week", "native_country",
+          "income"
+      ]
+      label_name = "income"
+
       init_label_table = tf.lookup.KeyValueTensorInitializer(
           keys=tf.constant(["<=50K", ">50K"]),
           values=tf.constant([0, 1], dtype=tf.int64))
       label_table = tf.lookup.StaticVocabularyTable(
           init_label_table, num_oov_buckets=1)
 
-      def extract_label(*columns):
-        return columns[0:-1], label_table.lookup(columns[-1])
+      def map_features(*columns):
+        assert len(column_names) == len(columns)
+        features = {column_names[i]: col for i, col in enumerate(columns)}
+        label = label_table.lookup(features.pop(label_name))
+        return features, label
 
-      ds_dataset = ds_columns.map(extract_label)
-      ds_dataset = ds_dataset.batch(global_batch_size)
+      ds_dataset = ds_columns.map(map_features)
+      ds_dataset = ds_dataset.batch(batch_size)
       return ds_dataset
 
     # Create the workers
@@ -321,30 +340,44 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     strategy = tf.distribute.experimental.ParameterServerStrategy(
         cluster_resolver)
 
+    advanced_arguments = tfdf.keras.AdvancedArguments()
+    if simulate_failures:
+      gbt_training_config = advanced_arguments.yggdrasil_training_config.Extensions[
+          distributed_gradient_boosted_trees_pb2
+          .distributed_gradient_boosted_trees_config]
+      gbt_training_config.internal.simulate_worker_failure = True
+      gbt_training_config.checkpoint_interval_trees = 5
+
     with strategy.scope():
-      model = tfdf.keras.DistributedGradientBoostedTreesModel(worker_logs=False)
+      model = tfdf.keras.DistributedGradientBoostedTreesModel(
+          worker_logs=False, advanced_arguments=advanced_arguments)
       model.compile(metrics=["accuracy"])
 
-      # Currently, if any of the workers runs out of training examples, the
-      # keras training will either fail or raise a wall of warnings and
-      # continue.
-      #
-      # TODO(gbm): Remove infinite=True when possible.
       train_dataset = strategy.distribute_datasets_from_function(
           lambda context: dataset_fn(
-              context, sharded_train_paths, infinite=True))
+              context, sharded_train_paths, infinite=not use_finite_dataset))
 
     # Train model
-    #
-    # Currently, keras requires the number of training steps in the case of
-    # distributed training.
-    #
-    # TODO(gbm): Figure a way to use finite datasets in distributed training
-    # e.g. steps_per_epoch=-1 (?)
     model.fit(
         train_dataset,
-        steps_per_epoch=num_train_examples // global_batch_size,
+        steps_per_epoch=None if use_finite_dataset else
+        (num_train_examples // batch_size),
     )
+
+    if use_finite_dataset:
+      # The finite dataset approach guarenty that each example is read once and
+      # exactly once. The number of training examples and dataspec statistics
+      # are deterministic.
+
+      self.assertEqual(model.num_training_examples, num_train_examples)
+
+      inspector = model.make_inspector()
+      self.assertEqual(inspector.dataspec.created_num_rows, num_train_examples)
+      sex_col = inspector.dataspec.columns[13]
+      self.assertEqual(sex_col.name, "sex")
+      # Those figures have been computed from the raw dataset using R's table.
+      self.assertEqual(sex_col.categorical.items["Female"].count, 7627)
+      self.assertEqual(sex_col.categorical.items["Male"].count, 15165)
 
     logging.info("Trained model:")
     model.summary()
@@ -355,12 +388,17 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     evaluation = model.evaluate(dataset_fn(None, [test_path]), return_dict=True)
     logging.info("Evaluation: %s", evaluation)
 
-    # If all the workers are running at the same speed, at most
-    # "(global_batch_size-1) * num_workers examples" can be lost before
-    # training due to the Keras limitation discussed in the notes above.
-    # However, because of the currently required repeat, if workers are running
-    # at different speed, some examples can be repeated.
-    self.assertAlmostEqual(evaluation["accuracy"], 0.8603476, delta=0.02)
+    if use_finite_dataset:
+      # The finite dataset approach leads to a better model (model equivalent
+      # to the non distributed training).
+      self.assertAlmostEqual(evaluation["accuracy"], 0.87276, delta=0.003)
+    else:
+      # If all the workers are running at the same speed, at most
+      # "(global_batch_size-1) * num_workers examples" can be lost before
+      # training due to the Keras limitation discussed in the notes above.
+      # However, because of the currently required repeat, if workers are
+      # running at different speed, some examples can be repeated.
+      self.assertAlmostEqual(evaluation["accuracy"], 0.8603476, delta=0.02)
 
   def test_distributed_training_adult_from_file(self):
     # Path to dataset.

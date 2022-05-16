@@ -524,6 +524,15 @@ $7
       this tuner. If the model is trained with distribution (i.e. the model
       definition is wrapper in a TF Distribution strategy, the tuning is
       distributed.
+    discretize_numerical_features: If true, discretize all the numerical
+      features before training. Discretized numerical features are faster to
+      train with, but they can have a negative impact on the model quality.
+      Using discretize_numerical_features=True is equivalent as setting the
+      feature semantic DISCRETIZED_NUMERICAL in the `feature` argument. See the
+      definition of DISCRETIZED_NUMERICAL for more details.
+    num_discretize_numerical_bins: Number of bins used when disretizing
+      numerical features. The value `num_discretized_numerical_bins` defined in
+      a `FeatureUsage` (if any) takes precedence.
 $2
   """
 
@@ -546,6 +555,8 @@ $2
       try_resume_training: Optional[bool] = True,
       check_dataset: Optional[bool] = True,
       tuner: Optional[tuner_lib.Tuner] = None,
+      discretize_numerical_features: bool = False,
+      num_discretized_numerical_bins: int = 255,
 $3,
       explicit_args: Optional[Set[str]] = None):
 
@@ -575,7 +586,9 @@ $4
       max_vocab_count=max_vocab_count,
       try_resume_training=try_resume_training,
       check_dataset=check_dataset,
-      tuner=tuner)
+      tuner=tuner,
+      discretize_numerical_features=discretize_numerical_features,
+      num_discretized_numerical_bins=num_discretized_numerical_bins)
 
   @staticmethod
   def predefined_hyperparameters() -> List[core.HyperParameterTemplate]:

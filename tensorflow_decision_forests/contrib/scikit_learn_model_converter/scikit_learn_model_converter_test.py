@@ -14,6 +14,8 @@
 
 """Tests for scikit_learn_model_converter."""
 
+import pathlib
+
 from absl.testing import parameterized
 import numpy as np
 from sklearn import datasets
@@ -49,11 +51,23 @@ class ScikitLearnModelConverterTest(tf.test.TestCase, parameterized.TestCase):
         random_state=42,
     )
     sklearn_tree.fit(features, labels)
-    tf_tree = scikit_learn_model_converter.convert(sklearn_tree)
     tf_features = tf.constant(features, dtype=tf.float32)
-    tf_labels = tf_tree(tf_features).numpy().ravel()
-    sklearn_labels = sklearn_tree.predict(features).astype(np.float32)
-    self.assertAllClose(sklearn_labels, tf_labels, rtol=1e-5)
+
+    with self.subTest(msg="inference_is_reproduced_before_save"):
+      tf_tree = scikit_learn_model_converter.convert(sklearn_tree)
+      tf_labels = tf_tree(tf_features).numpy().ravel()
+      sklearn_labels = sklearn_tree.predict(features).astype(np.float32)
+      self.assertAllClose(sklearn_labels, tf_labels, rtol=1e-5)
+
+    with self.subTest(msg="inference_is_reproduced_after_save"):
+      path = pathlib.Path(self.get_temp_dir())
+      tf_tree = scikit_learn_model_converter.convert(
+          sklearn_tree,
+          intermediate_write_path=path / "intermediate_path",
+      )
+      tf.saved_model.save(obj=tf_tree, export_dir=path)
+      loaded_tf_tree = tf.saved_model.load(path)
+      self.assertAllEqual(tf_tree(tf_features), loaded_tf_tree(tf_features))
 
   @parameterized.parameters((tree.DecisionTreeClassifier(random_state=42),),
                             (tree.ExtraTreeClassifier(random_state=42),),
@@ -71,11 +85,23 @@ class ScikitLearnModelConverterTest(tf.test.TestCase, parameterized.TestCase):
         random_state=42,
     )
     sklearn_tree.fit(features, labels)
-    tf_tree = scikit_learn_model_converter.convert(sklearn_tree)
     tf_features = tf.constant(features, dtype=tf.float32)
-    tf_labels = tf_tree(tf_features).numpy()
-    sklearn_labels = sklearn_tree.predict_proba(features).astype(np.float32)
-    self.assertAllClose(sklearn_labels, tf_labels, rtol=1e-5)
+
+    with self.subTest(msg="inference_is_reproduced_before_save"):
+      tf_tree = scikit_learn_model_converter.convert(sklearn_tree)
+      tf_labels = tf_tree(tf_features).numpy()
+      sklearn_labels = sklearn_tree.predict_proba(features).astype(np.float32)
+      self.assertAllClose(sklearn_labels, tf_labels, rtol=1e-5)
+
+    with self.subTest(msg="inference_is_reproduced_after_save"):
+      path = pathlib.Path(self.get_temp_dir())
+      tf_tree = scikit_learn_model_converter.convert(
+          sklearn_tree,
+          intermediate_write_path=path / "intermediate_path",
+      )
+      tf.saved_model.save(obj=tf_tree, export_dir=path)
+      loaded_tf_tree = tf.saved_model.load(path)
+      self.assertAllEqual(tf_tree(tf_features), loaded_tf_tree(tf_features))
 
   def test_convert_raises_when_unrecognised_model_provided(self):
     features, labels = datasets.make_regression(

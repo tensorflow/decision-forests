@@ -26,6 +26,7 @@
 #include "tensorflow_decision_forests/tensorflow/ops/training/features.h"
 #include "yggdrasil_decision_forests/dataset/data_spec.h"
 #include "yggdrasil_decision_forests/dataset/data_spec.pb.h"
+#include "yggdrasil_decision_forests/dataset/data_spec.proto.h"
 #include "yggdrasil_decision_forests/dataset/data_spec_inference.h"
 #include "yggdrasil_decision_forests/dataset/vertical_dataset.h"
 #include "yggdrasil_decision_forests/learner/abstract_learner.h"
@@ -334,9 +335,19 @@ tf::Status FeatureSet::InitializeDatasetFromFeatures(
 
   // Apply the guide on a column. The type of the column should be set.
   const auto apply_guide = [&](const absl::string_view feature_name,
-                               dataset::proto::Column* col) -> tf::Status {
+                               dataset::proto::Column* col,
+                               const bool apply_type = false) -> tf::Status {
     dataset::proto::ColumnGuide col_guide;
     dataset::BuildColumnGuide(feature_name, guide, &col_guide);
+    if (apply_type) {
+      if (col_guide.has_type()) {
+        col->set_type(col_guide.type());
+      }
+      if (col->type() == dataset::proto::NUMERICAL &&
+          guide.detect_numerical_as_discretized_numerical()) {
+        col->set_type(dataset::proto::DISCRETIZED_NUMERICAL);
+      }
+    }
     return utils::FromUtilStatus(
         dataset::UpdateSingleColSpecWithGuideInfo(col_guide, col));
   };
@@ -346,7 +357,8 @@ tf::Status FeatureSet::InitializeDatasetFromFeatures(
         auto* col = dataset->mutable_data_spec()->mutable_columns(feature_idx);
         col->set_name(feature->feature_name());
         col->set_type(dataset::proto::ColumnType::NUMERICAL);
-        TF_RETURN_IF_ERROR(apply_guide(feature->feature_name(), col));
+        TF_RETURN_IF_ERROR(
+            apply_guide(feature->feature_name(), col, /*apply_type=*/true));
         return set_num_examples(feature->data().size(), feature->NumBatches());
       },
       [&](SimpleMLCategoricalStringFeature::Resource* feature,
@@ -421,9 +433,17 @@ tf::Status FeatureSet::InitializeDatasetFromFeatures(
       [&](SimpleMLNumericalFeature::Resource* feature, const int feature_idx) {
         auto* col = dataset->mutable_data_spec()->mutable_columns(feature_idx);
         auto* col_acc = accumulator.mutable_columns(feature_idx);
+
+        // Is the numerical column discretized?
+        const bool discretized =
+            col->type() == dataset::proto::ColumnType::DISCRETIZED_NUMERICAL;
+
         for (const auto value : feature->data()) {
           TF_RETURN_IF_ERROR_FROM_ABSL_STATUS(
               dataset::UpdateNumericalColumnSpec(value, col, col_acc));
+          if (discretized) {
+            dataset::UpdateComputeSpecDiscretizedNumerical(value, col, col_acc);
+          }
         }
         return tf::Status::OK();
       },
@@ -502,9 +522,26 @@ tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
   TF_RETURN_IF_ERROR(IterateFeatures(
       [&](SimpleMLNumericalFeature::Resource* feature, const int feature_idx) {
         TF_RETURN_IF_ERROR(set_num_rows(feature->data().size(), feature));
-        auto* col_data = dataset->MutableColumnWithCast<
-            dataset::VerticalDataset::NumericalColumn>(feature_idx);
-        *col_data->mutable_values() = std::move(*feature->mutable_data());
+        const auto& col = dataset->mutable_data_spec()->columns(feature_idx);
+
+        // Is the numerical column discretized?
+        const bool discretized =
+            col.type() == dataset::proto::ColumnType::DISCRETIZED_NUMERICAL;
+        if (discretized) {
+          // Copy the discretized numerical values.
+          auto* col_data = dataset->MutableColumnWithCast<
+              dataset::VerticalDataset::DiscretizedNumericalColumn>(
+              feature_idx);
+          col_data->Resize(0);
+          for (float value : feature->data()) {
+            col_data->Add(dataset::NumericalToDiscretizedNumerical(col, value));
+          }
+        } else {
+          // Copy the non discretized values.
+          auto* col_data = dataset->MutableColumnWithCast<
+              dataset::VerticalDataset::NumericalColumn>(feature_idx);
+          *col_data->mutable_values() = std::move(*feature->mutable_data());
+        }
         feature->mutable_data()->clear();
         return tf::Status::OK();
       },
@@ -663,6 +700,7 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("model_dir", &model_dir_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("model_id", &model_id_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("learner", &learner_));
+    OP_REQUIRES_OK(ctx, ctx->GetAttr("use_file_prefix", &use_file_prefix_));
 
     std::string serialized_guide;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("guide", &serialized_guide));
@@ -894,10 +932,20 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
 
     // Export model to disk.
     if (!model_dir_.empty()) {
-      LOG(INFO) << "Export model in log directory: " << model_dir_;
-      OP_REQUIRES_OK(ctx, utils::FromUtilStatus(
-                              SaveModel(tf::io::JoinPath(model_dir_, "model"),
-                                        model.value().get())));
+      if (use_file_prefix_) {
+        LOG(INFO) << "Export model in log directory: " << model_dir_
+                  << " with prefix " << model_id_;
+        OP_REQUIRES_OK(
+            ctx, utils::FromUtilStatus(SaveModel(
+                     tf::io::JoinPath(model_dir_, "model"), model.value().get(),
+                     {/*.file_prefix =*/model_id_})));
+      } else {
+        LOG(INFO) << "Export model in log directory: " << model_dir_
+                  << " without prefix";
+        OP_REQUIRES_OK(ctx, utils::FromUtilStatus(
+                                SaveModel(tf::io::JoinPath(model_dir_, "model"),
+                                          model.value().get())));
+      }
     }
 
     // Export model to model resource.
@@ -944,6 +992,7 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
   std::string model_dir_;
   std::string model_id_;
   std::string learner_;
+  bool use_file_prefix_;
 
   model::proto::GenericHyperParameters hparams_;
   model::proto::Task task_;

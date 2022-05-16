@@ -73,22 +73,45 @@ from yggdrasil_decision_forests.model.gradient_boosted_trees import gradient_boo
 from yggdrasil_decision_forests.model.random_forest import random_forest_pb2
 
 # Filenames used in Yggdrasil models.
-FILENAME_HEADER = "header.pb"
-FILENAME_DATASPEC = "data_spec.pb"
-FILENAME_NODES_SHARD = "nodes"
-FILENAME_DONE = "done"
+BASE_FILENAME_HEADER = "header.pb"
+BASE_FILENAME_DATASPEC = "data_spec.pb"
+BASE_FILENAME_NODES_SHARD = "nodes"
+BASE_FILENAME_DONE = "done"
+BASE_FILENAME_RANDOM_FOREST_HEADER = "random_forest_header.pb"
+BASE_FILENAME_GBT_HEADER = "gradient_boosted_trees_header.pb"
 
 Task = abstract_model_pb2.Task
 ColumnType = data_spec_pb2.ColumnType
 SimpleColumnSpec = py_tree.dataspec.SimpleColumnSpec
 
 
-def make_inspector(directory: str) -> "AbstractInspector":
-  """Creates an inspector for a model saved in a directory."""
+def make_inspector(directory: str,
+                   file_prefix: Optional[str] = None) -> "AbstractInspector":
+  """Creates an inspector for a model.
+
+  If `file_prefix` is not given, the prefix is auto-detected. Auto-detection
+  fails if multiple models models are stored in the directory.
+
+  Args:
+    directory: Path to the model.
+    file_prefix: Internal prefix of the model files. If not specified (None),
+      the prefix is automatically determined. If the directory contains multiple
+      models, the prefix should be provided. If `file_prefix=""`, the model is
+      built without prefix (which is legal).
+
+  Returns:
+    Inspector for the given model.
+
+  Raises:
+    ValueError: The model type is unsupported or prefix autodetection failed.
+  """
 
   # Determine the format of the model.
   header = abstract_model_pb2.AbstractModel()
-  with tf.io.gfile.GFile(os.path.join(directory, FILENAME_HEADER), "rb") as f:
+  if file_prefix is None:
+    file_prefix = detect_model_file_prefix(directory)
+  filename_header = file_prefix + BASE_FILENAME_HEADER
+  with tf.io.gfile.GFile(os.path.join(directory, filename_header), "rb") as f:
     header.ParseFromString(f.read())
   if header.name not in MODEL_INSPECTORS:
     raise ValueError(
@@ -96,7 +119,7 @@ def make_inspector(directory: str) -> "AbstractInspector":
         "supported types are: {MODEL_INSPECTORS.keys()}")
 
   # Create the inspector.
-  return MODEL_INSPECTORS[header.name](directory)
+  return MODEL_INSPECTORS[header.name](directory, file_prefix)
 
 
 class IterNodeResult(typing.NamedTuple):
@@ -152,15 +175,18 @@ class TrainLog(typing.NamedTuple):
 class AbstractInspector(object):
   """Abstract inspector for all Yggdrasil models."""
 
-  def __init__(self, directory: str):
+  def __init__(self, directory: str, file_prefix: str):
     self._directory = directory
+    self._file_prefix = file_prefix
+    filename_header = self._file_prefix + BASE_FILENAME_HEADER
+    filename_dataspec = self._file_prefix + BASE_FILENAME_DATASPEC
 
     self._header = _read_binary_proto(abstract_model_pb2.AbstractModel,
-                                      os.path.join(directory, FILENAME_HEADER))
+                                      os.path.join(directory, filename_header))
 
     self._dataspec = _read_binary_proto(
         data_spec_pb2.DataSpecification,
-        os.path.join(directory, FILENAME_DATASPEC))
+        os.path.join(directory, filename_dataspec))
 
   @abc.abstractmethod
   def model_type(self) -> str:
@@ -529,8 +555,10 @@ class _AbstractDecisionForestInspector(AbstractInspector):
 
     for shard_idx in range(num_shards):
       shard_path = os.path.join(
-          self._directory, "{}-{:05d}-of-{:05d}".format(FILENAME_NODES_SHARD,
-                                                        shard_idx, num_shards))
+          self._directory,
+          "{}{}-{:05d}-of-{:05d}".format(self._file_prefix,
+                                         BASE_FILENAME_NODES_SHARD, shard_idx,
+                                         num_shards))
 
       for serialized_node in _create_node_reader(
           self.specialized_header().node_format, shard_path):
@@ -607,12 +635,13 @@ class _RandomForestInspector(_AbstractDecisionForestInspector):
 
   MODEL_NAME = "RANDOM_FOREST"
 
-  def __init__(self, directory: str):
-    super(_RandomForestInspector, self).__init__(directory)
+  def __init__(self, directory: str, file_prefix: str):
+    super(_RandomForestInspector, self).__init__(directory, file_prefix)
 
+    filename_random_forest_header = self._file_prefix + BASE_FILENAME_RANDOM_FOREST_HEADER
     self._specialized_header = _read_binary_proto(
         random_forest_pb2.Header,
-        os.path.join(directory, "random_forest_header.pb"))
+        os.path.join(directory, filename_random_forest_header))
 
   def model_type(self) -> str:
     return _RandomForestInspector.MODEL_NAME
@@ -656,12 +685,13 @@ class _GradientBoostedTreeInspector(_AbstractDecisionForestInspector):
 
   MODEL_NAME = "GRADIENT_BOOSTED_TREES"
 
-  def __init__(self, directory: str):
-    super(_GradientBoostedTreeInspector, self).__init__(directory)
+  def __init__(self, directory: str, file_prefix: str):
+    super(_GradientBoostedTreeInspector, self).__init__(directory, file_prefix)
 
+    filename_gbt_header = self._file_prefix + BASE_FILENAME_GBT_HEADER
     self._specialized_header = _read_binary_proto(
         gradient_boosted_trees_pb2.Header,
-        os.path.join(directory, "gradient_boosted_trees_header.pb"))
+        os.path.join(directory, filename_gbt_header))
 
   def model_type(self) -> str:
     return _GradientBoostedTreeInspector.MODEL_NAME
@@ -855,6 +885,34 @@ def _generic_hyperparameter_to_dict(
     dst[field.name] = value
 
   return dst
+
+
+def detect_model_file_prefix(model_path: str) -> str:
+  """Auto-detects the model's file prefix if possible.
+
+  Raises ValueError if more than one prefix is detected or if the model
+  directory is invalid.
+
+  Args:
+    model_path: Path to the model's directory.
+
+  Returns:
+    File prefix of the model.
+  """
+
+  prefixes = []
+  for dir_entry in tf.io.gfile.listdir(model_path):
+    if dir_entry.endswith(BASE_FILENAME_DONE) and not tf.io.gfile.isdir(
+        os.path.join(model_path, dir_entry)):
+      prefixes.append(dir_entry[:-len(BASE_FILENAME_DONE)])
+  if not prefixes:
+    raise ValueError(f"The model at {model_path} is invalid as it is "
+                     "missing a \"done\" file.")
+  if len(prefixes) > 1:
+    raise ValueError(f"The model at {model_path} contains multiple YDF "
+                     "models. Please specify the prefix of the intended "
+                     f"model. Available prefixes: {prefixes}")
+  return prefixes[0]
 
 
 MODEL_INSPECTORS = {
