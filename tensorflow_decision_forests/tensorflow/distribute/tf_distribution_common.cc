@@ -30,7 +30,9 @@ bool IsPermanentWorkerError(const absl::Status& status) {
   //    found". return false;
   //  }
 
-  if (absl::StrContains(status.message(), "is not found")) {
+  if (absl::StrContains(status.message(), "is not found") ||
+      absl::StrContains(status.message(), "NOT_FOUND")
+  ) {
     return false;
   }
 

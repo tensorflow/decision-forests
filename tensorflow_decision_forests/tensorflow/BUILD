@@ -121,6 +121,7 @@ py_library(
     srcs = ["tf_logging.py"],
     srcs_version = "PY3",
     deps = [
+        # absl/logging dep,
         # TensorFlow Python,
         "//tensorflow_decision_forests/tensorflow/ops/training:op_py",
     ],

@@ -247,8 +247,8 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     return output_paths
 
   @parameterized.named_parameters(
-      ("finite_dataset", True, False),
-      ("infinite_dataset", False, False),
+      ("finite_dataset_without_failures", True, False),
+      ("infinite_dataset_without_failures", False, False),
       ("finite_dataset_with_failures", True, True),
   )
   def test_distributed_training_adult(self, use_finite_dataset,
@@ -382,11 +382,15 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     logging.info("Trained model:")
     model.summary()
 
+    model.save(os.path.join(tmp_path(), "pre_evaluated_model"))
+
     # Non-distributed evaluation of the model.
     model._distribution_strategy = None
     model._cluster_coordinator = None
     evaluation = model.evaluate(dataset_fn(None, [test_path]), return_dict=True)
     logging.info("Evaluation: %s", evaluation)
+
+    model.save(os.path.join(tmp_path(), "post_evaluated_model"))
 
     if use_finite_dataset:
       # The finite dataset approach leads to a better model (model equivalent

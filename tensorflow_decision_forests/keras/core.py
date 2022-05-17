@@ -56,6 +56,7 @@ import uuid
 import tensorflow as tf
 
 from tensorflow.python.data.ops import dataset_ops
+from tensorflow.python.distribute import input_lib
 from tensorflow.python.training.tracking import base as base_tracking  # pylint: disable=g-direct-tensorflow-import
 from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
 from tensorflow_decision_forests.component.tuner import tuner as tuner_lib
@@ -2167,6 +2168,13 @@ class CoreModel(models.Model):
     if isinstance(x, tf.data.Dataset):
       return x.take(1)
 
+    if isinstance(x, input_lib.DistributedDatasetsFromFunction):
+      try:
+        dataset = x._dataset_fn(None)  # pylint: disable=protected-access
+        return dataset.take(1)
+      except Exception:  # pylint: disable=broad-except
+        pass
+
     try:
       # Work for numpy array and TensorFlow Tensors.
       return tf.nest.map_structure(lambda v: v[0:1], x)
@@ -2205,7 +2213,7 @@ class CoreModel(models.Model):
     if self._advanced_arguments.infer_prediction_signature:
       sample = self._extract_sample(x)
       if sample is not None:
-        self.predict(sample)
+        self.predict(sample, verbose=0)
 
     if self._verbose >= 1:
       tf_logging.info("Model compiled.")

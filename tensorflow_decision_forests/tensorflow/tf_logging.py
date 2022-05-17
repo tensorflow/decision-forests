@@ -21,6 +21,7 @@ from contextlib import contextmanager  # pylint: disable=g-importing-member
 import io
 import sys
 from typing import Union, Any, List
+from absl import logging
 
 from tensorflow_decision_forests.tensorflow.ops.training import op as training_op
 
@@ -85,6 +86,7 @@ def info(msg: str, *args: List[Any]) -> None:
   """
 
   print(msg % args, flush=True)
+  logging.info(msg, *args)
 
 
 def warning(msg: str, *args: List[Any]) -> None:
@@ -101,6 +103,7 @@ def warning(msg: str, *args: List[Any]) -> None:
   """
 
   print("Warning:", msg % args, flush=True)
+  logging.warning(msg, *args)
 
 
 def capture_cpp_log_context(verbose=False):

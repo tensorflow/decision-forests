@@ -68,6 +68,7 @@ py_library(
     deps = [
         # TensorFlow Python,
         # TensorFlow /data/ops:dataset_ops,
+        # TensorFlow /distribute:input_lib,
         # TensorFlow /training/tracking:base,
         "//tensorflow_decision_forests/component/inspector",
         "//tensorflow_decision_forests/component/tuner",
