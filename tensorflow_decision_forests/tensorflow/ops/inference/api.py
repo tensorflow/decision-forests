@@ -684,6 +684,8 @@ class _InferenceArgsBuilder(tracking.AutoTrackable):
       return 1
     elif self._header.task == Task.CATEGORICAL_UPLIFT:
       return label_spec.categorical.number_of_unique_values - 2
+    elif self._header.task == Task.NUMERICAL_UPLIFT:
+      return 1
     else:
       raise Exception("Non supported task {}.".format(
           Task.Name(self._header.task)))

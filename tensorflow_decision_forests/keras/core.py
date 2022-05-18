@@ -399,9 +399,9 @@ class CoreModel(models.Model):
       identifies queries in a query/document ranking task. The ranking group is
       not added automatically for the set of features if
       exclude_non_specified_features=false.
-    uplift_treatment: Only for task=Task.CATEGORICAL_UPLIFT. Name of an integer
-      feature that identifies the treatment in an uplift problem. The value 0 is
-      reserved for the control treatment.
+    uplift_treatment: Only for task=Task.CATEGORICAL_UPLIFT and task=Task.
+      NUMERICAL_UPLIFT. Name of an integer feature that identifies the treatment
+      in an uplift problem. The value 0 is reserved for the control treatment.
     temp_directory: Temporary directory used to store the model Assets after the
       training, and possibly as a work directory during the training. This
       temporary directory is necessary for the model to be exported after
@@ -1176,6 +1176,22 @@ class CoreModel(models.Model):
           tensor=tf.cast(train_y, tf_core.NormalizedCategoricalIntType) +
           tf_core.CATEGORICAL_INTEGER_OFFSET,
           semantic=tf_core.Semantic.CATEGORICAL)
+
+      assert self._uplift_treatment is not None
+      if self._uplift_treatment not in train_x:
+        raise Exception(
+            "The uplift treatment key feature \"{}\" is not available as an input "
+            "feature.".format(self._uplift_treatment))
+      normalized_semantic_inputs[_UPLIFT_TREATMENT] = tf_core.SemanticTensor(
+          tensor=tf.cast(train_x[self._uplift_treatment],
+                         tf_core.NormalizedCategoricalIntType) +
+          tf_core.CATEGORICAL_INTEGER_OFFSET,
+          semantic=tf_core.Semantic.CATEGORICAL)
+
+    elif self._task == Task.NUMERICAL_UPLIFT:
+      normalized_semantic_inputs[_LABEL] = tf_core.SemanticTensor(
+          tensor=tf.cast(train_y, tf_core.NormalizedNumericalType),
+          semantic=tf_core.Semantic.NUMERICAL)
 
       assert self._uplift_treatment is not None
       if self._uplift_treatment not in train_x:
@@ -2268,8 +2284,8 @@ class CoreModel(models.Model):
             generic_hparms=tf_core.hparams_dict_to_generic_proto(
                 self._learner_params),
             ranking_group=_RANK_GROUP if self._task == Task.RANKING else None,
-            uplift_treatment=_UPLIFT_TREATMENT
-            if self._task == Task.CATEGORICAL_UPLIFT else None,
+            uplift_treatment=_UPLIFT_TREATMENT if self._task
+            in [Task.CATEGORICAL_UPLIFT, Task.NUMERICAL_UPLIFT] else None,
             keep_model_in_resource=True,
             guide=guide,
             training_config=self._advanced_arguments.yggdrasil_training_config,
@@ -2299,8 +2315,8 @@ class CoreModel(models.Model):
             generic_hparms=tf_core.hparams_dict_to_generic_proto(
                 self._learner_params),
             ranking_group=_RANK_GROUP if self._task == Task.RANKING else None,
-            uplift_treatment=_UPLIFT_TREATMENT
-            if self._task == Task.CATEGORICAL_UPLIFT else None,
+            uplift_treatment=_UPLIFT_TREATMENT if self._task
+            in [Task.CATEGORICAL_UPLIFT, Task.NUMERICAL_UPLIFT] else None,
             keep_model_in_resource=True,
             guide=guide,
             training_config=self._advanced_arguments.yggdrasil_training_config,

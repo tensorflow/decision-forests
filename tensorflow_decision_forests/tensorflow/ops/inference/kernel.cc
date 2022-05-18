@@ -438,7 +438,8 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
               prediction.ranking().relevance();
         } break;
 
-        case Task::CATEGORICAL_UPLIFT: {
+        case Task::CATEGORICAL_UPLIFT:
+        case Task::NUMERICAL_UPLIFT: {
           DCHECK_EQ(outputs->dense_predictions.dimension(1),
                     outputs->output_dim);
           const auto& pred = prediction.uplift();

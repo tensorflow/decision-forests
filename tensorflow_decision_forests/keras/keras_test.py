@@ -1680,7 +1680,48 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     predictions = model.predict(test_ds)
     logging.info("Predictions: %s", predictions)
 
-    # TODO(gbm): Evaluate with the Uplift framework.
+    # TODO(b/232901077): Evaluate with the Uplift framework.
+
+  def test_uplift_regression_sim_pte(self):
+
+    with tf.compat.forward_compatibility_horizon(2022, 6, 8):
+
+      # Path to dataset.
+      dataset_directory = os.path.join(ydf_test_data_path(), "dataset")
+      train_path = os.path.join(dataset_directory, "sim_pte_train.csv")
+      test_path = os.path.join(dataset_directory, "sim_pte_test.csv")
+
+      train_df = pd.read_csv(train_path)
+      test_df = pd.read_csv(test_path)
+
+      outcome_key = "y"
+      treatment_key = "treat"
+
+      def prepare_df(df):
+        # Both the treatment and outcome are 1 indexed.
+        df[outcome_key] = df[outcome_key] - 1
+        df[treatment_key] = df[treatment_key] - 1
+
+      prepare_df(train_df)
+      prepare_df(test_df)
+
+      task = keras.Task.NUMERICAL_UPLIFT
+      train_ds = keras.pd_dataframe_to_tf_dataset(
+          train_df, label=outcome_key, task=task)
+      test_ds = keras.pd_dataframe_to_tf_dataset(
+          test_df, label=outcome_key, task=task)
+
+      model = keras.RandomForestModel(
+          task=task, uplift_treatment=treatment_key, uplift_split_score="ED")
+      model.fit(train_ds)
+
+      logging.info("Trained model:")
+      model.summary()
+
+      predictions = model.predict(test_ds)
+      logging.info("Predictions: %s", predictions)
+
+      # TODO(gbm): Evaluate with the Uplift framework.
 
   def test_uplift_honest_sim_pte(self):
     # Path to dataset.
@@ -1873,6 +1914,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     ygg_model_path = os.path.join(ydf_test_data_path(), "model",
                                   ydf_model_directory)
     tfdf_model_path = os.path.join(tmp_path(), ydf_model_directory)
+
     # Extract a piece of this model
     def custom_model_input_signature(
         inspector: inspector_lib.AbstractInspector) -> Any:
@@ -1895,6 +1937,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         keras.pd_dataframe_to_tf_dataset(dataset.test, label="income"))
     self.assertNear(prediction[0, 0], expected_prediction, 0.00001)
 
+
   def test_load_combined_model(self):
     target = tf.random.uniform(shape=[100, 1], minval=25, maxval=50)
     features = {
@@ -1908,6 +1951,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     def model_2_preprocessing(x):
       return {"f2": model_1(x), "f3": x["my_feature"]}
+
     model_2_pred = model_2(model_2_preprocessing(inputs))
 
     combined_model = models.Model(inputs, model_2_pred)
@@ -1918,6 +1962,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     # Train second model.
     def mix(x, y):
       return model_2_preprocessing(x), y
+
     model_2.fit(dataset.map(mix))
 
     combined_model_path = os.path.join(tmp_path(), "combined_model")
@@ -1928,7 +1973,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     # Check if inference is working on the combined model.
     loaded_combined_model_prediction = loaded_combined_model.predict([[1, 1]])
     self.assertEqual(combined_model_prediction,
-                      loaded_combined_model_prediction)
+                     loaded_combined_model_prediction)
 
     # Load and use the individual models
     examples_1 = tf.data.Dataset.from_tensor_slices({
@@ -1942,7 +1987,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         file_prefix=model_1.training_model_id)
     loaded_model_1 = models.load_model(loaded_model_1_path)
     logging.info("Prediction result 1 is %s",
-                  loaded_model_1.predict(examples_1))
+                 loaded_model_1.predict(examples_1))
 
     examples_2 = tf.data.Dataset.from_tensor_slices({
         "f2": [1.0],
@@ -1956,7 +2001,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         file_prefix=model_2.training_model_id)
     loaded_model_2 = models.load_model(loaded_model_2_path)
     logging.info("Prediction result 2 is %s",
-                  loaded_model_2.predict(examples_2))
+                 loaded_model_2.predict(examples_2))
 
   def test_adult_discretize_age_feature(self):
     dataset = adult_dataset()
