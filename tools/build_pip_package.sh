@@ -32,7 +32,7 @@
 #     See https://github.com/pyenv/pyenv-installer
 #
 #   Auditwheel
-#     Note: "libtensorflow_framework.so.2" need to be added to the whitelisted
+#     Note: "libtensorflow_framework.so.2" need to be added to the allowlisted
 #     files (for example, in "policy.json" in "/home/${USER}/.local/lib/
 #     python3.9/site-packages/auditwheel/policy/policy.json").
 #     This change is done automatically (see "patch_auditwell" function). If

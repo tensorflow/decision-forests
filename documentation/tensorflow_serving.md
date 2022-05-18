@@ -36,11 +36,11 @@ inference. Therefore, TF-DF models are not compatible with the pre-compiled
 releases of TF-Serving. If you try, the following error will be raised:
 
 *NOT_FOUND: Op type not registered 'SimpleMLCreateModelResource' in binary
-running on gbm1.zrh.corp.google.com. Make sure the Op and Kernel are registered
-in the binary running in this process. Note that if you are loading a saved
-graph which used ops from tf.contrib, accessing (e.g.) `tf.contrib.resampler`
-should be done before importing the graph, as contrib ops are lazily registered
-when the module is first accessed.*
+running on username.google.com. Make sure the Op and Kernel are registered in
+the binary running in this process. Note that if you are loading a saved graph
+which used ops from tf.contrib, accessing (e.g.) `tf.contrib.resampler` should
+be done before importing the graph, as contrib ops are lazily registered when
+the module is first accessed.*
 
 Two options are available to run TF-DF in TF Serving:
 
