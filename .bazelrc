@@ -17,7 +17,7 @@ build --announce_rc
 build -c opt
 
 # Support for newer version of Bazel with the (old) TensorFlow code.
-build --incompatible_blacklisted_protos_requires_proto_info=false
+# build --incompatible_blacklisted_protos_requires_proto_info=false # Only for bazel<=4.
 build --incompatible_linkopts_to_linklibs=false
 
 # Allow to use tensorflow internal methods.
@@ -56,10 +56,11 @@ build --define=dynamic_loaded_kernels=true
 build --copt=-DAUTOLOAD_DYNAMIC_KERNELS
 build --spawn_strategy=standalone
 
-build --copt=-D_GLIBCXX_USE_CXX11_ABI=0
-build --cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0
-build --host_copt=-D_GLIBCXX_USE_CXX11_ABI=0
-build --host_cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0
+# For <= TensorFlow 2.8
+# build --copt=-D_GLIBCXX_USE_CXX11_ABI=0
+# build --cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0
+# build --host_copt=-D_GLIBCXX_USE_CXX11_ABI=0
+# build --host_cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0
 
 build --strategy=Genrule=standalone
 build --action_env TF_NEED_CUDA="0"

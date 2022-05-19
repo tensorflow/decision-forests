@@ -15,7 +15,7 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
-        "//third_party/py/tensorflow_decision_forests",
+        "//tensorflow_decision_forests",
     ],
 )
 

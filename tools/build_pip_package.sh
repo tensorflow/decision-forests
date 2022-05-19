@@ -196,7 +196,7 @@ function e2e_native() {
   else
     PACKAGEPATH="dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-linux_x86_64.whl"
   fi
-  auditwheel repair --plat manylinux2010_x86_64 -w dist ${PACKAGEPATH}
+  auditwheel repair --plat manylinux2014_x86_64 -w dist ${PACKAGEPATH}
 }
 
 # Builds and tests a pip package in Pyenv.
@@ -235,11 +235,13 @@ elif [ ${ARG} == "ALL_VERSIONS" ]; then
   e2e_pyenv 3.9.2
   e2e_pyenv 3.8.7
   e2e_pyenv 3.7.7
+  e2e_pyenv 3.10-dev
 elif [ ${ARG} == "ALL_VERSIONS_ALREADY_ASSEMBLED" ]; then
   eval "$(pyenv init -)"
   e2e_pyenv 3.9.2
   e2e_pyenv 3.8.7
   e2e_pyenv 3.7.7
+  e2e_pyenv 3.10-dev
 else
   # Compile with a specific version of python provided in the call arguments.
   assemble_files

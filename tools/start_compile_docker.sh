@@ -31,11 +31,13 @@
 #  ./tools/build_pip_package.sh python3.8
 #
 #  # Install the other versions of python (the docker only has py3.8).
-#  sudo apt-get update && sudo apt-get install python3.7 python3.9 python3-pip
+#  sudo apt-get update
+#  sudo apt-get install python3.7 python3.9 python3-pip python3.10
 #
 #  # Create the Pip package for the other version of python
 #  ./tools/build_pip_package.sh python3.7
 #  ./tools/build_pip_package.sh python3.9
+#  ./tools/build_pip_package.sh python3.10
 #
 #  # Make the result of the docker world accessible (in case the docker is run
 #  # in root).
@@ -56,8 +58,8 @@
 #  # previous build_pip_package call results (i.e. the "tmp_package" directory)
 #  ./tools/build_pip_package.sh ALL_VERSIONS_ALREADY_ASSEMBLED
 #
-
-DOCKER=tensorflow/build:2.8-python3.8
+# https://hub.docker.com/r/tensorflow/build/tags?page=1
+DOCKER=tensorflow/build:2.9-python3.8
 
 # Current directory
 # Useful if Yggdrasil Decision Forests is available locally in a neighbor

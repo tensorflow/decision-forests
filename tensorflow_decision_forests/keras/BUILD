@@ -133,7 +133,7 @@ py_test(
         # numpy dep,
         # pandas dep,
         # TensorFlow Python,
-        "//third_party/py/tensorflow_decision_forests",
+        "//tensorflow_decision_forests",
     ],
 )
 
@@ -152,6 +152,7 @@ py_test(
     ],
     python_version = "PY3",
     shard_count = 10,
+    tags = ["tfdistributed"],
     deps = [
         # absl/flags dep,
         # absl/logging dep,

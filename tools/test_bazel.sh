@@ -26,7 +26,7 @@ PYTHON=python3.8
 # Install Pip dependencies
 ${PYTHON} -m ensurepip --upgrade || true
 ${PYTHON} -m pip install pip --upgrade
-${PYTHON} -m pip install tensorflow numpy pandas --upgrade
+${PYTHON} -m pip install tensorflow numpy pandas scikit-learn --upgrade
 
 # Force a compiler
 # export CC=gcc-8
@@ -93,7 +93,7 @@ BAZEL=bazel
 #
 # Note: Copy the building configuration of TF.
 TENSORFLOW_BAZELRC="tensorflow_bazelrc"
-curl https://raw.githubusercontent.com/tensorflow/tensorflow/v2.8.0/.bazelrc -o ${TENSORFLOW_BAZELRC}
+curl https://raw.githubusercontent.com/tensorflow/tensorflow/v2.9.0/.bazelrc -o ${TENSORFLOW_BAZELRC}
 STARTUP_FLAGS="${STARTUP_FLAGS} --bazelrc=${TENSORFLOW_BAZELRC}"
 
 # Distributed compilation using Remote Build Execution (RBE)
@@ -106,8 +106,9 @@ STARTUP_FLAGS="${STARTUP_FLAGS} --bazelrc=${TENSORFLOW_BAZELRC}"
 # Minimal rules to create and test the Pip Package.
 #
 # Only require a small amount of TF to be compiled.
-BUILD_RULES="//tensorflow_decision_forests/component/...:all //tensorflow_decision_forests/keras //tensorflow_decision_forests/keras:grpc_worker_main"
-TEST_RULES="//tensorflow_decision_forests/component/...:all //tensorflow_decision_forests/keras:keras_test"
+BUILD_RULES="//tensorflow_decision_forests/component/...:all //tensorflow_decision_forests/contrib/...:all //tensorflow_decision_forests/keras //tensorflow_decision_forests/keras:grpc_worker_main"
+TEST_RULES="//tensorflow_decision_forests/component/...:all //tensorflow_decision_forests/contrib/...:all //tensorflow_decision_forests/keras/...:all"
+
 
 # All the build rules.
 #
@@ -118,10 +119,10 @@ TEST_RULES="//tensorflow_decision_forests/component/...:all //tensorflow_decisio
 # TEST_RULES="${TEST_RULES} //tensorflow_decision_forests/keras:keras_distributed_test"
 
 # Build library
-time ${BAZEL} ${STARTUP_FLAGS} build ${BUILD_RULES} ${FLAGS}
+time ${BAZEL} ${STARTUP_FLAGS} build ${BUILD_RULES} ${FLAGS} --build_tag_filters=-tfdistributed
 
 # Unit test library
-time ${BAZEL} ${STARTUP_FLAGS} test ${TEST_RULES} ${FLAGS}
+time ${BAZEL} ${STARTUP_FLAGS} test ${TEST_RULES} ${FLAGS} --test_size_filters=small,medium,large --test_tag_filters=-tfdistributed
 
 # Example of dependency check.
 # ${BAZEL} --bazelrc=${TENSORFLOW_BAZELRC} cquery "somepath(//tensorflow_decision_forests/tensorflow/ops/inference:api_py,@org_tensorflow//tensorflow/c:kernels.cc)" ${FLAGS}

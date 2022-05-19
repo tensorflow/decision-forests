@@ -846,6 +846,8 @@ def train(
     feature_ids.append(
         _input_key_to_id(model_id, uplift_treatment, training_column=True))
 
+  use_file_prefix = True
+
   return training_op.SimpleMLModelTrainer(
       feature_ids=",".join(feature_ids),
       label_id=_input_key_to_id(model_id, label_id, training_column=True),
@@ -860,8 +862,7 @@ def train(
       deployment_config=deployment_config.SerializeToString(),
       guide=guide.SerializeToString(),
       has_validation_dataset=has_validation_dataset,
-      # Only use file prefixes after the forward compatibility window.
-      use_file_prefix=tf.compat.forward_compatible(2022, 5, 25))
+      use_file_prefix=use_file_prefix)
 
 
 def train_on_file_dataset(
@@ -989,6 +990,8 @@ def train_on_file_dataset(
           tf_distribution_pb2.tf_distribution].environment_variable.SetInParent(
           )
 
+  use_file_prefix = True
+
   return training_op.SimpleMLModelTrainerOnFile(
       train_dataset_path=train_dataset_path,
       valid_dataset_path=valid_dataset_path if valid_dataset_path else "",
@@ -998,8 +1001,7 @@ def train_on_file_dataset(
       training_config=training_config.SerializeToString(),
       deployment_config=deployment_config.SerializeToString(),
       guide=guide.SerializeToString(),
-      # Only use file prefixes after the forward compatibility window.
-      use_file_prefix=tf.compat.forward_compatible(2022, 5, 25))
+      use_file_prefix=use_file_prefix)
 
 
 def finalize_distributed_dataset_collection(cluster_coordinator,

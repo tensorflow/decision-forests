@@ -1911,6 +1911,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
       ("prefixed_adult_binary_class_gbdt", 0.012131, True))
   def test_ydf_to_keras_model(self, ydf_model_directory, expected_prediction,
                               uses_prefixes):
+
     ygg_model_path = os.path.join(ydf_test_data_path(), "model",
                                   ydf_model_directory)
     tfdf_model_path = os.path.join(tmp_path(), ydf_model_directory)
@@ -1936,7 +1937,6 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     prediction = loaded_model.predict(
         keras.pd_dataframe_to_tf_dataset(dataset.test, label="income"))
     self.assertNear(prediction[0, 0], expected_prediction, 0.00001)
-
 
   def test_load_combined_model(self):
     target = tf.random.uniform(shape=[100, 1], minval=25, maxval=50)
@@ -2059,6 +2059,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
                 feature.col_idx].discretized_numerical.maximum_num_bins, 64)
       else:
         self.assertEqual(feature.type, inspector_lib.ColumnType.CATEGORICAL)
+
 
 if __name__ == "__main__":
   tf.test.main()
