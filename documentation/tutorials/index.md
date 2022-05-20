@@ -17,3 +17,6 @@ decision forests and neural networks together.
 [Proximities and Prototypes with Random Forests](proximities_colab.ipynb):
 Measure the distance between tabular examples and use it to understand a model
 and its predictions.
+
+[Automatic hyper-parameter tuning](automatic_tuning_colab.ipynb):
+Automatically select the best hyper-parameters for a model.

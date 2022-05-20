@@ -49,6 +49,8 @@ upper_tabs:
         path: /decision_forests/tutorials/advanced_colab
       - title: Model composition
         path: /decision_forests/tutorials/model_composition_colab
+      - title: Automatic tuning
+        path: /decision_forests/tutorials/automatic_tuning_colab
       - title: Proximities and Prototypes
         path: /decision_forests/tutorials/proximities_colab
       - heading: Developer
