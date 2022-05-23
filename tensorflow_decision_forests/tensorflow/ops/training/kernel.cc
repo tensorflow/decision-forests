@@ -38,12 +38,14 @@
 
 namespace tensorflow_decision_forests {
 namespace ops {
-
+namespace {
 namespace tf = ::tensorflow;
 namespace ydf = ::yggdrasil_decision_forests;
 namespace model = ydf::model;
 namespace utils = ydf::utils;
 namespace dataset = ydf::dataset;
+
+}  // namespace
 
 tensorflow::Status YggdrasilModelContainer::LoadModel(
     const absl::string_view model_path) {
@@ -493,7 +495,8 @@ tf::Status FeatureSet::InitializeDatasetFromFeatures(
         return tf::Status::OK();
       }));
 
-  dataset::FinalizeComputeSpec({}, accumulator, dataset->mutable_data_spec());
+  TF_RETURN_IF_ERROR_FROM_ABSL_STATUS(dataset::FinalizeComputeSpec(
+      {}, accumulator, dataset->mutable_data_spec()));
 
   return tf::Status::OK();
 }
@@ -519,7 +522,8 @@ tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
   };
 
   TF_RETURN_IF_ERROR(IterateFeatures(
-      [&](SimpleMLNumericalFeature::Resource* feature, const int feature_idx) {
+      [&](SimpleMLNumericalFeature::Resource* feature,
+          const int feature_idx) -> tensorflow::Status {
         TF_RETURN_IF_ERROR(set_num_rows(feature->data().size(), feature));
         const auto& col = dataset->mutable_data_spec()->columns(feature_idx);
 
@@ -528,29 +532,35 @@ tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
             col.type() == dataset::proto::ColumnType::DISCRETIZED_NUMERICAL;
         if (discretized) {
           // Copy the discretized numerical values.
-          auto* col_data = dataset->MutableColumnWithCast<
-              dataset::VerticalDataset::DiscretizedNumericalColumn>(
-              feature_idx);
+          TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
+              auto* col_data,
+              dataset->MutableColumnWithCastWithStatus<
+                  dataset::VerticalDataset::DiscretizedNumericalColumn>(
+                  feature_idx));
           col_data->Resize(0);
           for (float value : feature->data()) {
             col_data->Add(dataset::NumericalToDiscretizedNumerical(col, value));
           }
         } else {
           // Copy the non discretized values.
-          auto* col_data = dataset->MutableColumnWithCast<
-              dataset::VerticalDataset::NumericalColumn>(feature_idx);
+          TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
+              auto* col_data,
+              dataset->MutableColumnWithCastWithStatus<
+                  dataset::VerticalDataset::NumericalColumn>(feature_idx));
           *col_data->mutable_values() = std::move(*feature->mutable_data());
         }
         feature->mutable_data()->clear();
         return tf::Status::OK();
       },
       [&](SimpleMLCategoricalStringFeature::Resource* feature,
-          const int feature_idx) {
+          const int feature_idx) -> tensorflow::Status {
         TF_RETURN_IF_ERROR(
             set_num_rows(feature->indexed_data().size(), feature));
         const auto& col_spec = dataset->data_spec().columns(feature_idx);
-        auto* col_data = dataset->MutableColumnWithCast<
-            dataset::VerticalDataset::CategoricalColumn>(feature_idx);
+        TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
+            auto* col_data,
+            dataset->MutableColumnWithCastWithStatus<
+                dataset::VerticalDataset::CategoricalColumn>(feature_idx));
         col_data->Resize(0);
         const auto& reverse_index = feature->reverse_index();
         for (const auto& indexed_value : feature->indexed_data()) {
@@ -558,7 +568,10 @@ tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
           if (value.empty()) {
             col_data->AddNA();
           } else {
-            col_data->Add(dataset::CategoricalStringToValue(value, col_spec));
+            TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
+                auto int_value,
+                dataset::CategoricalStringToValueWithStatus(value, col_spec));
+            col_data->Add(int_value);
           }
         }
         // Note: Thread annotations don't work in lambdas.
@@ -566,11 +579,13 @@ tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
         return tf::Status::OK();
       },
       [&](SimpleMLCategoricalIntFeature::Resource* feature,
-          const int feature_idx) {
+          const int feature_idx) -> tensorflow::Status {
         TF_RETURN_IF_ERROR(set_num_rows(feature->data().size(), feature));
         const auto& col_spec = dataset->data_spec().columns(feature_idx);
-        auto* col_data = dataset->MutableColumnWithCast<
-            dataset::VerticalDataset::CategoricalColumn>(feature_idx);
+        TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
+            auto* col_data,
+            dataset->MutableColumnWithCastWithStatus<
+                dataset::VerticalDataset::CategoricalColumn>(feature_idx));
         col_data->Resize(0);
         for (int value : feature->data()) {
           if (value < dataset::VerticalDataset::CategoricalColumn::kNaValue) {
@@ -587,11 +602,13 @@ tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
         return tf::Status::OK();
       },
       [&](SimpleMLCategoricalSetStringFeature::Resource* feature,
-          const int feature_idx) {
+          const int feature_idx) -> tensorflow::Status {
         TF_RETURN_IF_ERROR(set_num_rows(feature->num_examples(), feature));
         const auto& col_spec = dataset->data_spec().columns(feature_idx);
-        auto* col_data = dataset->MutableColumnWithCast<
-            dataset::VerticalDataset::CategoricalSetColumn>(feature_idx);
+        TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
+            auto* col_data,
+            dataset->MutableColumnWithCastWithStatus<
+                dataset::VerticalDataset::CategoricalSetColumn>(feature_idx));
         col_data->Resize(0);
 
         // Temporary buffer for the copy.
@@ -606,8 +623,10 @@ tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
           for (int value_idx = begin_value_idx; value_idx < end_value_idx;
                value_idx++) {
             const auto& value_str = feature->values()[value_idx];
-            const int32_t value =
-                dataset::CategoricalStringToValue(value_str, col_spec);
+            TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
+                const int32_t value,
+                dataset::CategoricalStringToValueWithStatus(value_str,
+                                                            col_spec));
             tmp_value.push_back(value);
           }
 
@@ -622,11 +641,13 @@ tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
         return tf::Status::OK();
       },
       [&](SimpleMLCategoricalSetIntFeature::Resource* feature,
-          const int feature_idx) {
+          const int feature_idx) -> tensorflow::Status {
         TF_RETURN_IF_ERROR(set_num_rows(feature->num_examples(), feature));
         const auto& col_spec = dataset->data_spec().columns(feature_idx);
-        auto* col_data = dataset->MutableColumnWithCast<
-            dataset::VerticalDataset::CategoricalSetColumn>(feature_idx);
+        TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
+            auto* col_data,
+            dataset->MutableColumnWithCastWithStatus<
+                dataset::VerticalDataset::CategoricalSetColumn>(feature_idx));
         col_data->Resize(0);
 
         // Temporary buffer for the copy.
@@ -668,12 +689,13 @@ tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
         feature->non_mutex_protected_clear();
         return tf::Status::OK();
       },
-      [&](SimpleMLHashFeature::Resource* feature, const int feature_idx) {
+      [&](SimpleMLHashFeature::Resource* feature,
+          const int feature_idx) -> tensorflow::Status {
         TF_RETURN_IF_ERROR(set_num_rows(feature->data().size(), feature));
-        auto* col_data =
-            dataset
-                ->MutableColumnWithCast<dataset::VerticalDataset::HashColumn>(
-                    feature_idx);
+        TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
+            auto* col_data,
+            dataset->MutableColumnWithCastWithStatus<
+                dataset::VerticalDataset::HashColumn>(feature_idx));
         *col_data->mutable_values() = std::move(*feature->mutable_data());
         feature->mutable_data()->clear();
         return tf::Status::OK();
