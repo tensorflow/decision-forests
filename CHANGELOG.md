@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.6 - 2022-05-17
+
+### Features
+
+-   Support for TensorFlow 2.9.1
+
 ## 0.2.5 - 2022-05-17
 
 ### Features
