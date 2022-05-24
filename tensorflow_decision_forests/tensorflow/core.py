@@ -45,9 +45,6 @@ try:
 except Exception as e:
   distributed_op = None
   coordinator_context = None
-  logging.warning(
-      "TF Parameter Server distributed training not available (this is "
-      "expected for the pre-build release).")
 # pylint: enable=g-import-not-at-top,import-error,unused-import,broad-except
 
 # Suffix added to the name of the tf resource to hold the validation
@@ -81,14 +78,13 @@ class Semantic(enum.Enum):
       is represented by any new string value or the value -1.  If a numerical
       tensor contains multiple values, its size should be constant, and each
       value is treated independently (each value on the tensor should always
-      have the same meaning).
-      Integer categorical values: (1) The training logic and model
-        representation is optimized with the assumption that values are dense.
-        (2) Internally, the value is stored as int32. The values should be <~2B.
-        (3) The number of possible value is computed automatically from the
-        training dataset. During inference, integer values greater than any
-        value seen during training will be treated as out-of-vocabulary. (4)
-        Minimum frequency and maximum vocabulary size constrains don't apply.
+      have the same meaning). Integer categorical values: (1) The training logic
+      and model representation is optimized with the assumption that values are
+      dense. (2) Internally, the value is stored as int32. The values should be
+      <~2B. (3) The number of possible value is computed automatically from the
+      training dataset. During inference, integer values greater than any value
+      seen during training will be treated as out-of-vocabulary. (4) Minimum
+      frequency and maximum vocabulary size constrains don't apply.
     HASH: The hash of a string value. Used when only the equality between values
       is important (not the value itself). Currently, only used for groups in
       ranking problems e.g. the query in a query/document problem. The hashing
@@ -336,11 +332,18 @@ def get_worker_idx_and_num_workers(
 
   if coordinator_context is None:
     raise ValueError(
-        "The library was compile without Parameter Server distributed training "
-        " support i.e. tf_ps_distribution_strategy=0. Either recompile it with "
-        "tf_ps_distribution_strategy=1,disable distributed training, or use "
-        "the Grpc Server distribution strategy. Note: TF-DF OSS release it "
-        "currently compiled without PS support.")
+        "Training with Parameter Server distributed training, however this "
+        "copy of TensorFlow Decision Forests was compiled WITHOUT support for "
+        "Parameter Server distributed training (TF-DF was compiled with "
+        "tf_ps_distribution_strategy=0). This is a temporary but expected "
+        "situation for the pre-built version of TF-DF distributed on PyPi. "
+        "Your options are: (1) Don't use distributed training: Select a model "
+        "that trains locally and do not use a TF Distribution Strategy. (2) "
+        "Configure distributed training with GRPC distribution strategy (see "
+        "details here: "
+        "https://www.tensorflow.org/decision_forests/distributed_training), "
+        "(3) Recompile TF on monolithic mode and TF-DF with "
+        "tf_ps_distribution_strategy=1.")
 
   # Not used for now.
   del context

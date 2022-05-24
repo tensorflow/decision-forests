@@ -1344,19 +1344,25 @@ class CoreModel(models.Model):
     evaluate API. Notably, for distributed training, the validation dataset
     should be infinite (i.e. have a repeat operation).
 
-    Here is a full example of distributed training:
+    See https://www.tensorflow.org/decision_forests/distributed_training for
+    more details and examples.
+
+    Here is a single example of distributed training using PSS for both dataset
+    reading and training distribution.
 
       def dataset_fn(context, paths, training=True):
         ds_path = tf.data.Dataset.from_tensor_slices(paths)
 
-        # Train on at least 2 workers.
-        current_worker = tfdf.keras.get_worker_idx_and_num_workers(context)
-        assert current_worker.num_workers > 2
 
-        # Split the dataset's examples among the workers.
-        ds_path = ds_path.shard(
-            num_shards=current_worker.num_workers,
-            index=current_worker.worker_idx)
+        if context is not None:
+          # Train on at least 2 workers.
+          current_worker = tfdf.keras.get_worker_idx_and_num_workers(context)
+          assert current_worker.num_workers > 2
+
+          # Split the dataset's examples among the workers.
+          ds_path = ds_path.shard(
+              num_shards=current_worker.num_workers,
+              index=current_worker.worker_idx)
 
         def read_csv_file(path):
           numerical = tf.constant([math.nan], dtype=tf.float32)

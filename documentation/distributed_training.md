@@ -10,14 +10,13 @@
 
 <!-- docs_infra:strip_end -->
 
-**Warning: Distributed training is experimental in TF-DF.**
+**Warning:** Distributed training is experimental in TF-DF.
 
 ## Introduction
 
-Distributed training makes it possible to train models quickly on larger
-datasets. Distributed training in TF-DF relies on the TensorFlow
-ParameterServerV2 distribution strategy or the Yggdrasil Decision Forest GRPC
-distribute strategy. Only some of the TF-DF models support distributed training.
+Distributed training makes it possible to train models quickly on large
+datasets. Not all models support distributed training. Hyper-parameter tuning
+always benefit from distributed training.
 
 See the
 [distributed training](https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/user_manual.md#distributed-training)
@@ -26,38 +25,33 @@ available distributed training algorithms. When using distributed training with
 TF Parameter Server in TF-DF, Yggdrasil Decision Forests is effectively running
 the `TF_DIST` distribute implementation.
 
-**Note:** Currently (Oct. 2021), the shared (i.e. != monolithic) OSS build of
-TF-DF does not support TF ParameterServer distribution strategy. Please use the
-Yggdrasil DF GRPC distribute strategy instead.
+While the learning algorithms remain the same, TF-DF supports three way to
+execute distributed training:
 
-## Dataset
+1.  [Simplest option] Using Yggdrasil Decision Forest for dataset reading and TF
+    Parameter Server for model training.
+1.  [The most TensorFlow like option] Using TF Parameter Server for both dataset
+    reading and model training.
+1.  Using Yggdrasil Decision Forest for both dataset reading and model training.
 
-Similarly to the non-distributed training scenario, each example should be
-visited exactly once during the training. In addition, for optimal training
-speed, the reading of the examples should be distributed among the workers
-(instead of being read by a single worker, or read and discarded multiple times)
-. The distribution of datasets reading in TF2 is still incomplete.
+**Limitations:**
 
-As of today ( Oct 2021), the following solutions are available for TF-DF:
-
-1.  To use **Yggdrasil Decision Forests distributed dataset reading**. This
-    solution is the fastest and the one that gives the best results as it is
-    currently the only one that guarantees that each example is read only once.
-    The downside is that this solution does not support TensorFlow
-    pre-processing. The "Yggdrasil DF GRPC distribute strategy" only support
-    this option for dataset reading.
-
-2.  To use **ParameterServerV2 distributed dataset** with dataset file sharding
-    using TF-DF worker index. This solution is the most natural for TF users.
-
-Currently, using ParameterServerV2 distributed dataset with context or
-tf.data.service are not compatible with TF-DF.
+-   Currently (May. 2022), the version of TF-DF distributed on PyPi does not
+    support distributed training with the TF Parameter Server distribution
+    strategy. In this case, use the Yggdrasil Decision Forest for both dataset
+    reading and model training i.e. use the GRPC distribute strategy.
+-   Using Yggdrasil Decision Forest for dataset reading does not support
+    TensorFlow preprocessing.
 
 ## Examples
 
 Following are some examples of distributed training.
 
-### Distribution with Yggdrasil distributed dataset reading and TF ParameterServerV2 strategy
+### [Simplest option] Using Yggdrasil Decision Forest for dataset reading and TF Parameter Server for model training.
+
+Start a set of
+[Parameter Server Strategy workers](https://www.tensorflow.org/api_docs/python/tf/distribute/experimental/ParameterServerStrategy).
+Then:
 
 ```python
 import tensorflow_decision_forests as tfdf
@@ -81,26 +75,35 @@ See Yggdrasil Decision Forests
 [supported formats](https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/user_manual.md#dataset-path-and-format)
 for the possible values of `dataset_format`.
 
-### Distribution with ParameterServerV2 distributed dataset and TF ParameterServerV2 strategy
+### [The most TensorFlow like option] Using TF Parameter Server for both dataset reading and model training
+
+Start a set of
+[Parameter Server Strategy workers](https://www.tensorflow.org/api_docs/python/tf/distribute/experimental/ParameterServerStrategy).
+Then:
 
 ```python
 import tensorflow_decision_forests as tfdf
 import tensorflow as tf
 
-global_batch_size = 120
-num_train_examples = 123456  # Number of training examples
-
-
 def dataset_fn(context, paths):
-  assert context is not None, "The dataset_fn is not distributed"
+
+  # Like for non-distributed training, each example should be visited exactly
+  # once during the training. In addition, for optimal training speed, the
+  # reading of the examples should be distributed among the workers (instead
+  # of being read by a single worker, or read and discarded multiple times).
+  #
+  # In other words, don't add a "repeat" statement and make sure to shard the
+  # dataset at the file level and not at the example level.
 
   ds_path = tf.data.Dataset.from_tensor_slices(paths)
 
-  # Note: You cannot use 'context.num_input_pipelines' with ParameterServerV2.
-  current_worker = tfdf.keras.get_worker_idx_and_num_workers(context)
-  ds_path = ds_path.shard(
-      num_shards=current_worker.num_workers,
-      index=current_worker.worker_idx)
+  if context is not None:
+    # Split the dataset among the workers.
+    # Note: You cannot use 'context.num_input_pipelines' with ParameterServerV2.
+    current_worker = tfdf.keras.get_worker_idx_and_num_workers(context)
+    ds_path = ds_path.shard(
+        num_shards=current_worker.num_workers,
+        index=current_worker.worker_idx)
 
   def read_csv_file(path):
     numerical = tf.constant([0.0], dtype=tf.float32)
@@ -128,11 +131,7 @@ def dataset_fn(context, paths):
     return columns[0:-1], label_table.lookup(columns[-1])
 
   ds_dataset = ds_columns.map(extract_label)
-  ds_dataset = ds_dataset.batch(global_batch_size)
-
-  # The "repeat" is currently necessary, but should be removed eventually.
-  ds_dataset = ds_dataset.repeat(None)
-
+  ds_dataset = ds_dataset.batch(500)
   return ds_dataset
 
 
@@ -145,15 +144,39 @@ with strategy.scope():
       lambda context: dataset_fn(context, [...list of csv files...])
   )
 
-model.fit(
-    train_dataset,
-    steps_per_epoch=num_train_examples // global_batch_size)
+model.fit(train_dataset)
 
 print("Trained model")
 model.summary()
 ```
 
-### Distribution with Yggdrasil distributed dataset reading and Yggdrasil DF GRPC distribute strategy
+### Using Yggdrasil Decision Forest for both dataset reading and model training
+
+Start a set of GRPC workers on different machines. You can either use:
+
+1.  The YDF worker binary
+    ([doc](https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/user_manual.md#grpc-distribute-implementation-recommended))
+    available in the
+    [YDF release packages](https://github.com/google/yggdrasil-decision-forests/releases).
+2.  Use the TF-DF worker binary available in the TF-DF PyPi package.
+
+Both binaries are equivalent and have the same signature. However, unlike YDF
+binary, the TF-DF binary requires the TensorFlow .so file.
+
+**Example of how to start the TF-DF worker binary**
+
+```shell
+# Locate the installed pypi package of TF-DF.
+pip show tensorflow-decision-forests
+# Look for the "Location:" path.
+LOCATION=...
+WORKER_BINARY=${LOCATION}/tensorflow_decision_forests/keras/grpc_worker_main
+
+# Run the worker binary
+export LD_LIBRARY_PATH=${LOCATION}/tensorflow && ${WORKER_BINARY} --port=2001
+```
+
+**Distributed training**
 
 ```python
 import tensorflow_decision_forests as tfdf
