@@ -263,10 +263,10 @@ class AdvancedArguments(object):
     infer_prediction_signature: Instantiate the model graph after training. This
       allows the model to be saved without specifying an input signature and
       without calling "predict", "evaluate". Disabling this logic can be useful
-        in two situations: (1) When the exported signature is different from the
-          one used during training, (2) When using a fixed-shape pre-processing
-          that consume 1 dimensional tensors (as keras will automatically expend
-          its shape to rank 2). For example, when using tf.Transform.
+      in two situations: (1) When the exported signature is different from the
+      one used during training, (2) When using a fixed-shape pre-processing that
+      consume 1 dimensional tensors (as keras will automatically expend its
+      shape to rank 2). For example, when using tf.Transform.
     yggdrasil_training_config: Yggdrasil Decision Forests training
       configuration. Expose a few extra hyper-parameters.
       yggdrasil_deployment_config: Configuration of the computing resources used
@@ -428,19 +428,18 @@ class CoreModel(models.Model):
       stored in the `temp_directory` directory. If `temp_directory` does not
       contain any model checkpoint, the training start from the beginning.
       Resuming training is useful in the following situations: (1) The training
-        was interrupted by the user (e.g. ctrl+c or "stop" button in a
-        notebook). (2) the training job was interrupted (e.g. rescheduling), ond
-        (3) the hyper-parameter of the model were changed such that an initially
-        completed training is now incomplete (e.g. increasing the number of
-        trees).
+      was interrupted by the user (e.g. ctrl+c or "stop" button in a notebook).
+      (2) the training job was interrupted (e.g. rescheduling), ond (3) the
+      hyper-parameter of the model were changed such that an initially completed
+      training is now incomplete (e.g. increasing the number of trees).
       Note: Training can only be resumed if the training datasets is exactly the
         same (i.e. no reshuffle in the tf.data.Dataset).
     check_dataset: If set to true, test if the dataset is well configured for
       the training: (1) Check if the dataset does contains any `repeat`
-        operations, (2) Check if the dataset does contain a `batch` operation,
-        (3) Check if the dataset has a large enough batch size (min 100 if the
-        dataset contains more than 1k examples or if the number of examples is
-        not available) If set to false, do not run any test.
+      operations, (2) Check if the dataset does contain a `batch` operation, (3)
+      Check if the dataset has a large enough batch size (min 100 if the dataset
+      contains more than 1k examples or if the number of examples is not
+      available) If set to false, do not run any test.
     tuner: If set, automatically optimize the hyperparameters of the model using
       this tuner. If the model is trained with distribution (i.e. the model
       definition is wrapper in a TF Distribution strategy, the tuning is
@@ -1920,10 +1919,10 @@ class CoreModel(models.Model):
         checkpoint stored in the `temp_directory` directory. If `temp_directory`
         does not contain any model checkpoint, start the training from the
         start. Works in the following three situations: (1) The training was
-          interrupted by the user (e.g. ctrl+c). (2) the training job was
-          interrupted (e.g. rescheduling), ond (3) the hyper-parameter of the
-          model were changed such that an initially completed training is now
-          incomplete (e.g. increasing the number of trees).
+        interrupted by the user (e.g. ctrl+c). (2) the training job was
+        interrupted (e.g. rescheduling), ond (3) the hyper-parameter of the
+        model were changed such that an initially completed training is now
+        incomplete (e.g. increasing the number of trees).
       input_model_signature_fn: A lambda that returns the
         (Dense,Sparse,Ragged)TensorSpec (or structure of TensorSpec e.g.
         dictionary, list) corresponding to input signature of the model. If not
@@ -2187,7 +2186,11 @@ class CoreModel(models.Model):
     if isinstance(x, input_lib.DistributedDatasetsFromFunction):
       try:
         dataset = x._dataset_fn(None)  # pylint: disable=protected-access
-        return dataset.take(1)
+        # Extract the example here (instead of inside of "predict") to make
+        # sure this operation is done on the chief.
+        for row in dataset.take(1):
+          x, _, _ = tf.keras.utils.unpack_x_y_sample_weight(row)
+          return x
       except Exception:  # pylint: disable=broad-except
         pass
 
@@ -2455,7 +2458,7 @@ def pd_dataframe_to_tf_dataset(
       impact on the TF-DF training algorithms. However, a small batch size can
       lead to a large overhead when loading the dataset. Defaults to 1000, but
       if `batch_size` is set to `None`, no batching is applied. Note: TF-DF
-        expects for the dataset to be batched.
+      expects for the dataset to be batched.
 
   Returns:
     A TensorFlow Dataset.
