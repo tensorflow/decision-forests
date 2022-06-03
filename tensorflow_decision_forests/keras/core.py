@@ -57,7 +57,7 @@ import tensorflow as tf
 
 from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.distribute import input_lib
-from tensorflow.python.training.tracking import base as base_tracking  # pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.trackable import base as base_tracking  # pylint: disable=g-direct-tensorflow-import
 from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
 from tensorflow_decision_forests.component.tuner import tuner as tuner_lib
 from tensorflow_decision_forests.tensorflow import core as tf_core

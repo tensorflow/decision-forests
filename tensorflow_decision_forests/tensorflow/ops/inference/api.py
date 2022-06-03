@@ -162,7 +162,7 @@ categorical-list).
 import abc
 import collections
 import os
-from typing import Text, Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional, Text
 import uuid
 from absl import logging
 import six
@@ -172,8 +172,9 @@ import tensorflow as tf
 # pylint: disable=g-direct-tensorflow-import
 from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
-from tensorflow.python.training.tracking import base as trackable_base
-from tensorflow.python.training.tracking import tracking
+from tensorflow.python.trackable import autotrackable
+from tensorflow.python.trackable import base as trackable_base
+from tensorflow.python.trackable import resource
 # pylint: enable=g-direct-tensorflow-import
 
 from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
@@ -290,7 +291,7 @@ class Model(object):
         dense_col_representation=dense_col_representation)
 
 
-class ModelV2(tracking.AutoTrackable):
+class ModelV2(autotrackable.AutoTrackable):
   """Applies an Yggdrasil model.
 
   For TensorFlow V2.
@@ -393,7 +394,7 @@ FeatureMaps = collections.namedtuple("FeatureMaps", [
 ])
 
 
-class _InferenceArgsBuilder(tracking.AutoTrackable):
+class _InferenceArgsBuilder(autotrackable.AutoTrackable):
   """Utility for the creation of the argument of the inference OP."""
 
   def __init__(self, verbose: Optional[bool] = True):
@@ -855,7 +856,7 @@ class _AbstractModelLoader(six.with_metaclass(abc.ABCMeta, object)):
     raise NotImplementedError()
 
 
-class _CompiledSimpleMLModelResource(tracking.TrackableResource):
+class _CompiledSimpleMLModelResource(resource.TrackableResource):
   """Utility class to handle compiled model resources.
 
   This code is directly copied from StaticHashTable in:
@@ -890,7 +891,7 @@ class _CompiledSimpleMLModelResource(tracking.TrackableResource):
     return self._model_loader.initialize(self)
 
 
-class _DiskModelLoader(_AbstractModelLoader, tracking.AutoTrackable):
+class _DiskModelLoader(_AbstractModelLoader, autotrackable.AutoTrackable):
   """Loads a model from disk.
 
   This code is directly copied from TextFileInitializer in:
