@@ -2152,7 +2152,7 @@ class CoreModel(models.Model):
     They can be used directly with the `hyperparameter_template` argument of the
     model constructor.
 
-    These hyper-parameters outperforms the default hyper-parameters (either
+    These hyper-parameters outperform the default hyper-parameters (either
     generally or in specific scenarios). Like default hyper-parameters, existing
     pre-defined hyper-parameters cannot change.
     """
@@ -2434,12 +2434,12 @@ def pd_dataframe_to_tf_dataset(
     - If "weight" is provided, separate it as a third channel in the tf.Dataset
       (as expected by Keras).
     - If "task" is provided, ensure the correct dtype of the label. If the task
-      a classification and the label a string, integerize the labels. In this
+      is a classification and the label is a string, integerize the labels. In this
       case, the label values are extracted from the dataset and ordered
       lexicographically. Warning: This logic won't work as expected if the
-      training and testing dataset contains different label values. In such
+      training and testing dataset contain different label values. In such
       case, it is preferable to convert the label to integers beforehand while
-      making sure the same encoding is used for all the datasets. If "
+      making sure the same encoding is used for all the datasets.
     - Returns "tf.data.from_tensor_slices"
 
   Args:
@@ -2452,7 +2452,7 @@ def pd_dataframe_to_tf_dataset(
       disable checking the number of classes.
     in_place: If false (default), the input `dataframe` will not be modified by
       `pd_dataframe_to_tf_dataset`. However, a copy of the dataset memory will
-      be made. If true, the dataframe will be modified in place.
+      be made. If true, the dataframe will be modified in-place.
     fix_feature_names: Some feature names are not supported by the SavedModel
       signature. If `fix_feature_names=True` (default) the feature will be
       renamed and made compatible. If `fix_feature_names=False`, the feature
