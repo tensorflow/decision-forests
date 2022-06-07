@@ -658,7 +658,8 @@ class CoreModel(models.Model):
     """
 
     path = self.yggdrasil_model_path_tensor().numpy().decode("utf-8")
-    return inspector_lib.make_inspector(path)
+    return inspector_lib.make_inspector(
+        path, file_prefix=self.yggdrasil_model_prefix())
 
   def load_weights(self, *args, **kwargs):  # pylint: disable=useless-super-delegation
     """No-op for TensorFlow Decision Forests models.
@@ -692,6 +693,11 @@ class CoreModel(models.Model):
     """
 
     return self._model._compiled_model._model_loader.get_model_path()  # pylint: disable=protected-access
+
+  def yggdrasil_model_prefix(self) -> str:
+    """Gets the prefix of the internal yggdrasil model."""
+
+    return self._model._compiled_model._model_loader.get_model_prefix()  # pylint: disable=protected-access
 
   def make_predict_function(self):
     """Prediction of the model (!= evaluation)."""
@@ -983,6 +989,7 @@ class CoreModel(models.Model):
     if self._model_get_leaves is None:
       self._model_get_leaves = tf_op.ModelV2(
           model_path=self.yggdrasil_model_path_tensor().numpy().decode("utf-8"),
+          file_prefix=self.yggdrasil_model_prefix(),
           verbose=False,
           output_types=["LEAVES"])
 
@@ -2054,10 +2061,12 @@ class CoreModel(models.Model):
       training_op.SimpleMLUnloadModel(model_identifier=self._training_model_id)
 
     # Build the model's graph.
-    inspector = inspector_lib.make_inspector(model_path)
+    inspector = inspector_lib.make_inspector(
+        model_path, file_prefix=self._training_model_id)
     self._set_from_yggdrasil_model(
         inspector,
         model_path,
+        file_prefix=self._training_model_id,
         input_model_signature_fn=input_model_signature_fn)
 
     # Build the model history.
@@ -2366,6 +2375,7 @@ class CoreModel(models.Model):
         for feature in features
     }
 
+    self._training_model_id = file_prefix
     self._semantics = semantics
     self._normalized_input_keys = sorted(list(semantics.keys()))
     self._is_trained.assign(True)

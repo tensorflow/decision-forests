@@ -432,6 +432,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
 
     logging.info("Trained model:")
     model.summary()
+    _ = model.make_inspector()
 
     model._distribution_strategy = None
     test_df = pd.read_csv(test_path)

@@ -1330,6 +1330,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     logging.info("Trained model:")
     model.summary()
+    _ = model.make_inspector()
 
     _, tf_test = dataset_to_tf_dataset(adult_dataset())
     evaluation = model.evaluate(tf_test, return_dict=True)
@@ -2059,6 +2060,20 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
                 feature.col_idx].discretized_numerical.maximum_num_bins, 64)
       else:
         self.assertEqual(feature.type, inspector_lib.ColumnType.CATEGORICAL)
+
+  def test_multiple_single_models_in_same_directory(self):
+    dataset = adult_dataset()
+    tf_train, _ = dataset_to_tf_dataset(dataset)
+
+    temp_dir = os.path.join(self.get_temp_dir(), "multi_single_models")
+    model_1 = keras.RandomForestModel(num_trees=10, temp_directory=temp_dir)
+    model_2 = keras.RandomForestModel(num_trees=10, temp_directory=temp_dir)
+
+    model_1.fit(tf_train)
+    model_2.fit(tf_train)
+
+    _ = model_1.make_inspector()
+    _ = model_2.make_inspector()
 
 
 if __name__ == "__main__":
