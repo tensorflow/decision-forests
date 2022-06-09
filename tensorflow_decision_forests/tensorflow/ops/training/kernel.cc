@@ -385,6 +385,10 @@ tf::Status FeatureSet::InitializeDatasetFromFeatures(
         col->set_name(feature->feature_name());
         col->set_type(dataset::proto::ColumnType::CATEGORICAL);
         TF_RETURN_IF_ERROR(apply_guide(feature->feature_name(), col));
+        // Both in TF-DF and SimpleML Estimator, integer values are offset by 1.
+        // See CATEGORICAL_INTEGER_OFFSET.
+        col->mutable_categorical()->set_offset_value_by_one_during_training(
+            true);
         col->mutable_categorical()->set_is_already_integerized(true);
         return set_num_examples(feature->data().size(), feature->NumBatches());
       },
