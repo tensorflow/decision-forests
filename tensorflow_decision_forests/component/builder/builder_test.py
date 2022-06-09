@@ -69,7 +69,6 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
 
   @parameterized.parameters((None,), ("",), ("prefix_",))
   def test_classification_random_forest(self, file_prefix):
-
     model_path = os.path.join(tmp_path(), "classification_rf")
     logging.info("Create model in %s", model_path)
     builder = builder_lib.RandomForestBuilder(
@@ -132,7 +131,6 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
 
   @parameterized.parameters((None,), ("",), ("prefix_",))
   def test_classification_cart(self, file_prefix):
-
     model_path = os.path.join(tmp_path(), "classification_cart")
     logging.info("Create model in %s", model_path)
     builder = builder_lib.CARTBuilder(

@@ -1912,7 +1912,6 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
       ("prefixed_adult_binary_class_gbdt", 0.012131, True))
   def test_ydf_to_keras_model(self, ydf_model_directory, expected_prediction,
                               uses_prefixes):
-
     ygg_model_path = os.path.join(ydf_test_data_path(), "model",
                                   ydf_model_directory)
     tfdf_model_path = os.path.join(tmp_path(), ydf_model_directory)
