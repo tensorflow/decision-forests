@@ -14,7 +14,7 @@
 
 """Minimal usage example of TensorFlow Decision Forests.
 
-This example trains, display and evaluate a Random Forest model on the adult
+This example trains, displays and evaluates a Random Forest model on the adult
 dataset.
 
 This example works with the pip package.
