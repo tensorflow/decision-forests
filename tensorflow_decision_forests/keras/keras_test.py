@@ -23,6 +23,7 @@ import os
 import shutil
 import subprocess
 from typing import List, Tuple, Any, Optional, Type
+import unittest
 
 from absl import flags
 from absl import logging
@@ -1092,10 +1093,12 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     _ = model.predict(test_dataset)
 
+  @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_classification_numerical(self):
     self._synthetic_train_and_test(
         keras.Task.CLASSIFICATION, 0.795, 0.717, test_numerical=True)
 
+  @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_classification_squeeze_label(self):
     self._synthetic_train_and_test(
         keras.Task.CLASSIFICATION,
@@ -1104,6 +1107,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         test_numerical=True,
         label_shape=1)
 
+  @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_classification_squeeze_label_invalid_shape(self):
     self._synthetic_train_and_test(
         keras.Task.CLASSIFICATION,
@@ -1113,10 +1117,12 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         label_shape=2,
         fit_raises=ValueError)
 
+  @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_classification_categorical(self):
     self._synthetic_train_and_test(
         keras.Task.CLASSIFICATION, 0.95, 0.70, test_categorical=True)
 
+  @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_classification_multidimensional_numerical(self):
     self._synthetic_train_and_test(
         keras.Task.CLASSIFICATION,
@@ -1124,26 +1130,32 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         0.70,
         test_multidimensional_numerical=True)
 
+  @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_classification_categorical_set(self):
     self._synthetic_train_and_test(
         keras.Task.CLASSIFICATION, 0.915, 0.645, test_categorical_set=True)
 
+  @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_regression_numerical(self):
     self._synthetic_train_and_test(
         keras.Task.REGRESSION, 0.41, 0.43, test_numerical=True)
 
+  @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_regression_categorical(self):
     self._synthetic_train_and_test(
         keras.Task.REGRESSION, 0.34, 0.34, test_categorical=True)
 
+  @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_regression_multidimensional_numerical(self):
     self._synthetic_train_and_test(
         keras.Task.REGRESSION, 0.47, 0.46, test_multidimensional_numerical=True)
 
+  @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_regression_categorical_set(self):
     self._synthetic_train_and_test(
         keras.Task.REGRESSION, 0.345, 0.345, test_categorical_set=True)
 
+  @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_ranking_numerical(self):
     self._synthetic_train_and_test(
         keras.Task.RANKING, -1.0, -1.0, test_numerical=True)
