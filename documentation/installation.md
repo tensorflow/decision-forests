@@ -82,7 +82,7 @@ want to use the docker option, continue to the next step directly.
 
 ```shell
 # Optional: Install and start the build docker.
-/tools/start_compile_docker.sh
+./tools/start_compile_docker.sh
 ```
 
 Compile and run the unit tests of TF-DF with the following command. Note
@@ -99,13 +99,13 @@ the version of python you want to use. Note that you don't have to use the same
 version of Python as in the `test_bazel.sh` script.
 
 If your configuration is compatible with
-[manylinux2010](https://www.python.org/dev/peps/pep-0571/), a `manylinux2010`
+[manylinux2014](https://www.python.org/dev/peps/pep-0571/), a `manylinux2014`
 compatible pip package will be produced.
 
-If your configuration is not compatible with manylinux2010, a non
-`manylinux2010` compatible pip package will be produced, and the final check
+If your configuration is not compatible with manylinux2014, a non
+`manylinux2014` compatible pip package will be produced, and the final check
 will fail. It does not matter if you want to use TF-DF on your own machine. An
-easy way to make the build manylinux2010 compatible is to use the docker
+easy way to make the build manylinux2014 compatible is to use the docker
 mentioned above.
 
 ```shell

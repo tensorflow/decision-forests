@@ -23,7 +23,7 @@
 #   ./tools/build_pip_package.sh python3.8
 #
 #   # Generate the pip package for all the versions of python using pyenv.
-#   # Make sure the package are compatible with manylinux2010.
+#   # Make sure the package are compatible with manylinux2014.
 #   ./tools/build_pip_package.sh ALL_VERSIONS
 #
 # Requirements:
