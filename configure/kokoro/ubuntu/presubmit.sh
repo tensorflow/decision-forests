@@ -27,22 +27,9 @@ function print_kokoro_vars () {
   echo KOKORO_FOUNDRY_BACKEND_ADDRESS: "${KOKORO_FOUNDRY_BACKEND_ADDRESS}"
 }
 
-function setup_internal_tools () {
-  # Source the internal common scripts. This file must not change between
-  # releases, except in exceptional cases.
-  source "${KOKORO_PIPER_DIR}/google3/learning/brain/testing/kokoro/common_google.sh"
-
-  # Make bazel_wrapper.py executable. Another file which must not change between
-  # branches, except in exceptional cases.
-  chmod +x "${KOKORO_PIPER_DIR}/google3/learning/brain/testing/kokoro/bazel_wrapper.py"
-
-  # Setup .bazelrc file
-  setup_workspace_multi_scm
-}
 
 # Private part
 print_kokoro_vars
-setup_internal_tools
 
 cd "${KOKORO_ARTIFACTS_DIR}/git/tensorflow_decision_forests"
-./configure/kokoro/ubuntu/common.sh "${KOKORO_PIPER_DIR}/google3/learning/brain/testing/kokoro/bazel_wrapper.py"
+./configure/kokoro/ubuntu/common.sh 3.8

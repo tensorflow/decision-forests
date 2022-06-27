@@ -15,29 +15,39 @@
 
 
 
-set -e
-set -x
+set -e  # fail and exit on any command erroring
+set -x  # print evaluated commands
 
-# Error if we somehow forget to set the path to bazel_wrapper.py
-set -u
-BAZEL_WRAPPER_PATH=$1
-set +u
+PY_VERSION=${1}
+TF_BRANCH="latest"
 
-source tensorflow/tools/ci_build/release/common.sh
-install_bazelisk
-which bazel
+function is_nightly() {
+  [[ "$IS_NIGHTLY" == "nightly" ]]
+}
 
-# Run bazel test command.
-"${BAZEL_WRAPPER_PATH}" \
-  test \
-  --config=rbe_cpu_linux \
-  --config=rbe_linux_py3 \
-  --define tf_ps_distribution_strategy=0 \
-  --python_path="/usr/bin/python3.9" \
-  --config=tensorflow_testing_rbe_linux \
-  -- \
-  //tensorflow_decision_forests/...:all
+# cd into the release branch in kokoro
+cd "${KOKORO_ARTIFACTS_DIR}"/git/tensorflow_decision_forests/
 
-# Copy log to output to be available to GitHub
-ls -la "$(bazel info output_base)/java.log"
-cp "$(bazel info output_base)/java.log" "${KOKORO_ARTIFACTS_DIR}/"
+perl -0777 -i.original -pe 's/    http_archive\(\n        name = "ydf",\n        urls = \["https:\/\/github.com\/google\/yggdrasil-decision-forests\/archive\/refs\/heads\/main.zip"\],\n        strip_prefix = "yggdrasil-decision-forests-main",\n    \)/    native.local_repository\(\n        name = "ydf",\n        path = "..\/yggdrasil_decision_forests",\n    \)/igs' third_party/yggdrasil_decision_forests/workspace.bzl
+
+# Pull docker image specific to python and tensorflow version
+docker pull tensorflow/build:${TF_BRANCH}-python${PY_VERSION}
+
+# Run docker container. Container name => tfdf_container.
+docker run --privileged --name tfdf_container -w /working_dir/tensorflow_decision_forests \
+  -itd --rm \
+  -v "$KOKORO_GFILE_DIR:/kokoro_gfile_dir" \
+  -v "$KOKORO_ARTIFACTS_DIR/git/:/working_dir" \
+  tensorflow/build:${TF_BRANCH}-python${PY_VERSION} \
+  bash
+
+docker exec tfdf_container /usr/bin/python3 -m pip install --upgrade pip
+docker exec tfdf_container pip install tensorflow numpy pandas scikit-learn --upgrade
+
+# List all installed packages and versions present inside container
+echo -e "pip installed packages: \n"
+docker exec tfdf_container pip list
+
+docker exec tfdf_container tools/test_bazel.sh
+
+docker stop tfdf_container
