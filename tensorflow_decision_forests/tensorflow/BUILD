@@ -127,6 +127,16 @@ py_library(
     ],
 )
 
+py_library(
+    name = "tf1_compatibility",
+    srcs = ["tf1_compatibility.py"],
+    srcs_version = "PY3",
+    deps = [
+        # TensorFlow Python,
+        # TensorFlow :trackable,
+    ],
+)
+
 # Tests
 # =====
 

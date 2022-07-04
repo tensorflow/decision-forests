@@ -172,12 +172,10 @@ import tensorflow as tf
 # pylint: disable=g-direct-tensorflow-import
 from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
-from tensorflow.python.trackable import autotrackable
-from tensorflow.python.trackable import base as trackable_base
-from tensorflow.python.trackable import resource
 # pylint: enable=g-direct-tensorflow-import
 
 from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
+from tensorflow_decision_forests.tensorflow import tf1_compatibility
 from tensorflow_decision_forests.tensorflow.ops.inference import op
 from yggdrasil_decision_forests.dataset import data_spec_pb2
 from yggdrasil_decision_forests.model import abstract_model_pb2
@@ -186,6 +184,9 @@ Tensor = Any
 InitOp = Tensor
 Task = abstract_model_pb2.Task
 ColumnType = data_spec_pb2.ColumnType
+Trackable = tf1_compatibility.Trackable
+AutoTrackable = tf1_compatibility.AutoTrackable
+TrackableResource = tf1_compatibility.TrackableResource
 
 # Wrapper around the outputs values of the inference op.
 ModelOutput = collections.namedtuple(
@@ -291,7 +292,7 @@ class Model(object):
         dense_col_representation=dense_col_representation)
 
 
-class ModelV2(autotrackable.AutoTrackable):
+class ModelV2(AutoTrackable):
   """Applies an Yggdrasil model.
 
   For TensorFlow V2.
@@ -316,7 +317,7 @@ class ModelV2(autotrackable.AutoTrackable):
     if output_types is None:
       output_types = []
 
-    super(ModelV2).__init__()
+    super().__init__()
     if file_prefix is None:
       file_prefix = inspector_lib.detect_model_file_prefix(model_path)
     self._input_builder = _InferenceArgsBuilder(verbose)
@@ -394,12 +395,12 @@ FeatureMaps = collections.namedtuple("FeatureMaps", [
 ])
 
 
-class _InferenceArgsBuilder(autotrackable.AutoTrackable):
+class _InferenceArgsBuilder(AutoTrackable):
   """Utility for the creation of the argument of the inference OP."""
 
   def __init__(self, verbose: Optional[bool] = True):
 
-    super(_InferenceArgsBuilder).__init__()
+    super().__init__()
     self._verbose: bool = verbose
     self._header: Optional[abstract_model_pb2.AbstractModel] = None
     self._data_spec: Optional[data_spec_pb2.DataSpecification] = None
@@ -856,7 +857,7 @@ class _AbstractModelLoader(six.with_metaclass(abc.ABCMeta, object)):
     raise NotImplementedError()
 
 
-class _CompiledSimpleMLModelResource(resource.TrackableResource):
+class _CompiledSimpleMLModelResource(TrackableResource):
   """Utility class to handle compiled model resources.
 
   This code is directly copied from StaticHashTable in:
@@ -867,7 +868,7 @@ class _CompiledSimpleMLModelResource(resource.TrackableResource):
 
     super(_CompiledSimpleMLModelResource, self).__init__()
 
-    if isinstance(model_loader, trackable_base.Trackable):
+    if isinstance(model_loader, Trackable):
       self._model_loader = self._track_trackable(model_loader, "_model_loader")
 
     self._shared_name = "simple_ml_model_%s" % (str(uuid.uuid4()),)
@@ -891,7 +892,7 @@ class _CompiledSimpleMLModelResource(resource.TrackableResource):
     return self._model_loader.initialize(self)
 
 
-class _DiskModelLoader(_AbstractModelLoader, autotrackable.AutoTrackable):
+class _DiskModelLoader(_AbstractModelLoader, AutoTrackable):
   """Loads a model from disk.
 
   This code is directly copied from TextFileInitializer in:
@@ -900,7 +901,7 @@ class _DiskModelLoader(_AbstractModelLoader, autotrackable.AutoTrackable):
 
   def __init__(self, model_path, output_types: List[str], file_prefix: str):
 
-    super(_DiskModelLoader).__init__()
+    super().__init__()
     if not isinstance(model_path, tf.Tensor) and not model_path:
       raise ValueError("Filename required")
 

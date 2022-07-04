@@ -57,10 +57,10 @@ import tensorflow as tf
 
 from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.distribute import input_lib
-from tensorflow.python.trackable import base as base_tracking  # pylint: disable=g-direct-tensorflow-import
 from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
 from tensorflow_decision_forests.component.tuner import tuner as tuner_lib
 from tensorflow_decision_forests.tensorflow import core as tf_core
+from tensorflow_decision_forests.tensorflow import tf1_compatibility
 from tensorflow_decision_forests.tensorflow import tf_logging
 from tensorflow_decision_forests.tensorflow.ops.inference import api as tf_op
 from tensorflow_decision_forests.tensorflow.ops.training import op as training_op
@@ -77,6 +77,8 @@ models = tf.keras.models
 optimizers = tf.keras.optimizers
 losses = tf.keras.losses
 backend = tf.keras.backend
+
+no_automatic_dependency_tracking = tf1_compatibility.no_automatic_dependency_tracking
 
 # The length of a model identifier
 MODEL_IDENTIFIER_LENGTH = 16
@@ -994,7 +996,7 @@ class CoreModel(models.Model):
           output_types=["LEAVES"])
 
   # This function should not be serialized in the SavedModel.
-  @base_tracking.no_automatic_dependency_tracking
+  @no_automatic_dependency_tracking
   @tf.function(reduce_retracing=True)
   def valid_step(self, data):
     """Collects validation examples."""
@@ -1002,7 +1004,7 @@ class CoreModel(models.Model):
     return self.collect_data_step(data, is_training_example=False)
 
   # This function should not be serialized in the SavedModel.
-  @base_tracking.no_automatic_dependency_tracking
+  @no_automatic_dependency_tracking
   @tf.function(reduce_retracing=True)
   def train_step(self, data):
     """Collects training examples."""
@@ -1010,7 +1012,7 @@ class CoreModel(models.Model):
     return self.collect_data_step(data, is_training_example=True)
 
   # This function should not be serialized in the SavedModel.
-  @base_tracking.no_automatic_dependency_tracking
+  @no_automatic_dependency_tracking
   @tf.function(reduce_retracing=True)
   def collect_data_step(self, data, is_training_example):
     """Collect examples e.g. training or validation."""
@@ -1514,7 +1516,7 @@ class CoreModel(models.Model):
         steps_per_epoch=steps_per_epoch,
         class_weight=class_weight)
 
-  @base_tracking.no_automatic_dependency_tracking
+  @no_automatic_dependency_tracking
   @tf.function(reduce_retracing=True)
   def _consumes_training_examples_until_eof(self, iterator):
     """Consumes all the available training examples.
@@ -1534,7 +1536,7 @@ class CoreModel(models.Model):
       num_examples += self.train_step(data)
     return num_examples
 
-  @base_tracking.no_automatic_dependency_tracking
+  @no_automatic_dependency_tracking
   @tf.function(reduce_retracing=True)
   def _consumes_validation_examples_until_eof(self, iterator):
     """Consumes all the available validation examples.

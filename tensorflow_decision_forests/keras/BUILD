@@ -68,12 +68,12 @@ py_library(
     srcs_version = "PY3",
     deps = [
         # TensorFlow Python,
-        # TensorFlow :trackable,
         # TensorFlow /data/ops:dataset_ops,
         # TensorFlow /distribute:input_lib,
         "//tensorflow_decision_forests/component/inspector",
         "//tensorflow_decision_forests/component/tuner",
         "//tensorflow_decision_forests/tensorflow:core",
+        "//tensorflow_decision_forests/tensorflow:tf1_compatibility",
         "//tensorflow_decision_forests/tensorflow:tf_logging",
         "//tensorflow_decision_forests/tensorflow/ops/inference:api_py",
         "//tensorflow_decision_forests/tensorflow/ops/training:op_py",
