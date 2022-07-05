@@ -120,7 +120,7 @@ TEST_RULES="//tensorflow_decision_forests/component/...:all //tensorflow_decisio
 time ${BAZEL} ${STARTUP_FLAGS} build ${BUILD_RULES} ${FLAGS} --build_tag_filters=-tfdistributed
 
 # Unit test library
-# time ${BAZEL} ${STARTUP_FLAGS} test ${TEST_RULES} ${FLAGS} --test_size_filters=small,medium,large --test_tag_filters=-tfdistributed
+time ${BAZEL} ${STARTUP_FLAGS} test ${TEST_RULES} ${FLAGS} --test_size_filters=small,medium,large --test_tag_filters=-tfdistributed
 
 # Example of dependency check.
 # ${BAZEL} --bazelrc=${TENSORFLOW_BAZELRC} cquery "somepath(//tensorflow_decision_forests/tensorflow/ops/inference:api_py,@org_tensorflow//tensorflow/c:kernels.cc)" ${FLAGS}
