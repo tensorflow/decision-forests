@@ -12,7 +12,7 @@ The library's dependency structure is organized in layers:
 3.  Python utility
 4.  Yggdrasil
 
-New logics should be implemented where relevant. When several layers are
+New logic should be implemented where relevant. When several layers are
 possibly relevant, the most generic layer should be favored.
 
 The directory structure of [TF-DF](directory_structure.md) and
