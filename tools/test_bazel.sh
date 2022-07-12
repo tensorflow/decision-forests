@@ -34,8 +34,8 @@ ${PYTHON} -m pip install tensorflow numpy pandas scikit-learn --upgrade
 
 # Bazel startup and common flags.
 # STARTUP_FLAGS is given before the command (e.g. build), and FLAGS is given
-# after.
-STARTUP_FLAGS=
+# after. STARTUP_FLAGS are given as an argument.
+STARTUP_FLAGS=${1}
 FLAGS=
 
 # Detect the target host
