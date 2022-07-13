@@ -1852,6 +1852,7 @@ class CoreModel(models.Model):
       val_logs = self.evaluate(
           x=val_x,
           y=val_y,
+          verbose="auto" if self._verbose > 0 else 0,
           sample_weight=val_sample_weight,
           return_dict=True,
           steps=validation_steps,
