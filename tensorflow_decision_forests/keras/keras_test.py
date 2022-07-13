@@ -583,6 +583,16 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         minimum_accuracy=0.864,
         check_serialization=True)
 
+  def test_model_adult_with_pure_model(self):
+    dataset = adult_dataset()
+    model = keras.RandomForestModel(pure_serving_model=True)
+
+    self._check_adult_model(
+        model=model,
+        dataset=dataset,
+        minimum_accuracy=0.864,
+        check_serialization=True)
+
   def test_model_numpy_weighted(self):
     """Test on the synthetic numpy dataset with weighting."""
 
