@@ -121,6 +121,7 @@ import abc
 from enum import Enum  # pylint: disable=g-importing-member
 import os
 from typing import List, Any, Optional, Dict, Tuple, Union
+from dataclasses import dataclass
 
 import six
 import tensorflow as tf
@@ -150,16 +151,42 @@ class ModelFormat(Enum):
   YGGDRASIL_DECISION_FOREST = 2
 
 
+@dataclass
+class AdvancedArguments:
+  """Advanced control of the model building.
+
+  Attributes:
+    disable_categorical_integer_offset_correction: Set to true when building
+      manually a model with categorical integer features. Use false (default) in
+      other cases, for example, when editing a TF-DF model or for models not
+      using integer categorical features. Details: Yggdrasil Decision Forests
+      reserves the value 0 of categorical integer features to the OOV item, so
+      the value 0 cannot be used directly. If the
+      `disable_categorical_integer_offset_correction` is true, a +1 offset might
+      be applied before calling the inference code. This attribute should be
+      disabled when creating manually a model with categorical integer features.
+      Ultimately, Yggdrasil Decision Forests will support the value 0 as a
+      normal value and this parameter will be removed. If
+      `disable_categorical_integer_offset_correction` is false, this +1 offset
+      is never applied.
+  """
+
+  disable_categorical_integer_offset_correction: bool = False
+
+
 @six.add_metaclass(abc.ABCMeta)
 class AbstractBuilder(object):
   """Generic model builder."""
 
   def __init__(
-      self, path: str, objective: py_tree.objective.AbstractObjective,
+      self,
+      path: str,
+      objective: py_tree.objective.AbstractObjective,
       model_format: Optional[ModelFormat],
       import_dataspec: Optional[data_spec_pb2.DataSpecification],
       input_model_signature_fn: Optional[tf_core.InputModelSignatureFn],
-      file_prefix: Optional[str] = None):
+      file_prefix: Optional[str] = None,
+      advanced_arguments: Optional[AdvancedArguments] = None):
 
     if not path:
       raise ValueError("The path cannot be empty")
@@ -177,6 +204,8 @@ class AbstractBuilder(object):
 
     self._header.name = self.model_type()
     self._header.task = objective.task
+
+    self._advanced_arguments = advanced_arguments or AdvancedArguments()
 
     # Index of the column indices in `_dataspec` by name.
     self._dataspec_column_index: Dict[str, int] = {}
@@ -211,8 +240,8 @@ class AbstractBuilder(object):
     # Write the model header.
     filename_header = self._file_prefix + inspector_lib.BASE_FILENAME_HEADER
     _write_binary_proto(
-        self._header,
-        os.path.join(self.yggdrasil_model_path(), filename_header))
+        self._header, os.path.join(self.yggdrasil_model_path(),
+                                   filename_header))
 
     # Write the dataspec.
     filename_dataspec = self._file_prefix + inspector_lib.BASE_FILENAME_DATASPEC
@@ -233,7 +262,9 @@ class AbstractBuilder(object):
       keras_core.yggdrasil_model_to_keras_model(
           self.yggdrasil_model_path(),
           self._path,
-          input_model_signature_fn=self._input_model_signature_fn)
+          input_model_signature_fn=self._input_model_signature_fn,
+          disable_categorical_integer_offset_correction=self._advanced_arguments
+          .disable_categorical_integer_offset_correction)
       tf.io.gfile.rmtree(self.yggdrasil_model_path())
 
   def yggdrasil_model_path(self):
@@ -504,11 +535,13 @@ class AbstractDecisionForestBuilder(AbstractBuilder):
                input_signature_example_fn: Optional[
                    tf_core.InputModelSignatureFn] = tf_core
                .build_default_input_model_signature,
-               file_prefix: Optional[str] = None):
+               file_prefix: Optional[str] = None,
+               advanced_arguments: Optional[AdvancedArguments] = None):
 
     super(AbstractDecisionForestBuilder,
           self).__init__(path, objective, model_format, import_dataspec,
-                         input_signature_example_fn, file_prefix)
+                         input_signature_example_fn, file_prefix,
+                         advanced_arguments)
 
     self._trees = []
 
@@ -692,14 +725,16 @@ class RandomForestBuilder(AbstractDecisionForestBuilder):
       input_signature_example_fn: Optional[
           tf_core.InputModelSignatureFn] = tf_core
       .build_default_input_model_signature,
-      file_prefix: Optional[str] = None):
+      file_prefix: Optional[str] = None,
+      advanced_arguments: Optional[AdvancedArguments] = None):
     self._specialized_header = random_forest_pb2.Header(
         winner_take_all_inference=winner_take_all)
 
     # Should be called last.
     super(RandomForestBuilder,
           self).__init__(path, objective, model_format, import_dataspec,
-                         input_signature_example_fn, file_prefix)
+                         input_signature_example_fn, file_prefix,
+                         advanced_arguments)
 
   def model_type(self) -> str:
     return "RANDOM_FOREST"
@@ -765,7 +800,8 @@ class GradientBoostedTreeBuilder(AbstractDecisionForestBuilder):
       input_signature_example_fn: Optional[
           tf_core.InputModelSignatureFn] = tf_core
       .build_default_input_model_signature,
-      file_prefix: Optional[str] = None):
+      file_prefix: Optional[str] = None,
+      advanced_arguments: Optional[AdvancedArguments] = None):
 
     # Compute the number of tree per iterations and loss.
     #

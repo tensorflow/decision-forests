@@ -225,6 +225,45 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
     predictions = loaded_model.predict(tf_dataset)
     self.assertAllClose(predictions, [[2.0], [1.0]])
 
+  def test_regression_random_forest_with_categorical_integer(self):
+    model_path = os.path.join(tmp_path(), "regression_rf_with_cat_int")
+    logging.info("Create model in %s", model_path)
+    builder = builder_lib.RandomForestBuilder(
+        path=model_path,
+        model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
+        objective=py_tree.objective.RegressionObjective(label="age"),
+        advanced_arguments=builder_lib.AdvancedArguments(
+            disable_categorical_integer_offset_correction=True))
+
+    #  f1 in [2,3]
+    #    ├─(pos)─ age: 1
+    #    └─(neg)─ age: 2
+    builder.add_tree(
+        Tree(
+            NonLeafNode(
+                condition=CategoricalIsInCondition(
+                    feature=SimpleColumnSpec(
+                        name="f1",
+                        type=py_tree.dataspec.ColumnType.CATEGORICAL),
+                    mask=[2, 3],
+                    missing_evaluation=False),
+                pos_child=LeafNode(
+                    value=RegressionValue(value=1, num_examples=30)),
+                neg_child=LeafNode(
+                    value=RegressionValue(value=2, num_examples=30)))))
+
+    builder.close()
+
+    logging.info("Loading model")
+    loaded_model = tf.keras.models.load_model(model_path)
+
+    logging.info("Make predictions")
+    tf_dataset = tf.data.Dataset.from_tensor_slices({
+        "f1": [1, 2, 3, 4],
+    }).batch(2)
+    predictions = loaded_model.predict(tf_dataset)
+    self.assertAllClose(predictions, [[2], [1], [1], [2]])
+
   def test_binary_classification_gbt(self):
     model_path = os.path.join(tmp_path(), "binary_classification_gbt")
     logging.info("Create model in %s", model_path)

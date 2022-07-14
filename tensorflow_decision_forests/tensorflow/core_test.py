@@ -72,28 +72,29 @@ class SimpleMlTfTest(tf.test.TestCase):
     })
 
   def test_normalize_inputs(self):
-    normalized = core.normalize_inputs({
-        "a":
-            core.SemanticTensor(
-                semantic=core.Semantic.NUMERICAL,
-                tensor=tf.zeros(shape=[5], dtype=tf.float32)),
-        "b":
-            core.SemanticTensor(
-                semantic=core.Semantic.NUMERICAL,
-                tensor=tf.zeros(shape=[5], dtype=tf.int32)),
-        "c":
-            core.SemanticTensor(
-                semantic=core.Semantic.CATEGORICAL,
-                tensor=tf.zeros(shape=[5], dtype=tf.int64)),
-        "d":
-            core.SemanticTensor(
-                semantic=core.Semantic.CATEGORICAL,
-                tensor=tf.zeros(shape=[5], dtype=tf.string)),
-        "e":
-            core.SemanticTensor(
-                semantic=core.Semantic.NUMERICAL,
-                tensor=tf.zeros(shape=[5, 2], dtype=tf.float32)),
-    })
+    normalized = core.normalize_inputs(
+        {
+            "a":
+                core.SemanticTensor(
+                    semantic=core.Semantic.NUMERICAL,
+                    tensor=tf.zeros(shape=[5], dtype=tf.float32)),
+            "b":
+                core.SemanticTensor(
+                    semantic=core.Semantic.NUMERICAL,
+                    tensor=tf.zeros(shape=[5], dtype=tf.int32)),
+            "c":
+                core.SemanticTensor(
+                    semantic=core.Semantic.CATEGORICAL,
+                    tensor=tf.zeros(shape=[5], dtype=tf.int64)),
+            "d":
+                core.SemanticTensor(
+                    semantic=core.Semantic.CATEGORICAL,
+                    tensor=tf.zeros(shape=[5], dtype=tf.string)),
+            "e":
+                core.SemanticTensor(
+                    semantic=core.Semantic.NUMERICAL,
+                    tensor=tf.zeros(shape=[5, 2], dtype=tf.float32)),
+        }, True)
     self.assertLen(normalized, 6)
 
     a = normalized["a"]

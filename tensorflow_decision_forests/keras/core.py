@@ -293,6 +293,16 @@ class AdvancedArguments(object):
       history with the yggdrasil training logs. The yggdrasil training logs
       contains more metrics, but those might not be comparable with other non
       TF-DF models.
+    disable_categorical_integer_offset_correction: Yggdrasil Decision Forests
+      reserves the value 0 of categorical integer features to the OOV item, so
+      the value 0 cannot be used directly. If the
+      `disable_categorical_integer_offset_correction` is true, a +1 offset might
+      be applied before calling the inference code. This attribute should be
+      disabled when creating manually a model with categorical integer features.
+      Ultimately, Yggdrasil Decision Forests will support the value 0 as a
+      normal value and this parameter will be removed. If
+      `disable_categorical_integer_offset_correction` is false, this +1 offset
+      is never applied.
   """
 
   def __init__(
@@ -305,7 +315,8 @@ class AdvancedArguments(object):
           bool] = True,
       metadata_framework: Optional[str] = "TF Keras",
       metadata_owner: Optional[str] = None,
-      populate_history_with_yggdrasil_logs: bool = False):
+      populate_history_with_yggdrasil_logs: bool = False,
+      disable_categorical_integer_offset_correction: bool = False):
     self.infer_prediction_signature = infer_prediction_signature
     self.yggdrasil_training_config = yggdrasil_training_config or abstract_learner_pb2.TrainingConfig(
     )
@@ -316,6 +327,7 @@ class AdvancedArguments(object):
     self.metadata_framework = metadata_framework
     self.metadata_owner = metadata_owner
     self.populate_history_with_yggdrasil_logs = populate_history_with_yggdrasil_logs
+    self.disable_categorical_integer_offset_correction = disable_categorical_integer_offset_correction
 
 
 class CoreModel(models.Model):
@@ -871,7 +883,10 @@ class CoreModel(models.Model):
     # Normalize the input tensor to match Yggdrasil requirements.
     semantic_inputs = tf_core.combine_tensors_and_semantics(
         inputs, self._semantics)
-    normalized_semantic_inputs = tf_core.normalize_inputs(semantic_inputs)
+    normalized_semantic_inputs = tf_core.normalize_inputs(
+        semantic_inputs,
+        categorical_integer_offset_correction=not self._advanced_arguments
+        .disable_categorical_integer_offset_correction)
     normalized_inputs, _ = tf_core.decombine_tensors_and_semantics(
         normalized_semantic_inputs)
 
@@ -1136,7 +1151,10 @@ class CoreModel(models.Model):
 
     semantic_inputs = tf_core.combine_tensors_and_semantics(train_x, semantics)
 
-    normalized_semantic_inputs = tf_core.normalize_inputs(semantic_inputs)
+    normalized_semantic_inputs = tf_core.normalize_inputs(
+        semantic_inputs,
+        categorical_integer_offset_correction=not self._advanced_arguments
+        .disable_categorical_integer_offset_correction)
 
     if self._verbose >= 2:
       tf_logging.info("Normalized tensor features:\n %s",
@@ -2447,7 +2465,8 @@ def pd_dataframe_to_tf_dataset(
     - If "weight" is provided, separate it as a third channel in the tf.Dataset
       (as expected by Keras).
     - If "task" is provided, ensure the correct dtype of the label. If the task
-      is a classification and the label is a string, integerize the labels. In this
+      is a classification and the label is a string, integerize the labels. In
+      this
       case, the label values are extracted from the dataset and ordered
       lexicographically. Warning: This logic won't work as expected if the
       training and testing dataset contain different label values. In such
@@ -2585,7 +2604,8 @@ def yggdrasil_model_to_keras_model(
     dst_path: str,
     input_model_signature_fn: Optional[tf_core.InputModelSignatureFn] = tf_core
     .build_default_input_model_signature,
-    file_prefix: Optional[str] = None):
+    file_prefix: Optional[str] = None,
+    disable_categorical_integer_offset_correction: bool = False):
   """Converts an Yggdrasil model into a Keras model.
 
   Args:
@@ -2600,6 +2620,10 @@ def yggdrasil_model_to_keras_model(
       consumed as DenseTensorSpec(float32) by default) will be feed differently
       (e.g. RaggedTensor(int64)).
     file_prefix: Prefix of the model files. Auto-detected if None.
+    disable_categorical_integer_offset_correction: Force the disabling of the
+      integer offset correction. See
+      disable_categorical_integer_offset_correction in AdvancedArguments for
+      more details.
   """
 
   inspector = inspector_lib.make_inspector(src_path, file_prefix=file_prefix)
@@ -2609,7 +2633,10 @@ def yggdrasil_model_to_keras_model(
       task=objective.task,
       learner="MANUAL",
       ranking_group=objective.group
-      if objective.task == inspector_lib.Task.RANKING else None)
+      if objective.task == inspector_lib.Task.RANKING else None,
+      advanced_arguments=AdvancedArguments(
+          disable_categorical_integer_offset_correction=disable_categorical_integer_offset_correction
+      ))
 
   model._set_from_yggdrasil_model(  # pylint: disable=protected-access
       inspector,

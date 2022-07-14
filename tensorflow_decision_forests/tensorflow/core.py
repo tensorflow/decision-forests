@@ -527,7 +527,8 @@ def collect_distributed_training_examples(inputs: Dict[str, SemanticTensor],
 
 
 def normalize_inputs(
-    inputs: Dict[str, SemanticTensor]) -> Dict[str, SemanticTensor]:
+    inputs: Dict[str, SemanticTensor],
+    categorical_integer_offset_correction: bool) -> Dict[str, SemanticTensor]:
   """Normalize input tensors for OP consumption.
 
   Normalization involves:
@@ -538,6 +539,8 @@ def normalize_inputs(
 
   Args:
     inputs: Dict of semantic tensor.
+    categorical_integer_offset_correction: Apply a +1 offset on categorical
+      integer features.
 
   Returns:
     Dict of normalized semantic tensors.
@@ -547,6 +550,10 @@ def normalize_inputs(
   """
 
   normalized_inputs = {}
+
+  offset = (
+      CATEGORICAL_INTEGER_OFFSET
+      if categorical_integer_offset_correction else 0)
 
   for key, semantic_tensor in inputs.items():
     if semantic_tensor.semantic in [
@@ -572,9 +579,9 @@ def normalize_inputs(
             tf.cast(semantic_tensor.tensor, tf.int32),
             semantic_tensor.semantic,
             key,
-            -1 - CATEGORICAL_INTEGER_OFFSET,
+            -1 - offset,
             normalized_inputs,
-            dense_preprocess=lambda x: x + CATEGORICAL_INTEGER_OFFSET)
+            dense_preprocess=lambda x: x + offset)
       else:
         raise ValueError(
             "Non supported tensor dtype {} for semantic {} of feature {}"
@@ -592,7 +599,7 @@ def normalize_inputs(
       elif semantic_tensor.tensor.dtype in FlexibleCategoricalSetIntTypes:
         normalized_inputs[key] = SemanticTensor(
             semantic=semantic_tensor.semantic,
-            tensor=tf.cast(value, tf.int32) + CATEGORICAL_INTEGER_OFFSET)
+            tensor=tf.cast(value, tf.int32) + offset)
       else:
         raise ValueError(
             "Non supported tensor dtype {} for semantic {} of feature {}"
@@ -1363,13 +1370,13 @@ def build_default_feature_signature(
 
   elif dataspec_column.type == data_spec_pb2.ColumnType.CATEGORICAL:
     if dataspec_column.categorical.is_already_integerized:
-      return tf.TensorSpec(shape=[None], dtype=tf.int64)
+      return tf.TensorSpec(shape=[None], dtype=tf.int32)
     else:
       return tf.TensorSpec(shape=[None], dtype=tf.string)
 
   elif dataspec_column.type == data_spec_pb2.ColumnType.CATEGORICAL_SET:
     if dataspec_column.categorical.is_already_integerized:
-      return tf.RaggedTensorSpec(shape=[None, None], dtype=tf.int64)
+      return tf.RaggedTensorSpec(shape=[None, None], dtype=tf.int32)
     else:
       return tf.RaggedTensorSpec(shape=[None, None], dtype=tf.string)
 
