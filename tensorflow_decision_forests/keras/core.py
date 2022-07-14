@@ -2605,6 +2605,7 @@ def yggdrasil_model_to_keras_model(
     input_model_signature_fn: Optional[tf_core.InputModelSignatureFn] = tf_core
     .build_default_input_model_signature,
     file_prefix: Optional[str] = None,
+    verbose: int = 1,
     disable_categorical_integer_offset_correction: bool = False):
   """Converts an Yggdrasil model into a Keras model.
 
@@ -2620,6 +2621,7 @@ def yggdrasil_model_to_keras_model(
       consumed as DenseTensorSpec(float32) by default) will be feed differently
       (e.g. RaggedTensor(int64)).
     file_prefix: Prefix of the model files. Auto-detected if None.
+    verbose: Verbosity mode. 0 = silent, 1 = small details, 2 = full details.
     disable_categorical_integer_offset_correction: Force the disabling of the
       integer offset correction. See
       disable_categorical_integer_offset_correction in AdvancedArguments for
@@ -2634,6 +2636,7 @@ def yggdrasil_model_to_keras_model(
       learner="MANUAL",
       ranking_group=objective.group
       if objective.task == inspector_lib.Task.RANKING else None,
+      verbose=verbose,
       advanced_arguments=AdvancedArguments(
           disable_categorical_integer_offset_correction=disable_categorical_integer_offset_correction
       ))

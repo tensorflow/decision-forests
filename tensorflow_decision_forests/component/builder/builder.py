@@ -186,6 +186,7 @@ class AbstractBuilder(object):
       import_dataspec: Optional[data_spec_pb2.DataSpecification],
       input_model_signature_fn: Optional[tf_core.InputModelSignatureFn],
       file_prefix: Optional[str] = None,
+      verbose: int = 1,
       advanced_arguments: Optional[AdvancedArguments] = None):
 
     if not path:
@@ -201,6 +202,7 @@ class AbstractBuilder(object):
     self._file_prefix = file_prefix
     if self._file_prefix is None:
       self._file_prefix = keras_core.generate_training_id()
+    self._verbose = verbose
 
     self._header.name = self.model_type()
     self._header.task = objective.task
@@ -263,6 +265,7 @@ class AbstractBuilder(object):
           self.yggdrasil_model_path(),
           self._path,
           input_model_signature_fn=self._input_model_signature_fn,
+          verbose=self._verbose,
           disable_categorical_integer_offset_correction=self._advanced_arguments
           .disable_categorical_integer_offset_correction)
       tf.io.gfile.rmtree(self.yggdrasil_model_path())
@@ -536,11 +539,12 @@ class AbstractDecisionForestBuilder(AbstractBuilder):
                    tf_core.InputModelSignatureFn] = tf_core
                .build_default_input_model_signature,
                file_prefix: Optional[str] = None,
+               verbose: int = 1,
                advanced_arguments: Optional[AdvancedArguments] = None):
 
     super(AbstractDecisionForestBuilder,
           self).__init__(path, objective, model_format, import_dataspec,
-                         input_signature_example_fn, file_prefix,
+                         input_signature_example_fn, file_prefix, verbose,
                          advanced_arguments)
 
     self._trees = []
@@ -726,6 +730,7 @@ class RandomForestBuilder(AbstractDecisionForestBuilder):
           tf_core.InputModelSignatureFn] = tf_core
       .build_default_input_model_signature,
       file_prefix: Optional[str] = None,
+      verbose: int = 1,
       advanced_arguments: Optional[AdvancedArguments] = None):
     self._specialized_header = random_forest_pb2.Header(
         winner_take_all_inference=winner_take_all)
@@ -733,7 +738,7 @@ class RandomForestBuilder(AbstractDecisionForestBuilder):
     # Should be called last.
     super(RandomForestBuilder,
           self).__init__(path, objective, model_format, import_dataspec,
-                         input_signature_example_fn, file_prefix,
+                         input_signature_example_fn, file_prefix, verbose,
                          advanced_arguments)
 
   def model_type(self) -> str:
@@ -801,6 +806,7 @@ class GradientBoostedTreeBuilder(AbstractDecisionForestBuilder):
           tf_core.InputModelSignatureFn] = tf_core
       .build_default_input_model_signature,
       file_prefix: Optional[str] = None,
+      verbose: int = 1,
       advanced_arguments: Optional[AdvancedArguments] = None):
 
     # Compute the number of tree per iterations and loss.
@@ -849,7 +855,8 @@ class GradientBoostedTreeBuilder(AbstractDecisionForestBuilder):
     # Should be called last.
     super(GradientBoostedTreeBuilder,
           self).__init__(path, objective, model_format, import_dataspec,
-                         input_signature_example_fn, file_prefix)
+                         input_signature_example_fn, file_prefix, verbose,
+                         advanced_arguments)
 
   def model_type(self) -> str:
     return "GRADIENT_BOOSTED_TREES"
