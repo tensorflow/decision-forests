@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.7 - 2022-06-15
+
+### Features
+
+-   Multithreading of the oblique splitter for gradient boosted tree models.
+-   Support for pure serving model i.e. model containing only serving data.
+-   Add "edit_model" cli tool.
+
+### Fix
+
+-   Remove bias toward low outcome in uplift modeling.
+
 ## 0.2.6 - 2022-05-17
 
 ### Features

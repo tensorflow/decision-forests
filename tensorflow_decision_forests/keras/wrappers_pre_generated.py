@@ -84,7 +84,7 @@ class CartModel(core.CoreModel):
 
   Attributes:
     task: Task to solve (e.g. Task.CLASSIFICATION, Task.REGRESSION,
-      Task.RANKING, Task.CATEGORICAL_UPLIFT).
+      Task.RANKING, Task.CATEGORICAL_UPLIFT, Task.NUMERICAL_UPLIFT).
     features: Specify the list and semantic of the input features of the model.
       If not specified, all the available features will be used. If specified
       and if `exclude_non_specified_features=True`, only the features in
@@ -101,13 +101,14 @@ class CartModel(core.CoreModel):
       models on top of each other. Unlike preprocessing done in the tf.dataset,
       the operation in "preprocessing" are serialized with the model.
     postprocessing: Like "preprocessing" but applied on the model output.
-    ranking_group: Only for `task=Task.RANKING`. Name of a tf.string feature
-      that identifies queries in a query/document ranking task. The ranking
-      group is not added automatically for the set of features if
+    ranking_group: Only for `task=Task.RANKING`. Name of a tf.string feature that
+      identifies queries in a query/document ranking task. The ranking group
+      is not added automatically for the set of features if
       `exclude_non_specified_features=false`.
-    uplift_treatment: Only for task=Task.CATEGORICAL_UPLIFT. Name of an integer
-      feature that identifies the treatment in an uplift problem. The value 0 is
-      reserved for the control treatment.
+    uplift_treatment: Only for task=Task.CATEGORICAL_UPLIFT or
+      task=Task.NUMERICAL_UPLIFT. Name of an integer feature that identifies the
+      treatment in an uplift problem. The value 0 is reserved for the control
+      treatment.
     temp_directory: Temporary directory used to store the model Assets after the
       training, and possibly as a work directory during the training. This
       temporary directory is necessary for the model to be exported after
@@ -119,19 +120,22 @@ class CartModel(core.CoreModel):
       If None (default) the default parameters of the library are used. If set,
       `default_hyperparameter_template` refers to one of the following
       preconfigured hyper-parameter sets. Those sets outperforms the default
-      hyper-parameters (either generally or in specific scenarios). You can omit
-      the version (e.g. remove "@v5") to use the last version of the template.
-      In this case, the hyper-parameter can change in between releases (not
-      recommended for training in production).
+      hyper-parameters (either generally or in specific scenarios).
+      You can omit the version (e.g. remove "@v5") to use the last version of
+      the template. In this case, the hyper-parameter can change in between
+      releases (not recommended for training in production).
+      
+
     advanced_arguments: Advanced control of the model that most users won't need
       to use. See `AdvancedArguments` for details.
     num_threads: Number of threads used to train the model. Different learning
       algorithms use multi-threading differently and with different degree of
       efficiency. If `None`, `num_threads` will be automatically set to the
       number of processors (up to a maximum of 32; or set to 6 if the number of
-      processors is not available). Making `num_threads` significantly larger
-      than the number of processors can slow-down the training speed. The
-      default value logic might change in the future.
+      processors is not available).
+      Making `num_threads` significantly larger than the number of processors
+      can slow-down the training speed. The default value logic might change in
+      the future.
     name: The name of the model.
     max_vocab_count: Default maximum size of the vocabulary for CATEGORICAL and
       CATEGORICAL_SET features stored as strings. If more unique values exist,
@@ -174,8 +178,9 @@ class CartModel(core.CoreModel):
       - `CART`: CART algorithm. Find categorical splits of the form "value \\in
         mask". The solution is exact for binary classification, regression and
         ranking. It is approximated for multi-class classification. This is a
-        good first algorithm to use. In case of overfitting (very small dataset,
-        large dictionary), the "random" algorithm is a good alternative.
+        good first algorithm to use. In case of overfitting (very small
+        dataset, large dictionary), the "random" algorithm is a good
+        alternative.
       - `ONE_HOT`: One-hot encoding. Find the optimal categorical split of the
         form "attribute == param". This method is similar (but more efficient)
         than converting converting each possible categorical value into a
@@ -196,7 +201,7 @@ class CartModel(core.CoreModel):
       available, the least frequent items are ignored. Changing this value is
       similar to change the "max_vocab_count" before loading the dataset, with
       the following exception: With `max_vocab_count`, all the remaining items
-        are grouped in a special Out-of-vocabulary item. With `max_num_items`,
+      are grouped in a special Out-of-vocabulary item. With `max_num_items`,
       this is not the case. Default: -1.
     categorical_set_split_min_item_frequency: For categorical set splits e.g.
       texts. Minimum number of occurrences of an item to be considered.
@@ -206,9 +211,9 @@ class CartModel(core.CoreModel):
         words, as long as a node satisfy the splits "constraints (e.g. maximum
         depth, minimum number of observations), the node will be split. This is
         the "classical" way to grow decision trees.
-      - `BEST_FIRST_GLOBAL`: The node with the best loss reduction among all the
-        nodes of the tree is selected for splitting. This method is also called
-        "best first" or "leaf-wise growth". See "Best-first decision
+      - `BEST_FIRST_GLOBAL`: The node with the best loss reduction among all
+        the nodes of the tree is selected for splitting. This method is also
+        called "best first" or "leaf-wise growth". See "Best-first decision
         tree learning", Shi and "Additive logistic regression : A statistical
         view of boosting", Friedman for more details. Default: "LOCAL".
     honest: In honest trees, different training examples are used to infer the
@@ -225,16 +230,16 @@ class CartModel(core.CoreModel):
       of examples used to set the leaf values. Default: 0.5.
     in_split_min_examples_check: Whether to check the `min_examples` constraint
       in the split search (i.e. splits leading to one child having less than
-      `min_examples` examples are considered invalid) or before the split search
-      (i.e. a node can be derived only if it contains more than `min_examples`
-      examples). If false, there can be nodes with less than
+      `min_examples` examples are considered invalid) or before the split
+      search (i.e. a node can be derived only if it contains more than
+      `min_examples` examples). If false, there can be nodes with less than
       `min_examples` training examples. Default: True.
     keep_non_leaf_label_distribution: Whether to keep the node value (i.e. the
       distribution of the labels of the training examples) of non-leaf nodes.
       This information is not used during serving, however it can be used for
       model interpretation as well as hyper parameter tuning. This can take
       lots of space, sometimes accounting for half of the model size. Default:
-        True.
+      True.
     max_depth: Maximum depth of the tree. `max_depth=1` means that all trees
       will be roots. Negative values are ignored. Default: 16.
     max_num_nodes: Maximum number of nodes in the tree. Set to -1 to disable
@@ -251,9 +256,9 @@ class CartModel(core.CoreModel):
       model training non-deterministic. Default: -1.0.
     min_examples: Minimum number of examples in a node. Default: 5.
     missing_value_policy: Method used to handle missing attribute values.
-      - `GLOBAL_IMPUTATION`: Missing attribute values are imputed, with the mean
-        (in case of numerical attribute) or the most-frequent-item (in case of
-        categorical attribute) computed on the entire dataset (i.e. the
+      - `GLOBAL_IMPUTATION`: Missing attribute values are imputed, with the
+        mean (in case of numerical attribute) or the most-frequent-item (in
+        case of categorical attribute) computed on the entire dataset (i.e. the
         information contained in the data spec).
       - `LOCAL_IMPUTATION`: Missing attribute values are imputed with the mean
         (numerical attribute) or most-frequent-item (in the case of categorical
@@ -267,26 +272,32 @@ class CartModel(core.CoreModel):
       node. An attribute is valid if it has at least a valid split. If
       `num_candidate_attributes=0`, the value is set to the classical default
       value for Random Forest: `sqrt(number of input attributes)` in case of
-        classification and `number_of_input_attributes / 3` in case of
-        regression. If `num_candidate_attributes=-1`, all the attributes are
+      classification and `number_of_input_attributes / 3` in case of
+      regression. If `num_candidate_attributes=-1`, all the attributes are
       tested. Default: 0.
     num_candidate_attributes_ratio: Ratio of attributes tested at each node. If
       set, it is equivalent to `num_candidate_attributes =
       number_of_input_features x num_candidate_attributes_ratio`. The possible
       values are between ]0, and 1] as well as -1. If not set or equal to -1,
       the `num_candidate_attributes` is used. Default: -1.0.
+    pure_serving_model: Clear the model from any information that is not
+      required for model serving. This includes debugging, model interpretation
+      and other meta-data. The size of the serialized model can be reduced
+      significatively (50% model size reduction is common). This parameter has
+      no impact on the quality, serving speed or RAM usage of model serving.
+      Default: False.
     random_seed: Random seed for the training of the model. Learners are
       expected to be deterministic by the random seed. Default: 123456.
-    sorting_strategy: How are sorted the numerical features in order to find the
-      splits
+    sorting_strategy: How are sorted the numerical features in order to find
+      the splits
       - PRESORT: The features are pre-sorted at the start of the training. This
         solution is faster but consumes much more memory than IN_NODE.
       - IN_NODE: The features are sorted just before being used in the node.
         This solution is slow but consumes little amount of memory.
       . Default: "PRESORT".
     sparse_oblique_normalization: For sparse oblique splits i.e.
-      `split_axis=SPARSE_OBLIQUE`. Normalization applied on the features, before
-      applying the sparse oblique projections.
+      `split_axis=SPARSE_OBLIQUE`. Normalization applied on the features,
+      before applying the sparse oblique projections.
       - `NONE`: No normalization.
       - `STANDARD_DEVIATION`: Normalize the feature by the estimated standard
         deviation on the entire train dataset. Also known as Z-Score
@@ -296,19 +307,19 @@ class CartModel(core.CoreModel):
     sparse_oblique_num_projections_exponent: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Controls of the number of random projections
       to test at each node as `num_features^num_projections_exponent`. Default:
-        None.
+      None.
     sparse_oblique_projection_density_factor: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Controls of the number of random projections
       to test at each node as `num_features^num_projections_exponent`. Default:
-        None.
+      None.
     sparse_oblique_weights: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Possible values:
       - `BINARY`: The oblique weights are sampled in {-1,1} (default).
       - `CONTINUOUS`: The oblique weights are be sampled in [-1,1]. Default:
         None.
     split_axis: What structure of split to consider for numerical features.
-      - `AXIS_ALIGNED`: Axis aligned splits (i.e. one condition at a time). This
-        is the "classical" way to train a tree. Default value.
+      - `AXIS_ALIGNED`: Axis aligned splits (i.e. one condition at a time).
+        This is the "classical" way to train a tree. Default value.
       - `SPARSE_OBLIQUE`: Sparse oblique splits (i.e. splits one a small number
         of features) from "Sparse Projection Oblique Random Forests", Tomita et
         al., 2020. Default: "AXIS_ALIGNED".
@@ -317,8 +328,8 @@ class CartModel(core.CoreModel):
     uplift_split_score: For uplift models only. Splitter score i.e. score
       optimized by the splitters. The scores are introduced in "Decision trees
       for uplift modeling with single and multiple treatments", Rzepakowski et
-      al. Notation: `p` probability / average value of the positive outcome, `q`
-        probability / average value in the control group.
+      al. Notation: `p` probability / average value of the positive outcome,
+      `q` probability / average value in the control group.
       - `KULLBACK_LEIBLER` or `KL`: - p log (p/q)
       - `EUCLIDEAN_DISTANCE` or `ED`: (p-q)^2
       - `CHI_SQUARED` or `CS`: (p-q)^2/q
@@ -326,6 +337,7 @@ class CartModel(core.CoreModel):
     validation_ratio: Ratio of the training dataset used to create the
       validation dataset used to prune the tree. If set to 0, the entire
       dataset is used for training, and the tree is not pruned. Default: 0.1.
+
   """
 
   @core._list_explicit_arguments
@@ -368,6 +380,7 @@ class CartModel(core.CoreModel):
                missing_value_policy: Optional[str] = "GLOBAL_IMPUTATION",
                num_candidate_attributes: Optional[int] = 0,
                num_candidate_attributes_ratio: Optional[float] = -1.0,
+               pure_serving_model: Optional[bool] = False,
                random_seed: Optional[int] = 123456,
                sorting_strategy: Optional[str] = "PRESORT",
                sparse_oblique_normalization: Optional[str] = None,
@@ -419,6 +432,8 @@ class CartModel(core.CoreModel):
             num_candidate_attributes,
         "num_candidate_attributes_ratio":
             num_candidate_attributes_ratio,
+        "pure_serving_model":
+            pure_serving_model,
         "random_seed":
             random_seed,
         "sorting_strategy":
@@ -522,7 +537,7 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
 
   Attributes:
     task: Task to solve (e.g. Task.CLASSIFICATION, Task.REGRESSION,
-      Task.RANKING, Task.CATEGORICAL_UPLIFT).
+      Task.RANKING, Task.CATEGORICAL_UPLIFT, Task.NUMERICAL_UPLIFT).
     features: Specify the list and semantic of the input features of the model.
       If not specified, all the available features will be used. If specified
       and if `exclude_non_specified_features=True`, only the features in
@@ -539,13 +554,14 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
       models on top of each other. Unlike preprocessing done in the tf.dataset,
       the operation in "preprocessing" are serialized with the model.
     postprocessing: Like "preprocessing" but applied on the model output.
-    ranking_group: Only for `task=Task.RANKING`. Name of a tf.string feature
-      that identifies queries in a query/document ranking task. The ranking
-      group is not added automatically for the set of features if
+    ranking_group: Only for `task=Task.RANKING`. Name of a tf.string feature that
+      identifies queries in a query/document ranking task. The ranking group
+      is not added automatically for the set of features if
       `exclude_non_specified_features=false`.
-    uplift_treatment: Only for task=Task.CATEGORICAL_UPLIFT. Name of an integer
-      feature that identifies the treatment in an uplift problem. The value 0 is
-      reserved for the control treatment.
+    uplift_treatment: Only for task=Task.CATEGORICAL_UPLIFT or
+      task=Task.NUMERICAL_UPLIFT. Name of an integer feature that identifies the
+      treatment in an uplift problem. The value 0 is reserved for the control
+      treatment.
     temp_directory: Temporary directory used to store the model Assets after the
       training, and possibly as a work directory during the training. This
       temporary directory is necessary for the model to be exported after
@@ -557,19 +573,22 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
       If None (default) the default parameters of the library are used. If set,
       `default_hyperparameter_template` refers to one of the following
       preconfigured hyper-parameter sets. Those sets outperforms the default
-      hyper-parameters (either generally or in specific scenarios). You can omit
-      the version (e.g. remove "@v5") to use the last version of the template.
-      In this case, the hyper-parameter can change in between releases (not
-      recommended for training in production).
+      hyper-parameters (either generally or in specific scenarios).
+      You can omit the version (e.g. remove "@v5") to use the last version of
+      the template. In this case, the hyper-parameter can change in between
+      releases (not recommended for training in production).
+      
+
     advanced_arguments: Advanced control of the model that most users won't need
       to use. See `AdvancedArguments` for details.
     num_threads: Number of threads used to train the model. Different learning
       algorithms use multi-threading differently and with different degree of
       efficiency. If `None`, `num_threads` will be automatically set to the
       number of processors (up to a maximum of 32; or set to 6 if the number of
-      processors is not available). Making `num_threads` significantly larger
-      than the number of processors can slow-down the training speed. The
-      default value logic might change in the future.
+      processors is not available).
+      Making `num_threads` significantly larger than the number of processors
+      can slow-down the training speed. The default value logic might change in
+      the future.
     name: The name of the model.
     max_vocab_count: Default maximum size of the vocabulary for CATEGORICAL and
       CATEGORICAL_SET features stored as strings. If more unique values exist,
@@ -608,10 +627,10 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
       a `FeatureUsage` (if any) takes precedence.
     apply_link_function: If true, applies the link function (a.k.a. activation
       function), if any, before returning the model prediction. If false,
-      returns the pre-link function model output. For example, in the case of
-      binary classification, the pre-link function
+      returns the pre-link function model output.
+      For example, in the case of binary classification, the pre-link function
       output is a logic while the post-link function is a probability. Default:
-        True.
+      True.
     force_numerical_discretization: If false, only the numerical column
       safisfying "max_unique_values_for_discretized_numerical" will be
       discretized. If true, all the numerical columns will be discretized.
@@ -641,8 +660,8 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
       node. An attribute is valid if it has at least a valid split. If
       `num_candidate_attributes=0`, the value is set to the classical default
       value for Random Forest: `sqrt(number of input attributes)` in case of
-        classification and `number_of_input_attributes / 3` in case of
-        regression. If `num_candidate_attributes=-1`, all the attributes are
+      classification and `number_of_input_attributes / 3` in case of
+      regression. If `num_candidate_attributes=-1`, all the attributes are
       tested. Default: -1.
     num_candidate_attributes_ratio: Ratio of attributes tested at each node. If
       set, it is equivalent to `num_candidate_attributes =
@@ -651,16 +670,23 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
       the `num_candidate_attributes` is used. Default: -1.0.
     num_trees: Maximum number of decision trees. The effective number of
       trained tree can be smaller if early stopping is enabled. Default: 300.
+    pure_serving_model: Clear the model from any information that is not
+      required for model serving. This includes debugging, model interpretation
+      and other meta-data. The size of the serialized model can be reduced
+      significatively (50% model size reduction is common). This parameter has
+      no impact on the quality, serving speed or RAM usage of model serving.
+      Default: False.
     random_seed: Random seed for the training of the model. Learners are
       expected to be deterministic by the random seed. Default: 123456.
-    shrinkage: Coefficient applied to each tree prediction. A small value (0.02)
-      tends to give more accurate results (assuming enough trees are trained),
-      but results in larger models. Analogous to neural network
+    shrinkage: Coefficient applied to each tree prediction. A small value
+      (0.02) tends to give more accurate results (assuming enough trees are
+      trained), but results in larger models. Analogous to neural network
       learning rate. Default: 0.1.
     use_hessian_gain: Use true, uses a formulation of split gain with a hessian
       term i.e. optimizes the splits to minimize the variance of "gradient /
       hessian. Available for all losses except regression. Default: False.
     worker_logs: If true, workers will print training logs. Default: True.
+
   """
 
   @core._list_explicit_arguments
@@ -695,6 +721,7 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
       num_candidate_attributes: Optional[int] = -1,
       num_candidate_attributes_ratio: Optional[float] = -1.0,
       num_trees: Optional[int] = 300,
+      pure_serving_model: Optional[bool] = False,
       random_seed: Optional[int] = 123456,
       shrinkage: Optional[float] = 0.1,
       use_hessian_gain: Optional[bool] = False,
@@ -722,6 +749,8 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
             num_candidate_attributes_ratio,
         "num_trees":
             num_trees,
+        "pure_serving_model":
+            pure_serving_model,
         "random_seed":
             random_seed,
         "shrinkage":
@@ -815,7 +844,7 @@ class GradientBoostedTreesModel(core.CoreModel):
 
   Attributes:
     task: Task to solve (e.g. Task.CLASSIFICATION, Task.REGRESSION,
-      Task.RANKING, Task.CATEGORICAL_UPLIFT).
+      Task.RANKING, Task.CATEGORICAL_UPLIFT, Task.NUMERICAL_UPLIFT).
     features: Specify the list and semantic of the input features of the model.
       If not specified, all the available features will be used. If specified
       and if `exclude_non_specified_features=True`, only the features in
@@ -836,9 +865,10 @@ class GradientBoostedTreesModel(core.CoreModel):
       identifies queries in a query/document ranking task. The ranking group
       is not added automatically for the set of features if
       `exclude_non_specified_features=false`.
-    uplift_treatment: Only for task=Task.CATEGORICAL_UPLIFT. Name of an integer
-      feature that identifies the treatment in an uplift problem. The value 0 is
-      reserved for the control treatment.
+    uplift_treatment: Only for task=Task.CATEGORICAL_UPLIFT or
+      task=Task.NUMERICAL_UPLIFT. Name of an integer feature that identifies the
+      treatment in an uplift problem. The value 0 is reserved for the control
+      treatment.
     temp_directory: Temporary directory used to store the model Assets after the
       training, and possibly as a work directory during the training. This
       temporary directory is necessary for the model to be exported after
@@ -1092,6 +1122,12 @@ class GradientBoostedTreesModel(core.CoreModel):
       the `num_candidate_attributes` is used. Default: -1.0.
     num_trees: Maximum number of decision trees. The effective number of
       trained tree can be smaller if early stopping is enabled. Default: 300.
+    pure_serving_model: Clear the model from any information that is not
+      required for model serving. This includes debugging, model interpretation
+      and other meta-data. The size of the serialized model can be reduced
+      significatively (50% model size reduction is common). This parameter has
+      no impact on the quality, serving speed or RAM usage of model serving.
+      Default: False.
     random_seed: Random seed for the training of the model. Learners are
       expected to be deterministic by the random seed. Default: 123456.
     sampling_method: Control the sampling of the datasets used to train
@@ -1231,6 +1267,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       num_candidate_attributes: Optional[int] = -1,
       num_candidate_attributes_ratio: Optional[float] = -1.0,
       num_trees: Optional[int] = 300,
+      pure_serving_model: Optional[bool] = False,
       random_seed: Optional[int] = 123456,
       sampling_method: Optional[str] = "NONE",
       selective_gradient_boosting_ratio: Optional[float] = 0.01,
@@ -1322,6 +1359,8 @@ class GradientBoostedTreesModel(core.CoreModel):
             num_candidate_attributes_ratio,
         "num_trees":
             num_trees,
+        "pure_serving_model":
+            pure_serving_model,
         "random_seed":
             random_seed,
         "sampling_method":
@@ -1409,11 +1448,10 @@ class GradientBoostedTreesModel(core.CoreModel):
     return abstract_learner_pb2.LearnerCapabilities(
         support_partial_cache_dataset_format=False)
 
-
 class HyperparameterOptimizerModel(core.CoreModel):
   r"""Hyperparameter Optimizer learning algorithm.
 
-
+  
 
   Usage example:
 
@@ -1453,7 +1491,7 @@ class HyperparameterOptimizerModel(core.CoreModel):
 
   Attributes:
     task: Task to solve (e.g. Task.CLASSIFICATION, Task.REGRESSION,
-      Task.RANKING, Task.CATEGORICAL_UPLIFT).
+      Task.RANKING, Task.CATEGORICAL_UPLIFT, Task.NUMERICAL_UPLIFT).
     features: Specify the list and semantic of the input features of the model.
       If not specified, all the available features will be used. If specified
       and if `exclude_non_specified_features=True`, only the features in
@@ -1470,13 +1508,14 @@ class HyperparameterOptimizerModel(core.CoreModel):
       models on top of each other. Unlike preprocessing done in the tf.dataset,
       the operation in "preprocessing" are serialized with the model.
     postprocessing: Like "preprocessing" but applied on the model output.
-    ranking_group: Only for `task=Task.RANKING`. Name of a tf.string feature
-      that identifies queries in a query/document ranking task. The ranking
-      group is not added automatically for the set of features if
+    ranking_group: Only for `task=Task.RANKING`. Name of a tf.string feature that
+      identifies queries in a query/document ranking task. The ranking group
+      is not added automatically for the set of features if
       `exclude_non_specified_features=false`.
-    uplift_treatment: Only for task=Task.CATEGORICAL_UPLIFT. Name of an integer
-      feature that identifies the treatment in an uplift problem. The value 0 is
-      reserved for the control treatment.
+    uplift_treatment: Only for task=Task.CATEGORICAL_UPLIFT or
+      task=Task.NUMERICAL_UPLIFT. Name of an integer feature that identifies the
+      treatment in an uplift problem. The value 0 is reserved for the control
+      treatment.
     temp_directory: Temporary directory used to store the model Assets after the
       training, and possibly as a work directory during the training. This
       temporary directory is necessary for the model to be exported after
@@ -1488,19 +1527,22 @@ class HyperparameterOptimizerModel(core.CoreModel):
       If None (default) the default parameters of the library are used. If set,
       `default_hyperparameter_template` refers to one of the following
       preconfigured hyper-parameter sets. Those sets outperforms the default
-      hyper-parameters (either generally or in specific scenarios). You can omit
-      the version (e.g. remove "@v5") to use the last version of the template.
-      In this case, the hyper-parameter can change in between releases (not
-      recommended for training in production).
+      hyper-parameters (either generally or in specific scenarios).
+      You can omit the version (e.g. remove "@v5") to use the last version of
+      the template. In this case, the hyper-parameter can change in between
+      releases (not recommended for training in production).
+      
+
     advanced_arguments: Advanced control of the model that most users won't need
       to use. See `AdvancedArguments` for details.
     num_threads: Number of threads used to train the model. Different learning
       algorithms use multi-threading differently and with different degree of
       efficiency. If `None`, `num_threads` will be automatically set to the
       number of processors (up to a maximum of 32; or set to 6 if the number of
-      processors is not available). Making `num_threads` significantly larger
-      than the number of processors can slow-down the training speed. The
-      default value logic might change in the future.
+      processors is not available).
+      Making `num_threads` significantly larger than the number of processors
+      can slow-down the training speed. The default value logic might change in
+      the future.
     name: The name of the model.
     max_vocab_count: Default maximum size of the vocabulary for CATEGORICAL and
       CATEGORICAL_SET features stored as strings. If more unique values exist,
@@ -1546,8 +1588,15 @@ class HyperparameterOptimizerModel(core.CoreModel):
       expressed in seconds. Each learning algorithm is free to use this
       parameter at it sees fit. Enabling maximum training duration makes the
       model training non-deterministic. Default: -1.0.
+    pure_serving_model: Clear the model from any information that is not
+      required for model serving. This includes debugging, model interpretation
+      and other meta-data. The size of the serialized model can be reduced
+      significatively (50% model size reduction is common). This parameter has
+      no impact on the quality, serving speed or RAM usage of model serving.
+      Default: False.
     random_seed: Random seed for the training of the model. Learners are
       expected to be deterministic by the random seed. Default: 123456.
+
   """
 
   @core._list_explicit_arguments
@@ -1573,6 +1622,7 @@ class HyperparameterOptimizerModel(core.CoreModel):
                num_discretized_numerical_bins: int = 255,
                maximum_model_size_in_memory_in_bytes: Optional[float] = -1.0,
                maximum_training_duration_seconds: Optional[float] = -1.0,
+               pure_serving_model: Optional[bool] = False,
                random_seed: Optional[int] = 123456,
                explicit_args: Optional[Set[str]] = None):
 
@@ -1581,6 +1631,8 @@ class HyperparameterOptimizerModel(core.CoreModel):
             maximum_model_size_in_memory_in_bytes,
         "maximum_training_duration_seconds":
             maximum_training_duration_seconds,
+        "pure_serving_model":
+            pure_serving_model,
         "random_seed":
             random_seed,
     }
@@ -1626,12 +1678,12 @@ class RandomForestModel(core.CoreModel):
 
   A Random Forest (https://www.stat.berkeley.edu/~breiman/randomforest2001.pdf)
   is a collection of deep CART decision trees trained independently and without
-  pruning. Each tree is trained on a random subset of the original training
+  pruning. Each tree is trained on a random subset of the original training 
   dataset (sampled with replacement).
-
+  
   The algorithm is unique in that it is robust to overfitting, even in extreme
   cases e.g. when there is more features than training examples.
-
+  
   It is probably the most well-known of the Decision Forest training
   algorithms.
 
@@ -1673,7 +1725,7 @@ class RandomForestModel(core.CoreModel):
 
   Attributes:
     task: Task to solve (e.g. Task.CLASSIFICATION, Task.REGRESSION,
-      Task.RANKING, Task.CATEGORICAL_UPLIFT).
+      Task.RANKING, Task.CATEGORICAL_UPLIFT, Task.NUMERICAL_UPLIFT).
     features: Specify the list and semantic of the input features of the model.
       If not specified, all the available features will be used. If specified
       and if `exclude_non_specified_features=True`, only the features in
@@ -1694,9 +1746,10 @@ class RandomForestModel(core.CoreModel):
       identifies queries in a query/document ranking task. The ranking group
       is not added automatically for the set of features if
       `exclude_non_specified_features=false`.
-    uplift_treatment: Only for task=Task.CATEGORICAL_UPLIFT. Name of an integer
-      feature that identifies the treatment in an uplift problem. The value 0 is
-      reserved for the control treatment.
+    uplift_treatment: Only for task=Task.CATEGORICAL_UPLIFT or
+      task=Task.NUMERICAL_UPLIFT. Name of an integer feature that identifies the
+      treatment in an uplift problem. The value 0 is reserved for the control
+      treatment.
     temp_directory: Temporary directory used to store the model Assets after the
       training, and possibly as a work directory during the training. This
       temporary directory is necessary for the model to be exported after
@@ -1904,6 +1957,12 @@ class RandomForestModel(core.CoreModel):
     num_trees: Number of individual decision trees. Increasing the number of
       trees can increase the quality of the model at the expense of size,
       training speed, and inference latency. Default: 300.
+    pure_serving_model: Clear the model from any information that is not
+      required for model serving. This includes debugging, model interpretation
+      and other meta-data. The size of the serialized model can be reduced
+      significatively (50% model size reduction is common). This parameter has
+      no impact on the quality, serving speed or RAM usage of model serving.
+      Default: False.
     random_seed: Random seed for the training of the model. Learners are
       expected to be deterministic by the random seed. Default: 123456.
     sampling_with_replacement: If true, the training examples are sampled with
@@ -2014,6 +2073,7 @@ class RandomForestModel(core.CoreModel):
       num_candidate_attributes_ratio: Optional[float] = -1.0,
       num_oob_variable_importances_permutations: Optional[int] = 1,
       num_trees: Optional[int] = 300,
+      pure_serving_model: Optional[bool] = False,
       random_seed: Optional[int] = 123456,
       sampling_with_replacement: Optional[bool] = True,
       sorting_strategy: Optional[str] = "PRESORT",
@@ -2080,6 +2140,8 @@ class RandomForestModel(core.CoreModel):
             num_oob_variable_importances_permutations,
         "num_trees":
             num_trees,
+        "pure_serving_model":
+            pure_serving_model,
         "random_seed":
             random_seed,
         "sampling_with_replacement":

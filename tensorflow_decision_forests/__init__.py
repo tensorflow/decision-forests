@@ -51,7 +51,7 @@ loaded_model = tf.keras.models.load_model("/tmp/my_saved_model")
 
 """
 
-__version__ = "0.2.6"
+__version__ = "0.2.7"
 __author__ = "Mathieu Guillame-Bert"
 
 compatible_tf_versions = ["2.9.1"]
