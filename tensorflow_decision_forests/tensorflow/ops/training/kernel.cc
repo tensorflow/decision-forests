@@ -820,7 +820,7 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
     success() = true;
 
     if (!HasTrainingExamples(ctx)) {
-      LOG(INFO) << "Not training example available. Ignore training request.";
+      LOG(INFO) << "No training example available. Ignore training request.";
       success() = false;
       return;
     }
