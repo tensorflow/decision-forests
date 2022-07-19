@@ -16,26 +16,40 @@
 
 
 # Build and test TF-DF.
+# Options
+#  RUN_TESTS: Run the unit tests e.g. 0 or 1.
+#  PY_VERSION: Version of Python to be used, must be at least 3.7
+#  STARTUP_FLAGS: Any flags given to bazel on startup
+#  IS_NIGHTLY: Whether Tensorflow nightly should be used, 0 or 1.
+#
 
 set -vex
 
 # Version of Python
 # Needs to be >=python3.7
-PYTHON=python3.8
+PYTHON=python${PY_VERSION}
 
 # Install Pip dependencies
 ${PYTHON} -m ensurepip --upgrade || true
 ${PYTHON} -m pip install pip --upgrade
-${PYTHON} -m pip install tensorflow numpy pandas scikit-learn --upgrade
+${PYTHON} -m pip install numpy pandas scikit-learn --upgrade
+if [ ${IS_NIGHTLY} == 1 ]; then
+  ${PYTHON} -m pip install tf-nightly
+else
+  ${PYTHON} -m pip install tensorflow
+fi
+
+# When compiling a nightly build, patch the workspace file to use the current
+# Tensorflow version.
+if [ ${IS_NIGHTLY} == 1 ]; then
+perl -0777 -i.original -pe 's/http_archive\(\n    name = "org_tensorflow",\n    sha256 = "9f2dac244e5af6c6a13a7dad6481e390174ac989931942098e7a4373f1bccfc2",\n    strip_prefix = "tensorflow-2.9.1",\n    urls = \["https:\/\/github.com\/tensorflow\/tensorflow\/archive\/refs\/tags\/v2.9.1.zip"\],\n\)/http_archive\(\n    name = "org_tensorflow",\n    strip_prefix = "tensorflow-nightly",\n    urls = \["https:\/\/github.com\/tensorflow\/tensorflow\/archive\/refs\/heads\/nightly.zip"\],\n\)/igs' WORKSPACE
+fi
 
 # Force a compiler
 # export CC=gcc-8
 # export CXX=gcc-8
 
-# Bazel startup and common flags.
-# STARTUP_FLAGS is given before the command (e.g. build), and FLAGS is given
-# after. STARTUP_FLAGS are given as an argument.
-STARTUP_FLAGS=${1}
+# Bazel common flags. Startup flags are already given through STARTUP_FLAGS
 FLAGS=
 
 # Detect the target host
@@ -91,7 +105,11 @@ BAZEL=bazel
 #
 # Note: Copy the building configuration of TF.
 TENSORFLOW_BAZELRC="tensorflow_bazelrc"
-curl https://raw.githubusercontent.com/tensorflow/tensorflow/v2.9.1/.bazelrc -o ${TENSORFLOW_BAZELRC}
+if [ ${IS_NIGHTLY} == 1 ]; then
+  curl https://raw.githubusercontent.com/tensorflow/tensorflow/nightly/.bazelrc -o ${TENSORFLOW_BAZELRC}
+else
+  curl https://raw.githubusercontent.com/tensorflow/tensorflow/v2.9.1/.bazelrc -o ${TENSORFLOW_BAZELRC}
+fi
 STARTUP_FLAGS="${STARTUP_FLAGS} --bazelrc=${TENSORFLOW_BAZELRC}"
 
 # Distributed compilation using Remote Build Execution (RBE)
@@ -120,7 +138,9 @@ TEST_RULES="//tensorflow_decision_forests/component/...:all //tensorflow_decisio
 time ${BAZEL} ${STARTUP_FLAGS} build ${BUILD_RULES} ${FLAGS} --build_tag_filters=-tfdistributed
 
 # Unit test library
-time ${BAZEL} ${STARTUP_FLAGS} test ${TEST_RULES} ${FLAGS} --test_size_filters=small,medium,large --test_tag_filters=-tfdistributed
+if [ "${RUN_TESTS}" = 1 ]; then
+  time ${BAZEL} ${STARTUP_FLAGS} test ${TEST_RULES} ${FLAGS} --test_size_filters=small,medium,large --test_tag_filters=-tfdistributed
+fi
 
 # Example of dependency check.
 # ${BAZEL} --bazelrc=${TENSORFLOW_BAZELRC} cquery "somepath(//tensorflow_decision_forests/tensorflow/ops/inference:api_py,@org_tensorflow//tensorflow/c:kernels.cc)" ${FLAGS}
