@@ -1,4 +1,6 @@
-# TensorFlow Decision Forests
+<p align="center">
+<img src="documentation/image/logo.png"  />
+</p>
 
 **TensorFlow Decision Forests** (**TF-DF**) is a collection of state-of-the-art
 algorithms for the training, serving and interpretation of **Decision Forest**
