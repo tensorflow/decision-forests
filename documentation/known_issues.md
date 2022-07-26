@@ -12,7 +12,7 @@ other algorithms.
 
 ## Windows Pip package is not available
 
-TensorFlow Decision Forest is not yet available as a Windows Pip package.
+TensorFlow Decision Forests is not yet available as a Windows Pip package.
 
 **Workarounds:**
 
@@ -55,8 +55,9 @@ tensorflow_decision_forests | tensorflow
 0.1.1 - 0.1.8               | 2.5
 0.1.0                       | 2.4
 
--   *Solution #2:* Wrapps your preprocessing function into another function that
-    [squeeze](https://www.tensorflow.org/api_docs/python/tf/squeeze) its inputs.
+-   *Solution #2:* Wrap your preprocessing function into another function that
+    [squeezes](https://www.tensorflow.org/api_docs/python/tf/squeeze) its
+    inputs.
 
 ## No all models support distributed training and distribute strategies
 
@@ -68,8 +69,8 @@ does.
 **Workarounds:**
 
 -   Use a model that support distribution strategies (e.g.
-    `DistributedGradientBoostedTreesModel`), or downsample your dataset so it
-    fits on a single machine.
+    `DistributedGradientBoostedTreesModel`), or downsample your dataset so that
+    it fits on a single machine.
 
 ## No support for GPU / TPU.
 
