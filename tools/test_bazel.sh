@@ -31,18 +31,24 @@ PYTHON=python${PY_VERSION}
 
 # Install Pip dependencies
 ${PYTHON} -m ensurepip --upgrade || true
-${PYTHON} -m pip install pip --upgrade
+${PYTHON} -m pip install pip setuptools --upgrade
 ${PYTHON} -m pip install numpy pandas scikit-learn --upgrade
-if [ ${IS_NIGHTLY} == 1 ]; then
-  ${PYTHON} -m pip install tf-nightly
-else
-  ${PYTHON} -m pip install tensorflow
-fi
 
 # When compiling a nightly build, patch the workspace file to use the current
 # Tensorflow version.
 if [ ${IS_NIGHTLY} == 1 ]; then
-perl -0777 -i.original -pe 's/http_archive\(\n    name = "org_tensorflow",\n    sha256 = "9f2dac244e5af6c6a13a7dad6481e390174ac989931942098e7a4373f1bccfc2",\n    strip_prefix = "tensorflow-2.9.1",\n    urls = \["https:\/\/github.com\/tensorflow\/tensorflow\/archive\/refs\/tags\/v2.9.1.zip"\],\n\)/http_archive\(\n    name = "org_tensorflow",\n    strip_prefix = "tensorflow-nightly",\n    urls = \["https:\/\/github.com\/tensorflow\/tensorflow\/archive\/refs\/heads\/nightly.zip"\],\n\)/igs' WORKSPACE
+  ${PYTHON} -m pip install tf-nightly
+  # Get commit sha of tf-nightly
+  short_commit_sha=$(python -c 'import tensorflow as tf; print(tf.__git_version__)' | tail -1 | grep -oP '(?<=-g)[0-9a-f]*$')
+  commit_sha=$(curl -SsL https://github.com/tensorflow/tensorflow/commit/${short_commit_sha} | grep sha-block | grep commit | sed -e 's/.*\([a-f0-9]\{40\}\).*/\1/')
+
+  # Update TF dependency to current nightly
+  sed -i "s/strip_prefix = \"tensorflow-2\.[0-9]\+\.[0-9]\+\(-rc[0-9]\+\)\?\",/strip_prefix = \"tensorflow-${commit_sha}\",/" WORKSPACE
+  sed -i "s|\"https://github.com/tensorflow/tensorflow/archive/v.\+\.zip\"|\"https://github.com/tensorflow/tensorflow/archive/${commit_sha}.zip\"|" WORKSPACE
+  prev_shasum=$(grep -A 1 -e "strip_prefix.*tensorflow-" WORKSPACE | tail -1 | awk -F '"' '{print $2}')
+  sed -i "s/sha256 = \"${prev_shasum}\",//" WORKSPACE
+else
+  ${PYTHON} -m pip install tensorflow
 fi
 
 # Force a compiler
