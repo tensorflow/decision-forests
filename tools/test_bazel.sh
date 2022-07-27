@@ -46,7 +46,7 @@ if [ ${IS_NIGHTLY} == 1 ]; then
   sed -i "s/strip_prefix = \"tensorflow-2\.[0-9]\+\.[0-9]\+\(-rc[0-9]\+\)\?\",/strip_prefix = \"tensorflow-${commit_sha}\",/" WORKSPACE
   sed -i "s|\"https://github.com/tensorflow/tensorflow/archive/v.\+\.zip\"|\"https://github.com/tensorflow/tensorflow/archive/${commit_sha}.zip\"|" WORKSPACE
   prev_shasum=$(grep -A 1 -e "strip_prefix.*tensorflow-" WORKSPACE | tail -1 | awk -F '"' '{print $2}')
-  sed -i 's/sha256 = \"${prev_shasum}\",//' WORKSPACE
+  sed -i "s/sha256 = \"${prev_shasum}\",//" WORKSPACE
 else
   ${PYTHON} -m pip install tensorflow
 fi
