@@ -253,7 +253,6 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
   )
   def test_distributed_training_adult(self, use_finite_dataset,
                                       simulate_failures):
-
     # Split the dataset into multiple files.
     train_path = os.path.join(test_data_path(), "dataset", "adult_train.csv")
     test_path = os.path.join(test_data_path(), "dataset", "adult_test.csv")
