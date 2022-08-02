@@ -50,19 +50,12 @@ load("//third_party/absl:workspace.bzl", absl = "deps")
 load("//third_party/benchmark:workspace.bzl", benchmark = "deps")
 load("//third_party/gtest:workspace.bzl", gtest = "deps")
 load("//third_party/protobuf:workspace.bzl", protobuf = "deps")
-load("//third_party/rapidjson:workspace.bzl", rapidjson = "deps")
 
 absl()
-
 absl_py()
-
 benchmark()
-
 gtest()
-
 protobuf()
-
-rapidjson()
 
 # Yggdrasil Decision Forests
 load("//third_party/yggdrasil_decision_forests:workspace.bzl", yggdrasil_decision_forests = "deps")
@@ -78,6 +71,7 @@ ydf_load_deps(
         "zlib",
         "farmhash",
         "grpc",
+        "rapidjson",
     ],
     repo_name = "@ydf",
 )
