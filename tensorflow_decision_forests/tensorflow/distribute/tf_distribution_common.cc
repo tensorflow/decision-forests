@@ -17,14 +17,14 @@
 
 #include "absl/strings/match.h"
 
-// TODO(gbm): Use payload on next TF release (introduced on 2021-11-02)
+// TODO: Use payload on next TF release (introduced on 2021-11-02)
 // #include "tensorflow/core/distributed_runtime/error_payloads.h"
 
 namespace yggdrasil_decision_forests {
 namespace distribute {
 
 bool IsPermanentWorkerError(const absl::Status& status) {
-  // TODO(gbm): Use payload on next TF release (introduced on 2021-11-02)
+  // TODO: Use payload on next TF release (introduced on 2021-11-02)
   //  if (status.GetPayload(tensorflow::kWorkerPossiblyRestarted).has_value()) {
   //    // Example: "TensorFlow: ABORTED: Session 87b71b3d46e250c7 is not
   //    found". return false;

@@ -643,7 +643,7 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
     # chosen. If checking manually, make sure the "Use fast generic engine"
     # string is present (instead of the "Use slow generic engine" string).
     #
-    # TODO(gbm):: Add API to check which inference engine is used.
+    # TODO:: Add API to check which inference engine is used.
 
     loaded_model = tf.keras.models.load_model(model_path)
 

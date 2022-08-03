@@ -142,7 +142,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
             num_shards=current_worker.num_workers,
             index=current_worker.worker_idx)
 
-      # TODO(gbm): Remove repeat when possible.
+      # TODO: Remove repeat when possible.
       if infinite:
         dataset = dataset.repeat(None)
 
@@ -162,7 +162,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
       train_dataset_creator = strategy.distribute_datasets_from_function(
           lambda context: dataset_fn(context, seed=111))
 
-      # TODO(gbm): Remove "infinite" when the valuation support finite datasets.
+      # TODO: Remove "infinite" when the valuation support finite datasets.
       valid_dataset_creator = strategy.distribute_datasets_from_function(
           lambda context: dataset_fn(context, seed=222, infinite=True))
       # Note: A distributed dataset cannot be reused twice.

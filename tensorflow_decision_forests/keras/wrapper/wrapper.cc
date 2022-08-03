@@ -612,7 +612,7 @@ $4
             : "False");
   }
 
-  // TODO(gbm): Text serialize the proto
+  // TODO: Text serialize the proto
 
   return wrapper;
 }

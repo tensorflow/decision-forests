@@ -1703,7 +1703,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     predictions = model.predict(test_ds)
     logging.info("Predictions: %s", predictions)
 
-    # TODO(b/232901077): Evaluate with the Uplift framework.
+    # TODO: Evaluate with the Uplift framework.
 
   def test_uplift_regression_sim_pte(self):
 
@@ -1744,7 +1744,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
       predictions = model.predict(test_ds)
       logging.info("Predictions: %s", predictions)
 
-      # TODO(gbm): Evaluate with the Uplift framework.
+      # TODO: Evaluate with the Uplift framework.
 
   def test_uplift_honest_sim_pte(self):
     # Path to dataset.
@@ -1788,7 +1788,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     predictions = model.predict(test_ds)
     logging.info("Predictions: %s", predictions)
 
-    # TODO(gbm): Evaluate with the Uplift framework.
+    # TODO: Evaluate with the Uplift framework.
 
   def test_metadata(self):
 

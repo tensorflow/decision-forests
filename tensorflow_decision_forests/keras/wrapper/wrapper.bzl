@@ -44,7 +44,7 @@ def py_wrap_yggdrasil_learners(
     )
 
     # Compiles the wrapper binary.
-    # TODO(gbm): Find way to link from pypi.
+    # TODO: Find way to link from pypi.
     # Note: This rule will compile a small part of TF.
     tf_cc_binary(
         name = wrapper_name,

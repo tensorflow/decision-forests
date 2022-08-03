@@ -207,7 +207,7 @@ class FeatureOnFileOp : public tensorflow::OpKernel {
 
     dataset_already_on_disk_ = HasDoneFile(dataset_path_);
 
-    // TODO(gbm): Use the following code when tf2.7 is released.
+    // TODO: Use the following code when tf2.7 is released.
     // worker_idx_ = ctx->device()->parsed_name().task;
 
     auto* device = dynamic_cast<tensorflow::Device*>(ctx->device());

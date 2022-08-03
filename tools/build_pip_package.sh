@@ -121,7 +121,7 @@ function assemble_files() {
   cp ${SRCBIN}/tensorflow/ops/inference/inference.so ${SRCPK}/tensorflow_decision_forests/tensorflow/ops/inference/
   cp ${SRCBIN}/tensorflow/ops/training/training.so ${SRCPK}/tensorflow_decision_forests/tensorflow/ops/training/
 
-  # TODO(gbm): Include when Pip package support distributed training.
+  # TODO: Include when Pip package support distributed training.
   # cp ${SRCBIN}/tensorflow/distribute/distribute.so ${SRCPK}/tensorflow_decision_forests/tensorflow/distribute/
 
   cp ${SRCBIN}/keras/wrappers.py ${SRCPK}/tensorflow_decision_forests/keras/

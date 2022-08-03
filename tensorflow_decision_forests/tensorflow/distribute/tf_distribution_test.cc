@@ -79,7 +79,7 @@ ManagerAndWorkers CreateTfDistManager(int parallel_execution_per_worker = 1) {
             [command]() { CHECK_EQ(system(command.c_str()), 0); }));
 
     // Make sure we don't override the env variable.
-    // TODO(gbm): Find a better way.
+    // TODO: Find a better way.
     absl::SleepFor(absl::Seconds(0.5));
   }
 

@@ -1001,7 +1001,7 @@ class CoreModel(models.Model):
   def _ensure_model_get_leaves_ready(self):
     """Ensures that the model that generates the leaves is available."""
 
-    # TODO(gbm): Re-use "_model" if it supports the get-leaves inference.
+    # TODO: Re-use "_model" if it supports the get-leaves inference.
 
     if self._model_get_leaves is None:
       self._model_get_leaves = tf_op.ModelV2(
@@ -1502,7 +1502,7 @@ class CoreModel(models.Model):
 
     for extra_key, extra_values in kwargs.items():
       if extra_key == "epochs":
-        # TODO(gbm): Remove epoch argument.
+        # TODO: Remove epoch argument.
         if extra_values != 1:
           raise ValueError(
               "all decision forests algorithms train with only 1 " +
@@ -1626,7 +1626,7 @@ class CoreModel(models.Model):
           tf.keras.utils.unpack_x_y_sample_weight(validation_data))
 
       if distribution_config is None:
-        # TODO(gbm): The validation_data is currently not used for distributed
+        # TODO: The validation_data is currently not used for distributed
         # training (except for the model validation evaluation). Creating
         # and not using the validation_data_handler for distributed training
         # seems to cause some issues.
@@ -1670,7 +1670,7 @@ class CoreModel(models.Model):
       else:
         # Local training with number of steps.
 
-        # TODO(gbm): Make this case an error and remove this code.
+        # TODO: Make this case an error and remove this code.
         tf_logging.warning(
             "You are using non-distributed training with steps_per_epoch. "
             "This solution will lead to a sub-optimal model. Instead, "
@@ -1725,7 +1725,7 @@ class CoreModel(models.Model):
       if steps_per_epoch is not None:
         # Distributed training with number of steps.
 
-        # TODO(gbm): Deprecated logic. To remove.
+        # TODO: Deprecated logic. To remove.
 
         tf_logging.warning(
             "You are using distributed training with steps_per_epoch. "
@@ -1761,7 +1761,7 @@ class CoreModel(models.Model):
         tf_remote_consumes_training_examples_until_eof = tf.function(
             remote_consumes_training_examples_until_eof, reduce_retracing=True)
 
-        # TODO(gbm): Replace with an coordinator.schedule version when
+        # TODO: Replace with an coordinator.schedule version when
         # available.
         self._num_training_examples = tf_core.execute_function_on_each_worker(
             coordinator, tf_remote_consumes_training_examples_until_eof,
@@ -1778,7 +1778,7 @@ class CoreModel(models.Model):
       # Collect the validation dataset in Yggdrasil.
       if coordinator is not None:
 
-        # TODO(gbm): Collect the validation dataset in yggdrasil when using
+        # TODO: Collect the validation dataset in yggdrasil when using
         # distributed training.
         assert validation_data_handler is None
 
@@ -1806,7 +1806,7 @@ class CoreModel(models.Model):
         else:
 
           # Validation with number of steps.
-          # TODO(gbm): Make this case an error and remove this code.
+          # TODO: Make this case an error and remove this code.
           tf_logging.warning(
               "You are using non-distributed validation with steps_per_epoch. "
               "This solution will lead to a sub-optimal model. Instead, "
@@ -1862,7 +1862,7 @@ class CoreModel(models.Model):
       # Note: the "validation_data_handler" is exausted and cannot be reused
       # with the model evaluation (i.e. _use_cached_eval_dataset=True).
 
-      # TODO(gbm): Even in the case of distributed training, implement an exact
+      # TODO: Even in the case of distributed training, implement an exact
       # evaluation of the model i.e. each validation example is evaluated once
       # and exactly once.history
 
@@ -2189,7 +2189,7 @@ class CoreModel(models.Model):
 
     return []
 
-  # TODO(b/205971333): Use Trace Protocol For TF DF custom types to avoid
+  # TODO: Use Trace Protocol For TF DF custom types to avoid
   # clearing the cache.
   def _clear_function_cache(self):
     """Clear the @tf.function cache and force re-tracing."""

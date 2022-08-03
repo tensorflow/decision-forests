@@ -123,7 +123,7 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
     auto success = success_tensor->scalar<bool>();
     success() = true;
 
-    // TODO(gbm): Cache the dataspec.
+    // TODO: Cache the dataspec.
     dataset::proto::DataSpecification data_spec;
     dataset::CreateDataSpec(train_dataset_path_, false, guide_, &data_spec);
     LOG(INFO) << "Dataset:\n" << dataset::PrintHumanReadable(data_spec, false);
