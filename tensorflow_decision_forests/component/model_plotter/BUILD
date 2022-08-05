@@ -27,7 +27,6 @@ py_library(
         "//tensorflow_decision_forests/component/py_tree:node",
         "//tensorflow_decision_forests/component/py_tree:tree",
         "//tensorflow_decision_forests/component/py_tree:value",
-        "//tensorflow_decision_forests/keras:core",
     ],
 )
 

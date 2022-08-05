@@ -80,10 +80,25 @@ bzl_library(
 # =========
 
 py_library(
+    name = "core_inference",
+    srcs = ["core_inference.py"],
+    srcs_version = "PY3",
+    deps = [
+        # numpy dep,
+        # pandas dep,
+        # TensorFlow Python,
+        "//tensorflow_decision_forests/component/inspector",
+        "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
+        "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
+    ],
+)
+
+py_library(
     name = "core",
     srcs = ["core.py"],
     srcs_version = "PY3",
     deps = [
+        ":core_inference",
         # numpy dep,
         # pandas dep,
         # TensorFlow Python,

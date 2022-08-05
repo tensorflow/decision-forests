@@ -115,22 +115,22 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import math
-import numpy as np
 import abc
+from dataclasses import dataclass  # pylint: disable=g-importing-member
 from enum import Enum  # pylint: disable=g-importing-member
+import math
 import os
-from typing import List, Any, Optional, Dict, Tuple, Union
-from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple, Union
 
+import numpy as np
 import six
 import tensorflow as tf
 
 from tensorflow_decision_forests.component import py_tree
 from tensorflow_decision_forests.component.inspector import blob_sequence
 from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
-from tensorflow_decision_forests.keras import core as keras_core
-from tensorflow_decision_forests.tensorflow import core as tf_core
+from tensorflow_decision_forests.keras import core_inference as keras_core
+from tensorflow_decision_forests.tensorflow import core_inference as tf_core
 from yggdrasil_decision_forests.dataset import data_spec_pb2
 from yggdrasil_decision_forests.model import abstract_model_pb2
 from yggdrasil_decision_forests.model.gradient_boosted_trees import gradient_boosted_trees_pb2

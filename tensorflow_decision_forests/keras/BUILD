@@ -63,13 +63,30 @@ py_library(
 )
 
 py_library(
+    name = "core_inference",
+    srcs = ["core_inference.py"],
+    srcs_version = "PY3",
+    deps = [
+        # TensorFlow Python,
+        # TensorFlow /distribute:input_lib,
+        "//tensorflow_decision_forests/component/inspector",
+        "//tensorflow_decision_forests/tensorflow:core_inference",
+        "//tensorflow_decision_forests/tensorflow:tf_logging",
+        "//tensorflow_decision_forests/tensorflow/ops/inference:api_py",
+        "@ydf//yggdrasil_decision_forests/learner:abstract_learner_py_proto",
+        "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
+        "@ydf//yggdrasil_decision_forests/utils/distribute/implementations/grpc:grpc_py_proto",
+    ],
+)
+
+py_library(
     name = "core",
     srcs = ["core.py"],
     srcs_version = "PY3",
     deps = [
+        ":core_inference",
         # TensorFlow Python,
         # TensorFlow /data/ops:dataset_ops,
-        # TensorFlow /distribute:input_lib,
         "//tensorflow_decision_forests/component/inspector",
         "//tensorflow_decision_forests/component/tuner",
         "//tensorflow_decision_forests/tensorflow:core",

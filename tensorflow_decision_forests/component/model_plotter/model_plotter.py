@@ -43,7 +43,9 @@ from tensorflow_decision_forests.component.py_tree import condition as condition
 from tensorflow_decision_forests.component.py_tree import node as node_lib
 from tensorflow_decision_forests.component.py_tree import tree as tree_lib
 from tensorflow_decision_forests.component.py_tree import value as value_lib
-from tensorflow_decision_forests.keras.core import CoreModel
+
+# The InferenceCoreModel" is defined in /keras/core_inference.py.
+InferenceCoreModel = Any
 
 
 class DisplayOptions(NamedTuple):
@@ -78,7 +80,7 @@ class DisplayOptions(NamedTuple):
   show_plot_bounding_box: Optional[bool] = False
 
 
-def plot_model_in_colab(model: CoreModel, **kwargs):
+def plot_model_in_colab(model: InferenceCoreModel, **kwargs):
   """Plots a model structure in colab.
 
   See "plot_model" for the available options.
@@ -95,7 +97,7 @@ def plot_model_in_colab(model: CoreModel, **kwargs):
   return HTML(plot_model(model, **kwargs))
 
 
-def plot_model(model: CoreModel,
+def plot_model(model: InferenceCoreModel,
                tree_idx: Optional[int] = 0,
                max_depth: Optional[int] = 3):
   """Plots the model structure and it correlation with a dataset.
