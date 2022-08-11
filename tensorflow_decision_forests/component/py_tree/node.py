@@ -109,7 +109,7 @@ class LeafNode(AbstractNode):
 
     return self._leaf_idx
 
-  @value.setter
+  @leaf_idx.setter
   def leaf_idx(self, leaf_idx):
     self._leaf_idx = leaf_idx
 

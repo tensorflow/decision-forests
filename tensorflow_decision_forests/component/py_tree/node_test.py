@@ -31,7 +31,17 @@ from yggdrasil_decision_forests.model.decision_tree import decision_tree_pb2
 
 class NodeTest(parameterized.TestCase, tf.test.TestCase):
 
-  def test_leaf(self):
+  def test_leaf_value_integer(self):
+    node = node_lib.LeafNode(5)
+    self.assertEqual(node.value, 5)
+    self.assertIsNone(node.leaf_idx)
+  
+  def test_leaf_idx(self):
+    node = node_lib.LeafNode(5, 2)
+    self.assertEqual(node.value, 5)
+    self.assertEqual(node.leaf_idx, 2)
+
+  def test_leaf_regression_value(self):
     node = node_lib.LeafNode(
         value=value_lib.RegressionValue(
             value=5.0, num_examples=10, standard_deviation=1.0))
