@@ -71,7 +71,6 @@ ydf_load_deps(
         "zlib",
         "farmhash",
         "grpc",
-        "rapidjson",
     ],
     repo_name = "@ydf",
 )

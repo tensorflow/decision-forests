@@ -19,8 +19,8 @@
 
 #include <random>
 
-#include "third_party/rapidjson/include/rapidjson/document.h"
-#include "third_party/rapidjson/include/rapidjson/reader.h"
+#include "rapidjson/document.h"
+#include "rapidjson/reader.h"
 #include "tensorflow/cc/client/client_session.h"
 #include "tensorflow/cc/ops/array_ops.h"
 #include "tensorflow/cc/ops/standard_ops.h"

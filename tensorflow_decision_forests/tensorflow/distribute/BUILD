@@ -57,7 +57,7 @@ cc_library(
         ":op",
         ":tf_distribution_cc_proto",
         "@ydf//yggdrasil_decision_forests/utils:synchronization_primitives",
-        "//third_party/rapidjson",
+        "@com_github_tencent_rapidjson//:rapidjson",
         "@ydf//yggdrasil_decision_forests/utils:concurrency",
         "@ydf//yggdrasil_decision_forests/utils:filesystem",
         "@ydf//yggdrasil_decision_forests/utils:logging",

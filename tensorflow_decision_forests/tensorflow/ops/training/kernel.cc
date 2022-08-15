@@ -925,7 +925,7 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
     //   --config=/tmp/train_config.pbtxt
     //
     // Add the dependency:
-    //   //third_party/yggdrasil_decision_forests/dataset:tf_example_io_tfrecord
+    //   //third_party/yggdrasil_decision_forests/dataset/tensorflow:tf_example_io_tfrecord
     //
     /*
     CHECK_OK(SaveVerticalDataset(dataset, "tfrecord+tfe:/tmp/dataset.tfe"));
