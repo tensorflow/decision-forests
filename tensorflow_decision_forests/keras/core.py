@@ -1939,7 +1939,7 @@ def _check_feature_names(feature_names: List[str], raise_error: bool):
     if raise_error:
       raise ValueError(full_reason)
     else:
-      tf_logging.warning(full_reason)
+      tf_logging.warning("%s",full_reason)
 
   # List of character forbidden in a serving signature name.
   for feature_name in feature_names:
@@ -1949,7 +1949,7 @@ def _check_feature_names(feature_names: List[str], raise_error: bool):
     for character in _FORBIDDEN_FEATURE_CHARACTERS:
       if character in feature_name:
         problem(f"The feature name \"{feature_name}\" contains a forbidden "
-                "character ({_FORBIDDEN_FEATURE_CHARACTERS}).")
+                f"character ({_FORBIDDEN_FEATURE_CHARACTERS!r}).")
 
 
 def _check_dataset(x: tf.data.Dataset):
