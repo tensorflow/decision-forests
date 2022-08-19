@@ -309,7 +309,7 @@ class InferenceCoreModel(models.Model):
       data = next(iterator)
       return run_step(data)
 
-    if self._is_trained:
+    if self._is_trained.value():
       return partial(predict_function_trained, model=self)
     else:
       return predict_function_not_trained
@@ -351,7 +351,7 @@ class InferenceCoreModel(models.Model):
           outputs, self.distribute_strategy, reduction="first")
       return outputs
 
-    if self._is_trained:
+    if self._is_trained.value():
       # Special case if steps_per_execution is one.
       if (self._steps_per_execution is None or
           self._steps_per_execution.numpy().item() == 1):
