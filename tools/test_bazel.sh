@@ -20,7 +20,7 @@
 #  RUN_TESTS: Run the unit tests e.g. 0 or 1.
 #  PY_VERSION: Version of Python to be used, must be at least 3.7
 #  STARTUP_FLAGS: Any flags given to bazel on startup
-#  IS_NIGHTLY: Whether Tensorflow nightly should be used, 0 or 1.
+#  TF_VERSION: Tensorflow version to use or "nightly"
 #
 
 set -vex
@@ -34,22 +34,25 @@ ${PYTHON} -m ensurepip --upgrade || true
 ${PYTHON} -m pip install pip setuptools --upgrade
 ${PYTHON} -m pip install numpy pandas scikit-learn --upgrade
 
-# When compiling a nightly build, patch the workspace file to use the current
-# Tensorflow version.
-if [ ${IS_NIGHTLY} == 1 ]; then
-  ${PYTHON} -m pip install tf-nightly
-  # Get commit sha of tf-nightly
-  short_commit_sha=$(python -c 'import tensorflow as tf; print(tf.__git_version__)' | tail -1 | grep -oP '(?<=-g)[0-9a-f]*$')
-  commit_sha=$(curl -SsL https://github.com/tensorflow/tensorflow/commit/${short_commit_sha} | grep sha-block | grep commit | sed -e 's/.*\([a-f0-9]\{40\}\).*/\1/')
-
-  # Update TF dependency to current nightly
-  sed -i "s/strip_prefix = \"tensorflow-2\.[0-9]\+\.[0-9]\+\(-rc[0-9]\+\)\?\",/strip_prefix = \"tensorflow-${commit_sha}\",/" WORKSPACE
-  sed -i "s|\"https://github.com/tensorflow/tensorflow/archive/v.\+\.zip\"|\"https://github.com/tensorflow/tensorflow/archive/${commit_sha}.zip\"|" WORKSPACE
-  prev_shasum=$(grep -A 1 -e "strip_prefix.*tensorflow-" WORKSPACE | tail -1 | awk -F '"' '{print $2}')
-  sed -i "s/sha256 = \"${prev_shasum}\",//" WORKSPACE
+# Install Tensorflow at the chosen version.
+if [ ${TF_VERSION} == "nightly" ]; then
+  ${PYTHON} -m pip install tf-nightly --force-reinstall
 else
-  ${PYTHON} -m pip install tensorflow
+  ${PYTHON} -m pip install tensorflow==${TF_VERSION} --force-reinstall
 fi
+# Get the commit SHA
+short_commit_sha=$(python -c 'import tensorflow as tf; print(tf.__git_version__)' | tail -1 | grep -oP '(?<=-g)[0-9a-f]*$')
+commit_sha=$(curl -SsL https://github.com/tensorflow/tensorflow/commit/${short_commit_sha} | grep sha-block | grep commit | sed -e 's/.*\([a-f0-9]\{40\}\).*/\1/')
+
+# Update TF dependency to the chosen version
+sed -i "s/strip_prefix = \"tensorflow-2\.[0-9]\+\.[0-9]\+\(-rc[0-9]\+\)\?\",/strip_prefix = \"tensorflow-${commit_sha}\",/" WORKSPACE
+sed -i "s|\"https://github.com/tensorflow/tensorflow/archive/v.\+\.zip\"|\"https://github.com/tensorflow/tensorflow/archive/${commit_sha}.zip\"|" WORKSPACE
+prev_shasum=$(grep -A 1 -e "strip_prefix.*tensorflow-" WORKSPACE | tail -1 | awk -F '"' '{print $2}')
+sed -i "s/sha256 = \"${prev_shasum}\",//" WORKSPACE
+
+# Get build configuration for chosen version.
+TENSORFLOW_BAZELRC="tensorflow_bazelrc"
+curl https://raw.githubusercontent.com/tensorflow/tensorflow/${commit_sha}/.bazelrc -o ${TENSORFLOW_BAZELRC}
 
 # Force a compiler
 # export CC=gcc-8
@@ -107,15 +110,6 @@ FLAGS="${FLAGS} --action_env TF_SHARED_LIBRARY_NAME=${SHARED_LIBRARY_NAME}"
 # Bazel
 BAZEL=bazel
 
-# TensorFlow building configuration
-#
-# Note: Copy the building configuration of TF.
-TENSORFLOW_BAZELRC="tensorflow_bazelrc"
-if [ ${IS_NIGHTLY} == 1 ]; then
-  curl https://raw.githubusercontent.com/tensorflow/tensorflow/nightly/.bazelrc -o ${TENSORFLOW_BAZELRC}
-else
-  curl https://raw.githubusercontent.com/tensorflow/tensorflow/v2.9.1/.bazelrc -o ${TENSORFLOW_BAZELRC}
-fi
 STARTUP_FLAGS="${STARTUP_FLAGS} --bazelrc=${TENSORFLOW_BAZELRC}"
 
 # Distributed compilation using Remote Build Execution (RBE)
