@@ -40,6 +40,12 @@ if [ ${TF_VERSION} == "nightly" ]; then
 else
   ${PYTHON} -m pip install tensorflow==${TF_VERSION} --force-reinstall
 fi
+# Patch Tensorflow dependency if necessary
+# TODO Remove as soon as Tensorflow has fixed its dependencies.
+if [ "${TF_VERSION}" != "2.9.1" ]; then 
+  sed -i "s/# patch_args/patch_args/" WORKSPACE
+  sed -i "s/# patches/patches/" WORKSPACE
+fi
 # Get the commit SHA
 short_commit_sha=$(python -c 'import tensorflow as tf; print(tf.__git_version__)' | tail -1 | grep -oP '(?<=-g)[0-9a-f]*$')
 commit_sha=$(curl -SsL https://github.com/tensorflow/tensorflow/commit/${short_commit_sha} | grep sha-block | grep commit | sed -e 's/.*\([a-f0-9]\{40\}\).*/\1/')

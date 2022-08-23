@@ -1,0 +1,13 @@
+diff --git a/tensorflow/tensorflow.bzl b/tensorflow/tensorflow.bzl
+index a5994619566..0e8543c782f 100644
+--- a/tensorflow/tensorflow.bzl
++++ b/tensorflow/tensorflow.bzl
+@@ -1366,7 +1366,7 @@ def tf_cc_test(
+                 "-lpthread",
+                 "-lm",
+             ],
+-            "//third_party/compute_library:build_with_acl": ["-fopenmp"],
++            clean_dep("//third_party/compute_library:build_with_acl"): ["-fopenmp"],
+         }) + linkopts + _rpath_linkopts(name),
+         deps = deps + tf_binary_dynamic_kernel_deps(kernels) + if_mkl_ml(
+             [
