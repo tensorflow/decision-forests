@@ -41,8 +41,8 @@ else
   ${PYTHON} -m pip install tensorflow==${TF_VERSION} --force-reinstall
 fi
 # Patch Tensorflow dependency if necessary
-# TODO Remove as soon as Tensorflow has fixed its dependencies.
-if [ "${TF_VERSION}" != "2.9.1" ]; then 
+# TODO Remove as soon as Tensorflow 2.10.0rc3 has landed
+if [ "${TF_VERSION}" == "2.10.0rc2" ]; then 
   sed -i "s/# patch_args/patch_args/" WORKSPACE
   sed -i "s/# patches/patches/" WORKSPACE
 fi
