@@ -220,7 +220,17 @@ function e2e_pyenv() {
 }
 
 ARG="$1"
+INSTALL_PYENV="$2"
 shift | true
+
+if [ ${INSTALL_PYENV} == "INSTALL_PYENV" ]; then 
+  if ! [ -x "$(command -v pyenv)" ]; then
+    echo 'Pyenv is not installed. Installing Pyenv'
+    git clone --branch v1.2.23 https://github.com/pyenv/pyenv.git
+    PYENV_ROOT="$(pwd)/pyenv"
+    export PATH="$PYENV_ROOT/bin:$PATH"
+  fi
+fi
 
 if [ -z "${ARG}" ]; then
   echo "The first argument should be one of:"
@@ -232,16 +242,16 @@ elif [ ${ARG} == "ALL_VERSIONS" ]; then
   # Compile with all the version of python using pyenv.
   assemble_files
   eval "$(pyenv init -)"
-  e2e_pyenv 3.9.2
-  e2e_pyenv 3.8.7
-  e2e_pyenv 3.7.7
-  e2e_pyenv 3.10-dev
+  e2e_pyenv 3.9.13
+  e2e_pyenv 3.8.13
+  e2e_pyenv 3.7.13
+  e2e_pyenv 3.10.6
 elif [ ${ARG} == "ALL_VERSIONS_ALREADY_ASSEMBLED" ]; then
   eval "$(pyenv init -)"
-  e2e_pyenv 3.9.2
-  e2e_pyenv 3.8.7
-  e2e_pyenv 3.7.7
-  e2e_pyenv 3.10-dev
+  e2e_pyenv 3.9.13
+  e2e_pyenv 3.8.13
+  e2e_pyenv 3.7.13
+  e2e_pyenv 3.10.6
 else
   # Compile with a specific version of python provided in the call arguments.
   assemble_files
