@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.0rc0 - 2022-08-25
+
+### Fix
+
+- Improved documentation
+
 ## 0.2.7 - 2022-06-15
 
 ### Features

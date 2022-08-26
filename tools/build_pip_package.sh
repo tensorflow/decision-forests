@@ -35,7 +35,7 @@
 #     Note: "libtensorflow_framework.so.2" need to be added to the allowlisted
 #     files (for example, in "policy.json" in "/home/${USER}/.local/lib/
 #     python3.9/site-packages/auditwheel/policy/policy.json").
-#     This change is done automatically (see "patch_auditwell" function). If
+#     This change is done automatically (see "patch_auditwheel" function). If
 #     the automatic patch does not work, it has to be done manually by adding
 #     "libtensorflow_framework.so.2" next to each "libresolv.so.2" entries
 #     See https://github.com/tensorflow/tensorflow/issues/31807
@@ -58,17 +58,17 @@ fi
 # Temporary directory used to assemble the package.
 SRCPK="$(pwd)/tmp_package"
 
-function patch_auditwell() {
+function patch_auditwheel() {
   PYTHON="$1"
   shift
   # Patch auditwheel for TensorFlow
-  AUDITWHELL_DIR="$(${PYTHON} -m pip show auditwheel | grep "Location:")"
-  AUDITWHELL_DIR="${AUDITWHELL_DIR:10}/auditwheel"
-  echo "Auditwell location: ${AUDITWHELL_DIR}"
-  POLICY_PATH="${AUDITWHELL_DIR}/policy/manylinux-policy.json"
+  AUDITWHEEL_DIR="$(${PYTHON} -m pip show auditwheel | grep "Location:")"
+  AUDITWHEEL_DIR="${AUDITWHEEL_DIR:10}/auditwheel"
+  echo "Auditweel location: ${AUDITWHEEL_DIR}"
+  POLICY_PATH="${AUDITWHEEL_DIR}/policy/manylinux-policy.json"
   TF_DYNAMIC_FILENAME="libtensorflow_framework.so.2"
   if ! grep -q "${TF_DYNAMIC_FILENAME}" "${POLICY_PATH}"; then
-    echo "Patching Auditwhell"
+    echo "Patching Auditwheel"
     cp "${POLICY_PATH}" "${POLICY_PATH}.orig"
     if is_macos; then
       sed -i '' "s/\"libresolv.so.2\"/\"libresolv.so.2\",\"${TF_DYNAMIC_FILENAME}\"/g" "${POLICY_PATH}"
@@ -76,7 +76,7 @@ function patch_auditwell() {
       sed -i "s/\"libresolv.so.2\"/\"libresolv.so.2\",\"${TF_DYNAMIC_FILENAME}\"/g" "${POLICY_PATH}"
     fi
   else
-    echo "Auditwhell already patched"
+    echo "Auditwheel already patched"
   fi
 }
 
@@ -186,7 +186,7 @@ function e2e_native() {
   PACKAGE=$(python_to_package_version ${PYTHON})
 
   install_dependencies ${PYTHON}
-  patch_auditwell ${PYTHON}
+  patch_auditwheel ${PYTHON}
   build_package ${PYTHON}
   test_package ${PYTHON} ${PACKAGE}
 
@@ -196,6 +196,11 @@ function e2e_native() {
   else
     PACKAGEPATH="dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-linux_x86_64.whl"
   fi
+  TF_LFLAGS="$(${PYTHON} -c 'import tensorflow as tf; print(tf.sysconfig.get_link_flags()[0])')"
+  SHARED_LIBRARY_DIR=${TF_LFLAGS:2}
+  echo "Old LD_LIBRARY_PATH was ${LD_LIBRARY_PATH}"
+  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SHARED_LIBRARY_DIR
+  echo "New LD_LIBRARY_PATH is ${LD_LIBRARY_PATH}"
   auditwheel repair --plat manylinux2014_x86_64 -w dist ${PACKAGEPATH}
 }
 
@@ -225,10 +230,20 @@ shift | true
 
 if [ ${INSTALL_PYENV} == "INSTALL_PYENV" ]; then 
   if ! [ -x "$(command -v pyenv)" ]; then
-    echo 'Pyenv is not installed. Installing Pyenv'
-    git clone --branch v1.2.23 https://github.com/pyenv/pyenv.git
+    echo "Pyenv not found."
+    echo "Installing build deps, pyenv 2.3.0 and pyenv virtualenv 1.1.5"
+    apt-get update
+    apt-get install -qq make build-essential libssl-dev zlib1g-dev \
+              libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
+              libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev \
+              libffi-dev liblzma-dev
+    git clone --branch v2.3.0 https://github.com/pyenv/pyenv.git
     PYENV_ROOT="$(pwd)/pyenv"
     export PATH="$PYENV_ROOT/bin:$PATH"
+    eval "$(pyenv init -)"
+    git clone --branch v1.1.5 https://github.com/pyenv/pyenv-virtualenv.git $(pyenv root)/plugins/pyenv-virtualenv
+    eval "$(pyenv virtualenv-init -)"
+    source ~/.profile
   fi
 fi
 
@@ -242,16 +257,16 @@ elif [ ${ARG} == "ALL_VERSIONS" ]; then
   # Compile with all the version of python using pyenv.
   assemble_files
   eval "$(pyenv init -)"
-  e2e_pyenv 3.9.13
+  e2e_pyenv 3.9.12
   e2e_pyenv 3.8.13
   e2e_pyenv 3.7.13
-  e2e_pyenv 3.10.6
+  e2e_pyenv 3.10.4
 elif [ ${ARG} == "ALL_VERSIONS_ALREADY_ASSEMBLED" ]; then
   eval "$(pyenv init -)"
-  e2e_pyenv 3.9.13
+  e2e_pyenv 3.9.12
   e2e_pyenv 3.8.13
   e2e_pyenv 3.7.13
-  e2e_pyenv 3.10.6
+  e2e_pyenv 3.10.4
 else
   # Compile with a specific version of python provided in the call arguments.
   assemble_files
