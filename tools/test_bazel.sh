@@ -40,6 +40,10 @@ if [ ${TF_VERSION} == "nightly" ]; then
 else
   ${PYTHON} -m pip install tensorflow==${TF_VERSION} --force-reinstall
 fi
+
+echo -e "pip installed packages: \n"
+pip list
+
 # Patch Tensorflow dependency if necessary
 # TODO Remove as soon as Tensorflow 2.10.0rc3 has landed
 if [ "${TF_VERSION}" == "2.10.0rc2" ]; then 
@@ -120,9 +124,6 @@ STARTUP_FLAGS="${STARTUP_FLAGS} --bazelrc=${TENSORFLOW_BAZELRC}"
 
 # Distributed compilation using Remote Build Execution (RBE)
 #
-# copybara:strip_begin
-# First follow the instruction: go/tf-rbe-guide
-# copybara:strip_end
 # FLAGS="$FLAGS --config=rbe_cpu_linux --config=tensorflow_testing_rbe_linux --config=rbe_linux_py3"
 
 # Minimal rules to create and test the Pip Package.

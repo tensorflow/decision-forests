@@ -30,6 +30,7 @@
 #
 #   pyenv (if using ALL_VERSIONS_ALREADY_ASSEMBLED or ALL_VERSIONS)
 #     See https://github.com/pyenv/pyenv-installer
+#     Will be installed by this script if INSTALL_PYENV is set to INSTALL_PYENV.
 #
 #   Auditwheel
 #     Note: "libtensorflow_framework.so.2" need to be added to the allowlisted
@@ -232,6 +233,7 @@ if [ ${INSTALL_PYENV} == "INSTALL_PYENV" ]; then
   if ! [ -x "$(command -v pyenv)" ]; then
     echo "Pyenv not found."
     echo "Installing build deps, pyenv 2.3.0 and pyenv virtualenv 1.1.5"
+    # Install python dependencies.
     apt-get update
     apt-get install -qq make build-essential libssl-dev zlib1g-dev \
               libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
