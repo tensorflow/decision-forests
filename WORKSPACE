@@ -14,8 +14,6 @@ http_archive(
     strip_prefix = "tensorflow-2.10.0-rc2",
     sha256 = "65b9fccf9ee88f18b70594754a0710340af1b3ddec8aedb67453f3f24bea3cb1",
     urls = ["https://github.com/tensorflow/tensorflow/archive/v2.10.0-rc2.zip"],
-    # patch_args = ["-p1"],
-    # patches = [ "//third_party/tensorflow:tf_dependencies.patch" ],
 )
 
 # Inject tensorflow dependencies.
