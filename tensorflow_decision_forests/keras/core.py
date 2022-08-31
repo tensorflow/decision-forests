@@ -849,7 +849,7 @@ class CoreModel(InferenceCoreModel):
 
     Input features do not need to be normalized (e.g. dividing numerical values
     by the variance) or indexed (e.g. replacing categorical string values by
-    an integer). Additionnaly, missing values can be consumed natigely.
+    an integer). Additionnaly, missing values can be consumed natively.
 
     Distributed training
     ====================
