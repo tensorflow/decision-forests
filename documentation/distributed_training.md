@@ -10,7 +10,12 @@
 
 <!-- docs_infra:strip_end -->
 
-**Warning:** Distributed training is experimental in TF-DF.
+**Warning:** (Currently) Distributed training with TensorFlow Parameter Server
+is not available with Pip package version of TensorFlow Decision Forests.
+Instead of the *TensorFlow Parameter Server*, use the
+[Yggdrasil Decision Forest worker](https://www.tensorflow.org/decision_forests/distributed_training#using_yggdrasil_decision_forest_for_both_dataset_reading_and_model_training)
+option. All versions of distributed training are available with monolithic
+TensorFlow build (e.g., internal build).
 
 ## Introduction
 
