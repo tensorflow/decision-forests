@@ -69,7 +69,7 @@ function patch_auditwheel() {
   POLICY_PATH="${AUDITWHEEL_DIR}/policy/manylinux-policy.json"
   TF_DYNAMIC_FILENAME="libtensorflow_framework.so.2"
   if ! grep -q "${TF_DYNAMIC_FILENAME}" "${POLICY_PATH}"; then
-    echo "Patching Auditwheel"
+    echo "Patching Auditwheel located at ${POLICY_PATH}"
     cp "${POLICY_PATH}" "${POLICY_PATH}.orig"
     if is_macos; then
       sed -i '' "s/\"libresolv.so.2\"/\"libresolv.so.2\",\"${TF_DYNAMIC_FILENAME}\"/g" "${POLICY_PATH}"
@@ -209,6 +209,8 @@ function e2e_native() {
 function e2e_pyenv() {
   VERSION="$1"
   shift
+
+  pyenv update
 
   ENVNAME=env_${VERSION}
   pyenv install ${VERSION} -s

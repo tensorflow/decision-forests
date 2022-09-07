@@ -22,6 +22,9 @@
 #  STARTUP_FLAGS: Any flags given to bazel on startup
 #  TF_VERSION: Tensorflow version to use or "nightly"
 #
+# Usage example
+#
+#   RUN_TESTS=1 PY_VERSION=3.8 TF_VERSION=2.10.0 ./tools/test_bazel.sh
 
 set -vex
 

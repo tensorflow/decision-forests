@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1 - 2022-09-07
+
+### Fix
+
+-   Issue in the application of auditwheel in TF 1.0.0.
+
 ## 1.0.0 - 2022-09-07
 
 ### Features
