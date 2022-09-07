@@ -20,7 +20,7 @@ TensorFlow Decision Forests is not yet available as a Windows Pip package.
     [Windows Subsystem for Linux (WSL)](https://en.wikipedia.org/wiki/Windows_Subsystem_for_Linux)
     on your Windows machine and follow the Linux instructions.
 
-## Incompatibility with old or nightly version of TensorFlow
+## Incompatibility with old or nightly versions of TensorFlow
 
 TensorFlow [ABI](https://en.wikipedia.org/wiki/Application_binary_interface) is
 not compatible in between releases. Because TF-DF relies on custom TensorFlow
@@ -47,6 +47,7 @@ The following table shows the compatibility between
 
 tensorflow_decision_forests | tensorflow
 --------------------------- | ----------
+1.0.0                       | 2.10.0
 0.2.6 - 0.2.7               | 2.9.1
 0.2.5                       | 2.9
 0.2.4                       | 2.8

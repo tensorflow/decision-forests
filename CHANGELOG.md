@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0rc0 - 2022-08-25
+## 1.0.0 - 2022-09-07
 
 ### Features
 
@@ -10,6 +10,7 @@
 ### Fix
 
 -   Improved documentation
+-   Improved testing and stability
 
 ## 0.2.7 - 2022-06-15
 

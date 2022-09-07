@@ -51,10 +51,10 @@ loaded_model = tf.keras.models.load_model("/tmp/my_saved_model")
 
 """
 
-__version__ = "1.0.0rc0"
+__version__ = "1.0.0"
 __author__ = "Mathieu Guillame-Bert"
 
-compatible_tf_versions = ["2.10.0rc2"]
+compatible_tf_versions = ["2.10.0"]
 
 from tensorflow_decision_forests.tensorflow import check_version
 

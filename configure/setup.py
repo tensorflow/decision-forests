@@ -20,7 +20,7 @@ import setuptools
 from setuptools.command.install import install
 from setuptools.dist import Distribution
 
-_VERSION = "1.0.0rc0"
+_VERSION = "1.0.0"
 
 with open("README.md", "r", encoding="utf-8") as fh:
   long_description = fh.read()
@@ -28,7 +28,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 REQUIRED_PACKAGES = [
     "numpy",
     "pandas",
-    "tensorflow~=2.10.0rc2",
+    "tensorflow~=2.10.0",
     "six",
     "absl_py",
     "wheel",
