@@ -299,7 +299,8 @@ class CoreModel(InferenceCoreModel):
     learner: The learning algorithm used to train the model. Possible values
       include (but at not limited to) "LEARNER_*".
     learner_params: Hyper-parameters for the learner. The list of available
-      hyper-parameters is available at https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/learners.md.
+      hyper-parameters is available at
+      https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/learners.md.
     features: Specify the list and semantic of the input features of the model.
       If not specified, all the available features will be used. If specified
       and if "exclude_non_specified_features=True", only the features in
@@ -1401,7 +1402,8 @@ class CoreModel(InferenceCoreModel):
       max_num_scanned_rows_to_accumulate_statistics: Optional[int] = 100_000,
       try_resume_training: Optional[bool] = True,
       input_model_signature_fn: Optional[tf_core.InputModelSignatureFn] = (
-          tf_core.build_default_input_model_signature)):
+          tf_core.build_default_input_model_signature),
+      num_io_threads: int = 10):
     """Trains the model on a dataset stored on disk.
 
     This solution is generally more efficient and easier that loading the
@@ -1466,6 +1468,9 @@ class CoreModel(InferenceCoreModel):
         "input_model_signature_fn" if an numerical input feature (which is
         consumed as DenseTensorSpec(float32) by default) will be feed
         differently (e.g. RaggedTensor(int64)).
+      num_io_threads: Number of threads to use for IO operations e.g. reading a
+        dataset from disk. Increasing this value can speed-up IO operations when
+        IO operations are either latency or cpu bounded.
 
     Returns:
       A `History` object. Its `History.history` attribute is not yet
@@ -1536,6 +1541,8 @@ class CoreModel(InferenceCoreModel):
         self._advanced_arguments.yggdrasil_deployment_config)
     if not deployment_config.HasField("num_threads"):
       deployment_config.num_threads = self._num_threads
+    if not deployment_config.HasField("num_io_threads"):
+      deployment_config.num_io_threads = num_io_threads
 
     distribution_config = tf_core.get_distribution_configuration(
         self.distribute_strategy)
@@ -1939,7 +1946,7 @@ def _check_feature_names(feature_names: List[str], raise_error: bool):
     if raise_error:
       raise ValueError(full_reason)
     else:
-      tf_logging.warning("%s",full_reason)
+      tf_logging.warning("%s", full_reason)
 
   # List of character forbidden in a serving signature name.
   for feature_name in feature_names:

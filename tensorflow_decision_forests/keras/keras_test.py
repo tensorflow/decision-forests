@@ -1368,6 +1368,49 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         "capital_gain", "capital_loss", "hours_per_week", "native_country"
     ])
 
+  def _shard_dataset(self, path, num_shards=20) -> List[str]:
+    """Splits a csv dataset into multiple csv files."""
+
+    dataset = pd.read_csv(path)
+    split_datasets = np.array_split(dataset, num_shards)
+    output_dir = self.get_temp_dir()
+    output_paths = []
+    for i, d in enumerate(split_datasets):
+      output_path = os.path.join(output_dir, f"dataset-{i}-of-{num_shards}.csv")
+      output_paths.append(output_path)
+      d.to_csv(output_path, index=False)
+    return output_paths
+
+  def test_training_adult_from_file_custom_num_io_threads(self):
+    # Path to dataset.
+    dataset_directory = os.path.join(ydf_test_data_path(), "dataset")
+    train_path = os.path.join(dataset_directory, "adult_train.csv")
+    test_path = os.path.join(dataset_directory, "adult_test.csv")
+
+    sharded_train_paths = self._shard_dataset(train_path)
+
+    label = "income"
+
+    model = keras.GradientBoostedTreesModel()
+    model.compile(metrics=["accuracy"])
+
+    training_history = model.fit_on_dataset_path(
+        train_path=",".join(sharded_train_paths),
+        label_key=label,
+        dataset_format="csv",
+        valid_path=test_path,
+        num_io_threads=15)
+    logging.info("Training history: %s", training_history.history)
+
+    logging.info("Trained model:")
+    model.summary()
+    _ = model.make_inspector()
+
+    _, tf_test = dataset_to_tf_dataset(adult_dataset())
+    evaluation = model.evaluate(tf_test, return_dict=True)
+    logging.info("Evaluation: %s", evaluation)
+    self.assertAlmostEqual(evaluation["accuracy"], 0.8703476, delta=0.01)
+
   def test_training_adult_from_file_with_features(self):
     # Path to dataset.
     dataset_directory = os.path.join(ydf_test_data_path(), "dataset")

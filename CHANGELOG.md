@@ -2,9 +2,14 @@
 
 ## 1.0.0rc0 - 2022-08-25
 
+### Features
+
+-   Add customization of the number of IO threads when using
+    `fit_on_dataset_path`.
+
 ### Fix
 
-- Improved documentation
+-   Improved documentation
 
 ## 0.2.7 - 2022-06-15
 
