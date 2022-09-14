@@ -2139,6 +2139,22 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     _ = model_1.make_inspector()
     _ = model_2.make_inspector()
 
+  def test_loaded_dataset(self):
+    dataset = adult_dataset()
+    tf_train, _ = dataset_to_tf_dataset(dataset)
+    saved_dataset_path = os.path.join(tmp_path(), "saved_model")
+    tf_train.save(saved_dataset_path)
+    tf_train_loaded = tf.data.Dataset.load(saved_dataset_path)
+
+    model = keras.RandomForestModel()
+    model.fit(tf_train_loaded)
+
+    self._check_adult_model(
+        model=model,
+        dataset=dataset,
+        minimum_accuracy=0.864,
+        check_serialization=True)
+
 
 if __name__ == "__main__":
   tf.test.main()

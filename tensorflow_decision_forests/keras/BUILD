@@ -87,6 +87,7 @@ py_library(
         ":core_inference",
         # TensorFlow Python,
         # TensorFlow /data/ops:dataset_ops,
+        # TensorFlow /data/ops:load_ops,
         "//tensorflow_decision_forests/component/inspector",
         "//tensorflow_decision_forests/component/tuner",
         "//tensorflow_decision_forests/tensorflow:core",

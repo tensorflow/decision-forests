@@ -1,5 +1,11 @@
 # Changelog
 
+## HEAD
+
+### Fix
+
+-   Using loaded datasets with TF-DF no longer fail (Github #131).
+
 ## 1.0.1 - 2022-09-07
 
 ### Fix

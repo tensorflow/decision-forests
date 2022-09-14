@@ -54,6 +54,7 @@ from typing import Optional, List, Dict, Any, Text, Tuple, NamedTuple, Set
 import tensorflow as tf
 
 from tensorflow.python.data.ops import dataset_ops
+from tensorflow.python.data.ops import load_op
 from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
 from tensorflow_decision_forests.component.tuner import tuner as tuner_lib
 from tensorflow_decision_forests.keras import core_inference
@@ -1959,13 +1960,13 @@ def _check_feature_names(feature_names: List[str], raise_error: bool):
                 f"character ({_FORBIDDEN_FEATURE_CHARACTERS!r}).")
 
 
-def _check_dataset(x: tf.data.Dataset):
+def _check_dataset(ds: tf.data.Dataset):
   """Checks that the dataset is well configured for TF-DF.
 
   Raise an exception otherwise.
 
   Args:
-    x: A tf.data.Dataset.
+    ds: A tf.data.Dataset.
   """
 
   def error(message):
@@ -1981,30 +1982,30 @@ def _check_dataset(x: tf.data.Dataset):
     else:
       raise ValueError(message)
 
-  if _contains_repeat(x):
+  if _contains_repeat(ds):
     error(
-        "The dataset contain a 'repeat' operation. For maximum quality, TF-DF "
+        "The dataset contains a 'repeat' operation. For maximum quality, TF-DF "
         "models should be trained without repeat operations as the dataset "
         "should only be read once. Remove the repeat operations to solve this "
         "issue.")
 
-  if _contains_shuffle(x):
+  if _contains_shuffle(ds):
     error(
-        "The dataset contain a 'shuffle' operation. For maximum quality, TF-DF "
-        "models should be trained without shuffle operations to make the "
+        "The dataset contains a 'shuffle' operation. For maximum quality, "
+        "TF-DF models should be trained without shuffle operations to make the "
         "algorithm deterministic. To make the the algorithm non deterministic, "
         "change the `random_seed` constructor argument instead. Remove the "
         "shuffle operations to solve this issue.")
 
-  batch_size = _get_batch_size(x)
-  if batch_size is None:
+  batch_size = _get_batch_size(ds)
+  if not isinstance(ds, load_op._LoadDataset) and batch_size is None:  # pylint: disable=protected-access
     error("The dataset does not contain a 'batch' operation. TF-DF models "
           "should be trained with batch operations. Add a batch operations "
           "to solve this issue.")
 
   num_examples = None
   try:
-    num_examples = x.cardinality().numpy() * batch_size
+    num_examples = ds.cardinality().numpy() * batch_size
   except:  # pylint: disable=bare-except
     pass
 
