@@ -10,6 +10,8 @@
 ### Fix
 
 -   Using loaded datasets with TF-DF no longer fail (Github #131).
+-   Automatically infer the semantic of int8 values as numerical (was
+    categorical before).
 
 ## 1.0.1 - 2022-09-07
 

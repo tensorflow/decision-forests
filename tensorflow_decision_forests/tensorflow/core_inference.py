@@ -462,7 +462,7 @@ def infer_one_semantic(value: AnyTensor) -> Semantic:
 
   dtype = value.dtype
   numerical_types = [
-      float, np.int16, np.int32, np.int64, int, np.float32, np.float64
+      float, np.int8, np.int16, np.int32, np.int64, int, np.float32, np.float64
   ]
 
   if isinstance(value, tf.Tensor):
