@@ -58,7 +58,7 @@ Instead of installing the dependencies by hands, you can use the
 [TensorFlow Build docker](https://github.com/tensorflow/build). If you choose
 this options, install Docker:
 
-- [Docker](https://docs.docker.com/get-docker/).
+-   [Docker](https://docs.docker.com/get-docker/).
 
 #### Compilation
 
@@ -85,9 +85,9 @@ want to use the docker option, continue to the next step directly.
 ./tools/start_compile_docker.sh
 ```
 
-Compile and run the unit tests of TF-DF with the following command. Note
-that `test_bazel.sh` is configured for `python3.8` and the default compiler on
-your machine. Edit the file directly to change this configuration.
+Compile and run the unit tests of TF-DF with the following command. Note that
+`test_bazel.sh` is configured for `python3.8` and the default compiler on your
+machine. Edit the file directly to change this configuration.
 
 ```shell
 # Build and test TF-DF.
