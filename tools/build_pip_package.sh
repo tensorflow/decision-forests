@@ -49,13 +49,6 @@ function is_macos() {
   [[ "${PLATFORM}" == "darwin" ]]
 }
 
-# Make sure to use Gnu CP where needed.
-if is_macos; then
-  GCP="gcp"
-else
-  GCP="cp"
-fi
-
 # Temporary directory used to assemble the package.
 SRCPK="$(pwd)/tmp_package"
 
@@ -137,7 +130,7 @@ function assemble_files() {
   YDFSRCBIN="bazel-bin/external/ydf/yggdrasil_decision_forests"
   mkdir -p ${SRCPK}/yggdrasil_decision_forests
   pushd ${YDFSRCBIN}
-  find . -name \*.py -exec ${GCP} --parents -prv {} ${SRCPK}/yggdrasil_decision_forests \;
+  find . -name \*.py -exec rsync -R -arv {} ${SRCPK}/yggdrasil_decision_forests \;
   popd
 
   # Add __init__.py to all exported Yggdrasil sub-directories.
