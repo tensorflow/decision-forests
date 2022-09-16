@@ -108,6 +108,7 @@ pd_dataframe_to_tf_dataset = core_inference.pd_dataframe_to_tf_dataset
 yggdrasil_model_to_keras_model = core_inference.yggdrasil_model_to_keras_model
 YggdrasilTrainingConfig = core_inference.YggdrasilTrainingConfig
 YggdrasilDeploymentConfig = core_inference.YggdrasilDeploymentConfig
+yggdrasil_model_to_keras_model = core_inference.yggdrasil_model_to_keras_model
 _LABEL = core_inference._LABEL
 _RANK_GROUP = core_inference._RANK_GROUP
 _UPLIFT_TREATMENT = core_inference._UPLIFT_TREATMENT

@@ -20,8 +20,11 @@ from __future__ import print_function
 
 import copy
 from functools import partial  # pylint: disable=g-importing-member
-from typing import Optional, List, Dict, Any, Union, Text
+import os
+import tempfile
+from typing import Optional, List, Dict, Any, Union, Text, Literal
 import uuid
+import zipfile
 
 import tensorflow as tf
 
@@ -905,11 +908,12 @@ def yggdrasil_model_to_keras_model(
     .build_default_input_model_signature,
     file_prefix: Optional[str] = None,
     verbose: int = 1,
-    disable_categorical_integer_offset_correction: bool = False):
-  """Converts an Yggdrasil model into a Keras model.
+    disable_categorical_integer_offset_correction: bool = False) -> None:
+  """Converts an Yggdrasil model into a TensorFlow SavedModel / Keras model.
 
   Args:
-    src_path: Path to input Yggdrasil Decision Forests model.
+    src_path: Path to input Yggdrasil Decision Forests model. The model can be a
+      directory or a zipped file.
     dst_path: Path to output TensorFlow Decision Forests SavedModel model.
     input_model_signature_fn: A lambda that returns the
       (Dense,Sparse,Ragged)TensorSpec (or structure of TensorSpec e.g.
@@ -926,6 +930,25 @@ def yggdrasil_model_to_keras_model(
       disable_categorical_integer_offset_correction in AdvancedArguments for
       more details.
   """
+
+  # Detect the container of the model.
+  if os.path.isdir(src_path):
+    src_container = "directory"
+  elif zipfile.is_zipfile(src_path):
+    src_container = "zip"
+  else:
+    raise ValueError(
+        f"The path {src_path} does not look like a yggdrasil-decision-forests "
+        "model. An yggdrasil-decision-forests is either a directory or a zip "
+        "file containing among other things, a data_spec.pb file.")
+
+  temp_directory = None
+  if src_container == "zip":
+    # Unzip the model in a temporary directory
+    temp_directory = tempfile.TemporaryDirectory()
+    with zipfile.ZipFile(src_path, "r") as zip_handle:
+      zip_handle.extractall(temp_directory.name)
+    src_path = temp_directory.name
 
   inspector = inspector_lib.make_inspector(src_path, file_prefix=file_prefix)
   objective = inspector.objective()
@@ -946,6 +969,7 @@ def yggdrasil_model_to_keras_model(
       input_model_signature_fn=input_model_signature_fn)
 
   model.save(dst_path)
+  return
 
 
 # The following section is a copy of internal Keras functions that are not

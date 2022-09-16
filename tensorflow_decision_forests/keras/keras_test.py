@@ -2003,6 +2003,37 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         keras.pd_dataframe_to_tf_dataset(dataset.test, label="income"))
     self.assertNear(prediction[0, 0], expected_prediction, 0.00001)
 
+  @parameterized.parameters(
+      ("directory"),
+      ("zip"),
+  )
+  def test_ydf_to_keras_model_with_source_container(self,
+                                                    effective_src_container):
+    # The effective input and output models.
+    raw_src_model_path = os.path.join(ydf_test_data_path(), "model",
+                                      "adult_binary_class_rf")
+    dst_model_path = os.path.join(tmp_path(), "adult_binary_class_rf")
+
+    # Prepare the input model as expected by yggdrasil_model_to_keras_model.
+    if effective_src_container == "directory":
+      src_model_path = raw_src_model_path
+    elif effective_src_container == "zip":
+      # Compress the model into a zip file
+      src_model_path_without_extension = os.path.join(tmp_path(),
+                                                      "zipped_model")
+      src_model_path = src_model_path_without_extension + ".zip"
+
+      shutil.make_archive(src_model_path_without_extension, "zip",
+                          raw_src_model_path)
+    else:
+      raise ValueError(f"Non supported value: {effective_src_container}")
+
+    # Convert the model
+    core.yggdrasil_model_to_keras_model(src_model_path, dst_model_path)
+
+    # Load/Check the model
+    _ = models.load_model(dst_model_path)
+
   def test_load_combined_model(self):
     target = tf.random.uniform(shape=[100, 1], minval=25, maxval=50)
     features = {

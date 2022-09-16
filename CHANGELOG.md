@@ -2,6 +2,11 @@
 
 ## HEAD
 
+### Features
+
+-   Add support for zipped Yggdrasil Decision Forests model for
+    `yggdrasil_model_to_keras_model`.
+
 ### Fix
 
 -   Using loaded datasets with TF-DF no longer fail (Github #131).
