@@ -54,7 +54,7 @@ path: Path to the Yggdrasil model. Note: a Yggdrasil model directory should
 Returns a type-less OP that loads the model when called.
 )")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-      return Status::OK();
+      return OkStatus();
     });
 
 REGISTER_OP("SimpleMLLoadModelFromPathWithHandle")
@@ -78,7 +78,7 @@ output_types: A list of keywords describing what the model can do. The possible
 file_prefix: The prefix of the model files.
 )")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-      return Status::OK();
+      return OkStatus();
     });
 
 Status SimpleMLInferenceOpSetShapeGeneric(shape_inference::InferenceContext* c,
@@ -140,7 +140,7 @@ Status SimpleMLInferenceOpSetShapeGeneric(shape_inference::InferenceContext* c,
     TF_RETURN_IF_ERROR(c->set_output("dense_col_representation",
                                      {c->Vector(dense_output_dim)}));
   }
-  return Status::OK();
+  return OkStatus();
 }
 
 Status SimpleMLInferenceOpSetShape(shape_inference::InferenceContext* c) {
@@ -235,7 +235,7 @@ REGISTER_OP("SimpleMLInferenceLeafIndexOpWithHandle")
 
 Status ScalarOutput(shape_inference::InferenceContext* c) {
   c->set_output(0, c->Scalar());
-  return Status::OK();
+  return OkStatus();
 }
 
 REGISTER_OP("SimpleMLCreateModelResource")

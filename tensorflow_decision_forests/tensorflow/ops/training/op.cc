@@ -47,7 +47,7 @@ REGISTER_OP("SimpleMLFileModelLoader")
     .Input("model_path: string")
     .Attr("model_identifier: string")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-      return Status::OK();
+      return OkStatus();
     });
 
 // Feature value collector.
@@ -62,7 +62,7 @@ REGISTER_OP("SimpleMLNumericalFeature")
     .Attr("id: string")
     .Attr("feature_name : string")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-      return Status::OK();
+      return OkStatus();
     });
 
 // Categorical value stored as a string.
@@ -72,7 +72,7 @@ REGISTER_OP("SimpleMLCategoricalStringFeature")
     .Attr("id: string")
     .Attr("feature_name : string")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-      return Status::OK();
+      return OkStatus();
     });
 
 // Categorical value stored as a positive integer.
@@ -82,7 +82,7 @@ REGISTER_OP("SimpleMLCategoricalIntFeature")
     .Attr("id: string")
     .Attr("feature_name : string")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-      return Status::OK();
+      return OkStatus();
     });
 
 // Categorical-set value stored as a string.
@@ -93,7 +93,7 @@ REGISTER_OP("SimpleMLCategoricalSetStringFeature")
     .Attr("id: string")
     .Attr("feature_name : string")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-      return Status::OK();
+      return OkStatus();
     });
 
 // Categorical-set value stored as a positive integer.
@@ -104,7 +104,7 @@ REGISTER_OP("SimpleMLCategoricalSetIntFeature")
     .Attr("id: string")
     .Attr("feature_name : string")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-      return Status::OK();
+      return OkStatus();
     });
 
 // Hash value.
@@ -115,7 +115,7 @@ REGISTER_OP("SimpleMLHashFeature")
     .Attr("id: string")
     .Attr("feature_name : string")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-      return Status::OK();
+      return OkStatus();
     });
 
 // Feature value collector on file.
@@ -133,7 +133,7 @@ REGISTER_OP("SimpleMLNumericalFeatureOnFile")
     .Attr("feature_name : string")
     .Attr("dataset_path : string")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-      return Status::OK();
+      return OkStatus();
     });
 
 // Categorical int value.
@@ -145,7 +145,7 @@ REGISTER_OP("SimpleMLCategoricalIntFeatureOnFile")
     .Attr("feature_name : string")
     .Attr("dataset_path : string")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-      return Status::OK();
+      return OkStatus();
     });
 
 // Categorical string value.
@@ -157,7 +157,7 @@ REGISTER_OP("SimpleMLCategoricalStringFeatureOnFile")
     .Attr("feature_name : string")
     .Attr("dataset_path : string")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-      return Status::OK();
+      return OkStatus();
     });
 
 // Finalizes the reading of values and storage on the file-system on a worker.
@@ -168,7 +168,7 @@ REGISTER_OP("SimpleMLWorkerFinalizeFeatureOnFile")
     .Attr("dataset_path: string")
     .SetIsStateful()
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-      return Status::OK();
+      return OkStatus();
     });
 
 // Finalizes the acquisition of values from the disk features. Should be called
@@ -179,7 +179,7 @@ REGISTER_OP("SimpleMLChiefFinalizeFeatureOnFile")
     .Attr("num_shards : int")
     .SetIsStateful()
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-      return Status::OK();
+      return OkStatus();
     });
 
 // Trains a model a dataset stored in RAM i.e. feature values collected by
@@ -241,7 +241,7 @@ REGISTER_OP("SimpleMLModelTrainer")
     .Output("success: bool")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
       c->set_output(0, c->Scalar());
-      return Status::OK();
+      return OkStatus();
     });
 
 // Trains a model on a dataset stored on file.
@@ -267,7 +267,7 @@ REGISTER_OP("SimpleMLModelTrainerOnFile")
     .Output("success: bool")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
       c->set_output(0, c->Scalar());
-      return Status::OK();
+      return OkStatus();
     });
 
 // Built a human readable description of the model.
@@ -283,7 +283,7 @@ REGISTER_OP("SimpleMLShowModel")
     .Output("description: string")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
       c->set_output(0, c->Scalar());
-      return Status::OK();
+      return OkStatus();
     });
 
 // Unload a model from memory.
@@ -297,7 +297,7 @@ REGISTER_OP("SimpleMLUnloadModel")
     .SetIsStateful()
     .Attr("model_identifier: string")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-      return Status::OK();
+      return OkStatus();
     });
 
 // Sets the level of logging in the Yggdrasil decision forest code i.e. calls
@@ -314,7 +314,7 @@ REGISTER_OP("YggdrasilDecisionForestsSetLoggingLevel")
     .SetIsStateful()
     .Attr("level: int")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-      return Status::OK();
+      return OkStatus();
     });
 
 }  // namespace tensorflow

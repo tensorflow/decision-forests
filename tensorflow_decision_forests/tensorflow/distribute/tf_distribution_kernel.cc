@@ -372,14 +372,14 @@ class YggdrasilDistributeRunTask : public OpKernel {
         kResourceContainer, resource_uid_, &worker_resource_,
         [&](WorkerResource** resource) -> tensorflow::Status {
           *resource = new WorkerResource();
-          return tensorflow::Status::OK();
+          return tensorflow::OkStatus();
         }));
 
     TF_RETURN_IF_ERROR(utils::FromUtilStatus(worker_resource_->ReadyWorker(
         welcome_blob_, worker_name_, worker_idx_, worker_addresses_,
         worker_resource_ids_, parallel_execution_per_worker_)));
 
-    return tf::Status::OK();
+    return tf::OkStatus();
   }
 
   int worker_idx_;
@@ -438,7 +438,7 @@ class YggdrasilDistributeRunInterWorkerTask : public OpKernel {
       EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
     TF_RETURN_IF_ERROR(ctx->resource_manager()->Lookup<WorkerResource>(
         kResourceContainer, resource_uid_, &worker_resource_));
-    return tf::Status::OK();
+    return tf::OkStatus();
   }
 
   std::string resource_uid_;

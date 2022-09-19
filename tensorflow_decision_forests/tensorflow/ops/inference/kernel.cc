@@ -189,7 +189,7 @@ tf::Status GetOutputTypesBitmap(const std::vector<std::string>& src_types,
           absl::StrCat("Unknown output types: ", src_type));
     }
   }
-  return tf::Status::OK();
+  return tf::OkStatus();
 }
 
 // Mapping between feature idx (the index used by simpleML to index features),
@@ -233,7 +233,7 @@ class FeatureIndex {
                   feature_spec.name()));
       }
     }
-    return tf::Status::OK();
+    return tf::OkStatus();
   }
 
   const std::vector<int>& numerical_features() const {
@@ -309,7 +309,7 @@ tf::Status ExtractCategoricalSetInt(const InputTensors& inputs,
     }
     (*values)[item_idx] = value;
   }
-  return tf::Status::OK();
+  return tf::OkStatus();
 }
 
 // Wrapping around an inference engine able to run a model.
@@ -462,7 +462,7 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
       }
     }
 
-    return tf::Status::OK();
+    return tf::OkStatus();
   }
 
   tf::Status RunInferenceGetLeaves(
@@ -499,7 +499,7 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
               outputs->num_trees))));
     }
 
-    return tf::Status::OK();
+    return tf::OkStatus();
   }
 
  private:
@@ -633,7 +633,7 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
       }
     }
 
-    return tf::Status::OK();
+    return tf::OkStatus();
   }
 
   std::unique_ptr<model::AbstractModel> model_;
@@ -731,7 +731,7 @@ class SemiFastGenericInferenceEngine : public AbstractInferenceEngine {
         }
       }
     }
-    return tf::Status::OK();
+    return tf::OkStatus();
   }
 
   tf::Status RunInferenceGetLeaves(
@@ -755,7 +755,7 @@ class SemiFastGenericInferenceEngine : public AbstractInferenceEngine {
         *cache->examples_, inputs.batch_size,
         absl::MakeSpan(outputs->leaves.data(), outputs->leaves.size()))));
 
-    return tf::Status::OK();
+    return tf::OkStatus();
   }
 
  private:
@@ -928,7 +928,7 @@ class SemiFastGenericInferenceEngine : public AbstractInferenceEngine {
       }
     }
 
-    return tf::Status::OK();
+    return tf::OkStatus();
   }
 
   // Inference engine. Contains the model data.
@@ -985,7 +985,7 @@ class YggdrasilModelResource : public tf::ResourceBase {
 
     // WARNING: After this function, the "model" might not be available anymore.
     TF_RETURN_IF_ERROR(CreateInferenceEngine(output_types, std::move(model)));
-    return tf::Status::OK();
+    return tf::OkStatus();
   }
 
   const AbstractInferenceEngine* engine() const {
@@ -1020,7 +1020,7 @@ class YggdrasilModelResource : public tf::ResourceBase {
             utils::FromUtilStatus(inference_engine_or_status.status()));
         inference_engine_ = std::move(inference_engine_or_status.value());
         LOG(INFO) << "Use fast generic engine";
-        return tf::Status::OK();
+        return tf::OkStatus();
       }
     }
 
@@ -1028,7 +1028,7 @@ class YggdrasilModelResource : public tf::ResourceBase {
     LOG(INFO) << "Use slow generic engine";
     inference_engine_ =
         absl::make_unique<GenericInferenceEngine>(std::move(model));
-    return tf::Status::OK();
+    return tf::OkStatus();
   }
 
   // Pre-compute the values returned in the "dense_col_representation" output of
@@ -1057,7 +1057,7 @@ class YggdrasilModelResource : public tf::ResourceBase {
     } else {
       dense_col_representation_.resize(1);
     }
-    return tf::Status::OK();
+    return tf::OkStatus();
   }
 
   // The engine responsible to run the model.
@@ -1099,7 +1099,7 @@ tf::Status GetModelPath(OpKernelContext* ctx, std::string* model_path) {
         kInputPath));
   }
   *model_path = model_paths(0);
-  return tf::Status::OK();
+  return tf::OkStatus();
 }
 
 // Load the model from disk into a resource specified as resource name.
@@ -1288,7 +1288,7 @@ class SimpleMLInferenceOp : public OpKernel {
                        "the \"LoadModel*\" not having been run before."));
     }
 
-    return tf::Status::OK();
+    return tf::OkStatus();
   }
 
   // Computes the batch size from the input feature tensors. Returns an error if
@@ -1317,7 +1317,7 @@ class SimpleMLInferenceOp : public OpKernel {
       }
     }
     *batch_size = max_size;
-    return tf::Status::OK();
+    return tf::OkStatus();
   }
 
   // Gets the c++ references on all the input tensor values of the inference op.
@@ -1501,7 +1501,7 @@ class SimpleMLInferenceOpWithHandle : public SimpleMLInferenceOp {
 
   tf::Status LinkModelResource(OpKernelContext* ctx) override {
     TF_RETURN_IF_ERROR(GetModel(ctx, &model_container_));
-    return tf::Status::OK();
+    return tf::OkStatus();
   }
 };
 
@@ -1519,7 +1519,7 @@ class SimpleMLInferenceLeafIndexOpWithHandle : public SimpleMLInferenceOp {
 
   tf::Status LinkModelResource(OpKernelContext* ctx) override {
     TF_RETURN_IF_ERROR(GetModel(ctx, &model_container_));
-    return tf::Status::OK();
+    return tf::OkStatus();
   }
 };
 
@@ -1571,7 +1571,7 @@ class SimpleMLCreateModelResource : public OpKernel {
                     container->MemoryUsed() + model_handle_.AllocatedBytes());
               }
               *ret = container;
-              return tf::Status::OK();
+              return tf::OkStatus();
             };
 
     YggdrasilModelResource* model = nullptr;
