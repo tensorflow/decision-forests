@@ -873,10 +873,10 @@ def pd_dataframe_to_tf_dataset(
       dataframe[col] = dataframe[col].fillna("")
 
   if label is not None:
-    features_dataframe = dataframe.drop(label, 1)
+    features_dataframe = dataframe.drop(label, axis=1)
 
     if weight is not None:
-      features_dataframe = features_dataframe.drop(weight, 1)
+      features_dataframe = features_dataframe.drop(weight, axis=1)
       output = (dict(features_dataframe), dataframe[label].values,
                 dataframe[weight].values)
     else:

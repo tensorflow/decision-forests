@@ -70,7 +70,7 @@ def dataframe_to_tf_dataset(dataframe: pd.DataFrame,
                             label: str) -> tf.data.Dataset:
 
   dataset = tf.data.Dataset.from_tensor_slices(
-      (dict(dataframe.drop(label, 1)), dataframe[label].values))
+      (dict(dataframe.drop(label, axis=1)), dataframe[label].values))
   return dataset.batch(64)
 
 

@@ -279,7 +279,7 @@ def dataset_to_tf_dataset(
 
   def df_to_ds(df):
     return tf.data.Dataset.from_tensor_slices(
-        (dict(df.drop(dataset.label, 1)), df[dataset.label].values))
+        (dict(df.drop(dataset.label, axis=1)), df[dataset.label].values))
 
   train_ds = df_to_ds(dataset.train).batch(1024)
   test_ds = df_to_ds(dataset.test).batch(1024)
