@@ -63,7 +63,7 @@ Two options are available to run TF-DF in TF Serving:
 -   TF-Decision Forests models are backward compatible: For example, a model
     trained with TF-DF v0.3 can be run with TF-DF v0.4.
 
--   In the vast majority of cases, TF-DF models are foward compatible: For
+-   In the vast majority of cases, TF-DF models are forward compatible: For
     example, a model trained with TF-DF v0.4 can be run with the TF-DF v0.1.
 
 ## Compile TF-Sering+TF-Decision Forests from source manually
