@@ -180,7 +180,6 @@ with the following flags:
 
 ```shell
 --define use_tensorflow_io=1 # Use TensorFlow for IO operations.
---define no_absl_statusor=1 # Do not use absl for status (tf uses an old version of absl).
 ```
 
 The full command might look as follows:
@@ -188,8 +187,7 @@ The full command might look as follows:
 ```shell
 tools/run_in_docker.sh -d tensorflow/serving:latest-devel bazel \
     build -c opt tensorflow_serving/... \
-    --define use_tensorflow_io=1 \
-    --define no_absl_statusor=1
+    --define use_tensorflow_io=1
 ```
 
 ### Testing the TF-Serving + TF-DF build

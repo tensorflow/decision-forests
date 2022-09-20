@@ -58,7 +58,6 @@ echo "Compile Servo"
 (cd serving && tools/run_in_docker.sh bazel build -c opt \
   --copt=-mfma \
   --define use_tensorflow_io=1 \
-  --define no_absl_statusor=1 \
   --copt=-mavx2 tensorflow_serving/model_servers:tensorflow_model_server )
 
 # Pack the binary in a zip. This is the zip distributed in github.
