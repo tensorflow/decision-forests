@@ -26,6 +26,9 @@
 #   # Make sure the package are compatible with manylinux2014.
 #   ./tools/build_pip_package.sh ALL_VERSIONS
 #
+#   # Generate the pip package cross-compiled for Apple ARM64 machines
+#   ./tools/build_pip_package.sh MAC_ARM64_CROSS_COMPILED
+#
 # Requirements:
 #
 #   pyenv (if using ALL_VERSIONS_ALREADY_ASSEMBLED or ALL_VERSIONS)
@@ -151,6 +154,10 @@ function build_package() {
 
 # Tests a pip package.
 function test_package() {
+  if [ ${ARG} == "MAC_ARM64_CROSS_COMPILED" ]; then
+    echo "Cross-compiled packages cannot be tested automatically."
+    return
+  fi
   PYTHON="$1"
   shift
   PACKAGE="$1"
@@ -263,6 +270,13 @@ elif [ ${ARG} == "ALL_VERSIONS_ALREADY_ASSEMBLED" ]; then
   e2e_pyenv 3.9.12
   e2e_pyenv 3.8.13
   e2e_pyenv 3.7.13
+  e2e_pyenv 3.10.4
+elif [ ${ARG} == "MAC_ARM64_CROSS_COMPILED" ]; then
+  eval "$(pyenv init -)"
+  assemble_files
+  # Python 3.7 not supported for Mac ARM64
+  e2e_pyenv 3.9.12
+  e2e_pyenv 3.8.13
   e2e_pyenv 3.10.4
 else
   # Compile with a specific version of python provided in the call arguments.

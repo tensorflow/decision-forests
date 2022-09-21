@@ -16,6 +16,7 @@
 
 This file is used by tools/build_pip_package.sh.
 """
+import platform
 import setuptools
 from setuptools.command.install import install
 from setuptools.dist import Distribution
@@ -28,7 +29,10 @@ with open("README.md", "r", encoding="utf-8") as fh:
 REQUIRED_PACKAGES = [
     "numpy",
     "pandas",
-    "tensorflow~=2.10.0",
+    'tensorflow~=2.10.0; platform_machine != "arm64" or ' +
+    'platform_system != "Darwin"',
+    'tensorflow-macos~=2.10.0; platform_machine == "arm64" and ' +
+    'platform_system == "Darwin"',
     "six",
     "absl_py",
     "wheel",
@@ -52,9 +56,34 @@ class BinaryDistribution(Distribution):
   def is_pure(self):
     return False
 
+try:
+  from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
+
+  class bdist_wheel(_bdist_wheel):
+
+    def finalize_options(self):
+      _bdist_wheel.finalize_options(self)
+      self.root_is_pure = False
+
+    def get_tag(self):
+      python, abi, plat = _bdist_wheel.get_tag(self)
+      if platform.system() == "Darwin":
+        # TODO Remove this hard-coded value and automate arm64
+        # switch.
+        #
+        # Uncomment for cross-compiled arm64 switches and comment the next line.
+        # plat = "macosx_12_0_arm64"
+        plat = "macosx_10_14_x86_64"
+      return python, abi, plat
+
+except ImportError:
+  bdist_wheel = None
 
 setuptools.setup(
-    cmdclass={"install": InstallPlatlib},
+    cmdclass={
+        "bdist_wheel": bdist_wheel,
+        "install": InstallPlatlib,
+    },
     name="tensorflow_decision_forests",
     version=_VERSION,
     author="Google Inc.",

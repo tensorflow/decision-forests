@@ -40,6 +40,8 @@ ${PYTHON} -m pip install numpy pandas scikit-learn --upgrade
 # Install Tensorflow at the chosen version.
 if [ ${TF_VERSION} == "nightly" ]; then
   ${PYTHON} -m pip install tf-nightly --force-reinstall
+elif [ ${TF_VERSION} == "mac-arm64" ]; then
+  ${PYTHON} -m pip install tensorflow-macos --force-reinstall
 else
   ${PYTHON} -m pip install tensorflow==${TF_VERSION} --force-reinstall
 fi
@@ -82,12 +84,28 @@ function is_macos() {
 
 if is_macos; then
   FLAGS="${FLAGS} --config=macos"
+  if [ ${TF_VERSION} == "mac-arm64" ]; then
+    FLAGS="${FLAGS} --config=macos_arm64"
+  fi
 elif is_windows; then
   FLAGS="${FLAGS} --config=windows"
 else
   FLAGS="${FLAGS} --config=linux"
 fi
 
+if [ ${TF_VERSION} == "mac-arm64" ]; then
+  mkdir "tf_dep"
+  # Download the arm64 Tensorflow package
+  pip download --no-deps --platform=macosx_12_0_arm64 --dest=tf_dep tensorflow-macos
+  unzip tf_dep/tensorflow_macos* -d tf_dep
+
+  # Find the path to the pre-compiled version of TensorFlow installed in the
+  # "tensorflow" pip package.
+  SHARED_LIBRARY_DIR=$(readlink -f tf_dep/tensorflow)
+  SHARED_LIBRARY_NAME="libtensorflow_framework.dylib"
+
+  HEADER_DIR=$(readlink -f tf_dep/tensorflow/include)
+else
 # Find the path to the pre-compiled version of TensorFlow installed in the
 # "tensorflow" pip package.
 TF_CFLAGS="$(${PYTHON} -c 'import tensorflow as tf; print(tf.sysconfig.get_compile_flags()[0])')"
@@ -108,6 +126,7 @@ elif is_windows; then
 else
   SHARED_LIBRARY_DIR=${TF_LFLAGS:2}
   SHARED_LIBRARY_NAME="libtensorflow_framework.so.2"
+fi
 fi
 
 FLAGS="${FLAGS} --action_env TF_HEADER_DIR=${HEADER_DIR}"
