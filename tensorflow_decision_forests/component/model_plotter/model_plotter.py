@@ -100,7 +100,7 @@ def plot_model_in_colab(model: InferenceCoreModel, **kwargs):
 def plot_model(model: InferenceCoreModel,
                tree_idx: Optional[int] = 0,
                max_depth: Optional[int] = 3):
-  """Plots the model structure and it correlation with a dataset.
+  """Plots the model structure and its correlation with a dataset.
 
   Args:
     model: The model to plot.
