@@ -18,15 +18,14 @@
 
 #include <string>
 
-#include "yggdrasil_decision_forests/utils/compatibility.h"
+#include "absl/status/statusor.h"
 
 namespace tensorflow {
 namespace decision_forests {
 
 // Creates the python code source that contains wrapping classes for all linked
 // learners.
-yggdrasil_decision_forests::utils::StatusOr<std::string>
-GenKerasPythonWrapper();
+absl::StatusOr<std::string> GenKerasPythonWrapper();
 
 // Returns Python class name from the learner key.
 std::string LearnerKeyToClassName(absl::string_view key);

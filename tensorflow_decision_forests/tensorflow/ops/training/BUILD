@@ -88,6 +88,7 @@ cc_library(
         "//conditions:default": [],
     }),
     deps = [
+        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_cc_proto",

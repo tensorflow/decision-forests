@@ -15,6 +15,7 @@
 
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "tensorflow/cc/client/client_session.h"
 #include "tensorflow/cc/ops/array_ops.h"
 #include "tensorflow/cc/ops/standard_ops.h"
@@ -48,7 +49,7 @@ class WorkerResource : public tf::ResourceBase {
 
   std::string DebugString() const override { return "WorkerResource"; }
 
-  utils::StatusOr<Blob> RunTask(Blob blob) {
+  absl::StatusOr<Blob> RunTask(Blob blob) {
     utils::concurrency::ReaderMutexLock lock(&mu_);
     if (!worker_) {
       return absl::InternalError("Worker no set");
@@ -97,7 +98,7 @@ class WorkerResource : public tf::ResourceBase {
   }
 
   // Implementation of the worker->worker async reply.
-  utils::StatusOr<Blob> NextAsynchronousAnswerFromOtherWorker(
+  absl::StatusOr<Blob> NextAsynchronousAnswerFromOtherWorker(
       AbstractWorker* emitter_worker) {
     auto answer = intra_worker_communication_.pending_answers.Pop();
     if (!answer.has_value()) {
@@ -118,7 +119,7 @@ class WorkerResource : public tf::ResourceBase {
           std::move(blob), target_worker_idx, emitter_worker);
     }
 
-    utils::StatusOr<Blob> NextAsynchronousAnswerFromOtherWorker(
+    absl::StatusOr<Blob> NextAsynchronousAnswerFromOtherWorker(
         AbstractWorker* emitter_worker) override {
       return resource_->NextAsynchronousAnswerFromOtherWorker(emitter_worker);
     }
@@ -133,7 +134,7 @@ class WorkerResource : public tf::ResourceBase {
     utils::concurrency::Channel<std::pair<int, Blob>> pending_queries;
 
     // Answers to this worker queries.
-    utils::concurrency::Channel<utils::StatusOr<Blob>> pending_answers;
+    utils::concurrency::Channel<absl::StatusOr<Blob>> pending_answers;
 
     // Thread emitting and receiving intra-workers requests/answers.
     ThreadVector threads;
@@ -244,7 +245,7 @@ class WorkerResource : public tf::ResourceBase {
   }
 
   // Blocking inter worker request.
-  utils::StatusOr<Blob> BlockingInterWorkerRequest(
+  absl::StatusOr<Blob> BlockingInterWorkerRequest(
       Blob blob, InterWorkerCommunication::OtherWorkers* target_worker) {
     RETURN_IF_ERROR(
         utils::ToUtilStatus(EnsureIntraWorkerStubIsReady(target_worker)));

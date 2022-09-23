@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <csignal>
 
+#include "absl/status/statusor.h"
 #include "absl/strings/substitute.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/platform/path.h"
@@ -942,7 +943,7 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
 #endif
 
     LOG(INFO) << "Train model";
-    utils::StatusOr<std::unique_ptr<model::AbstractModel>> model;
+    absl::StatusOr<std::unique_ptr<model::AbstractModel>> model;
     if (valid_dataset) {
       model = learner->TrainWithStatus(dataset, *valid_dataset);
     } else {

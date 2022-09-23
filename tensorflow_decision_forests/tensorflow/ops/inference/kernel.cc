@@ -45,6 +45,7 @@
 #include <algorithm>
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"
 #include "tensorflow/core/framework/op_kernel.h"
@@ -67,9 +68,6 @@ namespace model = ::yggdrasil_decision_forests::model;
 namespace utils = ::yggdrasil_decision_forests::utils;
 namespace dataset = ::yggdrasil_decision_forests::dataset;
 namespace serving = ::yggdrasil_decision_forests::serving;
-
-template <typename T>
-using StatusOr = ::yggdrasil_decision_forests::utils::StatusOr<T>;
 
 using Task = model::proto::Task;
 
@@ -327,7 +325,8 @@ class AbstractInferenceEngine {
   };
 
   // Creates a cache: one per inference op instance.
-  virtual StatusOr<std::unique_ptr<AbstractCache>> CreateCache() const = 0;
+  virtual absl::StatusOr<std::unique_ptr<AbstractCache>> CreateCache()
+      const = 0;
 
   // Run the inference of the model and returns its output (e.g. probabilities,
   // logits, regression). The output tensors are already allocated.
@@ -359,7 +358,7 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
     friend GenericInferenceEngine;
   };
 
-  StatusOr<std::unique_ptr<AbstractCache>> CreateCache() const override {
+  absl::StatusOr<std::unique_ptr<AbstractCache>> CreateCache() const override {
     auto cache = absl::make_unique<GenericInferenceEngine::Cache>();
     cache->dataset_.set_data_spec(model_->data_spec());
     RETURN_IF_ERROR(cache->dataset_.CreateColumnsFromDataspec());
@@ -644,7 +643,7 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
 // significantly (e.g. up to 20x) faster than "GenericInferenceEngine".
 class SemiFastGenericInferenceEngine : public AbstractInferenceEngine {
  public:
-  static StatusOr<std::unique_ptr<SemiFastGenericInferenceEngine>> Create(
+  static absl::StatusOr<std::unique_ptr<SemiFastGenericInferenceEngine>> Create(
       std::unique_ptr<serving::FastEngine> engine,
       const model::AbstractModel& model, const FeatureIndex& feature_index) {
     auto engine_wrapper = absl::WrapUnique(
@@ -667,7 +666,7 @@ class SemiFastGenericInferenceEngine : public AbstractInferenceEngine {
     friend SemiFastGenericInferenceEngine;
   };
 
-  StatusOr<std::unique_ptr<AbstractCache>> CreateCache() const override {
+  absl::StatusOr<std::unique_ptr<AbstractCache>> CreateCache() const override {
     auto cache = absl::make_unique<SemiFastGenericInferenceEngine::Cache>();
     cache->examples_ = engine_->AllocateExamples(1);
     cache->num_examples_in_cache_ = 1;
@@ -1440,7 +1439,7 @@ class SimpleMLInferenceOp : public OpKernel {
   // Get an engine cache (i.e. a block of working memory necessary for the
   // inference). This engine cache should be returned after usage with
   // "ReturnEngineCache".
-  StatusOr<std::unique_ptr<AbstractInferenceEngine::AbstractCache>>
+  absl::StatusOr<std::unique_ptr<AbstractInferenceEngine::AbstractCache>>
   GetEngineCache() {
     tf::mutex_lock lock_engine_mutex(engine_cache_mutex_);
     if (engine_caches_.empty()) {
