@@ -16,7 +16,7 @@ explains how to do inference of TF-DF models in C++ using Yggdrasil.
 
 ## Usage example
 
-A minimal end-to-end run looks as follow:
+A minimal end-to-end run looks as follows:
 
 ```python
 import tensorflow_decision_forests as tfdf
