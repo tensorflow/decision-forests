@@ -75,7 +75,7 @@ does.
 
 ## No support for GPU / TPU.
 
-TF-DF does not support GPU or TPU training. Compiling with AVX instructions,
+TF-DF does not supports GPU or TPU training. Compiling with AVX instructions,
 however, may speed up serving.
 
 ## No support for [model_to_estimator](https://www.tensorflow.org/api_docs/python/tf/keras/estimator/model_to_estimator)
