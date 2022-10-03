@@ -129,8 +129,7 @@ sample of the dataset).
 
 **Rationale:** TF-DF shuffles access to the data internally after reading the
 full dataset into memory. TF-DF algorithms are deterministic (if the user does
-not change the random seed). Enabling shuffling will only make the algorithm non
-deterministic. Shuffling does make sense if the input dataset is ordered and the
+not change the random seed). Enabling shuffling will only make the algorithm non-deterministic. Shuffling does make sense if the input dataset is ordered and the
 input_fn is only going to read a sample of it (the sample should be random).
 However, this will make the training procedure non-deterministic.
 
@@ -170,8 +169,8 @@ Therefore, **it is a good idea to first try training on a (small) subset of the
 dataset.**
 
 The alternative solution is to use *distributed training*. Distributed training
-is a great way to increase the size of the dataset if multiple machines
-available. While all distributed algorithm are available to distribute the
+is a great way to increase the size of the dataset if multiple machines are
+available. While all the distributed algorithms are available to distribute the
 computation, not all of them are able to distribute the RAM usage. Check the
 [documentation](distributed_training.md) for more details.
 
@@ -186,7 +185,7 @@ computation, not all of them are able to distribute the RAM usage. Check the
     ~10GB (= 100 * 25 *10^6 * 4 bytes) of memory.
 
 *   Categorical-set features (e.g. tokenized text) take more memory (4 bytes per
-    token + 12 bytes per features).
+    token + 12 bytes per feature).
 
 **Consider your training time budget**
 
@@ -199,7 +198,7 @@ computation, not all of them are able to distribute the RAM usage. Check the
     sampling rate (`subsample` for GBT), and (3) the attribute sampling rate
     (`num_candidate_attributes_ratio`)
 
-*   Categorical-set features are more expensive that other features. The cost is
+*   Categorical-set features are more expensive than other features. The cost is
     controlled by the `categorical_set_split_greedy_sampling` parameter.
 
 *   Sparse Oblique features (disabled by default) give good results but are
@@ -345,7 +344,7 @@ It is possible to handle these features using the following strategies:
     *   Images: Using image with Random Forest was popular at some point (e.g.
 
         [Microsoft Kinect](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/BodyPartRecognition.pdf)
-        , but today, neural nets are state of the art.
+        , but today, neural nets are state-of-the-art.
 
     *   Time series:
         [[Moving statistics](http://framework.mathieu.guillame-bert.com/documentation_honey_tutorial_beginner)]
@@ -442,7 +441,7 @@ tfdf.keras.get_all_models()
 
 ### Model debugging
 
-This section presents some way you can look/debug/interpret the model. The
+This section presents some ways you can look/debug/interpret the model. The
 [beginner colab](tutorials/beginner_colab.ipynb) contains an end-to-end example.
 
 #### Simple model summary
