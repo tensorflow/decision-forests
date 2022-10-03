@@ -26,7 +26,7 @@ for a demonstration of TF-Serving + TF-DF.
 
 [TensorFlow Serving](https://www.tensorflow.org/tfx/guide/serving) is a system
 to run TensorFlow models in production environments. More precisely, TensorFlow
-Serving is a binary that expose model predictions through gRPC and HTTP. The
+Serving is a binary that exposes model predictions through gRPC and HTTP. The
 TF-Serving team publishes a
 [pre-compiled release](https://www.tensorflow.org/tfx/serving/docker) compatible
 with models only containing *canonical* TensorFlow ops.
@@ -57,7 +57,7 @@ Two options are available to run TF-DF in TF Serving:
     is an experimental solution to compile TF-Serving in TF-DF automatically. It
     is equivalent to the instruction below.
 
--   "TF-Serving + TF-Decision Forests" runs independently the Python
+-   "TF-Serving + TF-Decision Forests" runs independently of the Python
     installation of TF-Decision Forests.
 
 -   TF-Decision Forests models are backward compatible: For example, a model
@@ -194,4 +194,4 @@ tools/run_in_docker.sh -d tensorflow/serving:latest-devel bazel \
 
 Run
 [the TF-Serving+TF-DF example](https://github.com/tensorflow/decision-forests/tree/main/tools/tf_serving)
-to test to test your binary.
+to test your binary.
