@@ -189,7 +189,7 @@ class Feature : public tensorflow::OpKernel {
                        [&](AbstractFeatureResource** resource)
                            -> tensorflow::Status {
                          *resource = new Resource(feature_name_);
-                         return tensorflow::Status::OK();
+                         return tensorflow::Status();
                        }));
       resource_ = static_cast<Resource*>(tmp_abstract_resource);
     }
