@@ -2,17 +2,20 @@
 <img src="documentation/image/logo.png"  />
 </p>
 
-**TensorFlow Decision Forests** (**TF-DF**) is a collection of state-of-the-art
-algorithms for the training, serving and interpretation of **Decision Forest**
-models. The library is a collection of [Keras](https://keras.io/) models and
+**TensorFlow Decision Forests** (**TF-DF**) is a library to train, run and
+interpret [decision forest](https://ydf.readthedocs.io/en/latest/intro_df.html)
+models (e.g., Random Forests, Gradient Boosted Trees) in TensorFlow. TF-DF
 supports classification, regression and ranking.
 
-**TF-DF** is a [TensorFlow](https://www.tensorflow.org/) wrapper around the
-[Yggdrasil Decision Forests](https://github.com/google/yggdrasil-decision-forests)
-C++ libraries. Models trained with TF-DF are compatible with Yggdrasil Decision
-Forests' models, and vice versa.
-[This link](https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/user_manual.md#serving-tensorflow-decision-forests-model)
-explains how to do inference of TF-DF models in C++ using Yggdrasil.
+**TF-DF** is powered by
+[Yggdrasil Decision Forest](https://github.com/google/yggdrasil-decision-forests)
+(**YDF**, a library to train and use decision forests in C++, JavaScript, CLI,
+and Go. TF-DF models are
+[compatible](https://ydf.readthedocs.io/en/latest/convert_model.html#convert-a-a-tensorflow-decision-forests-model-to-a-yggdrasil-model)
+with YDF' models, and vice versa.
+
+Tensorflow Decision Forests is available on Linux and Mac. Windows users can use
+the library through WSL+Linux.
 
 ## Usage example
 
@@ -45,6 +48,12 @@ model.evaluate(test_ds)
 model.save("project/model")
 ```
 
+## Google IO Presentation
+
+<center>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/5qgk9QJ4rdQ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</center>
+
 ## Documentation & Resources
 
 The following resources are available:
@@ -53,12 +62,12 @@ The following resources are available:
     Reference, Guides and Tutorials)
 -   [Tutorials](https://www.tensorflow.org/decision_forests/tutorials) (on
     tensorflow.org)
+-   [YDF documentation](https://ydf.readthedocs.io) (also applicable to TF-DF)
 -   [Issue tracker](https://github.com/tensorflow/decision-forests/issues)
 -   [Known issues](documentation/known_issues.md)
 -   [Changelog](CHANGELOG.md)
--   [Forum](https://discuss.tensorflow.org) (on discuss.tensorflow.org)
--   [Yggdrasil documentation](https://github.com/google/yggdrasil-decision-forests)
-    (for advanced users and C++ serving)
+-   [TensorFlow Forum](https://discuss.tensorflow.org) (on
+    discuss.tensorflow.org)
 -   [More examples](documentation/more_examples.md)
 
 ## Installation
