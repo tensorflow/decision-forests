@@ -301,7 +301,7 @@ class CoreModel(InferenceCoreModel):
     learner: The learning algorithm used to train the model. Possible values
       include (but at not limited to) "LEARNER_*".
     learner_params: Hyper-parameters for the learner. The list of available
-      hyper-parameters is available at [Learners](https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/learners.md).
+      hyper-parameters is available at https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/learners.md.
     features: Specify the list and semantic of the input features of the model.
       If not specified, all the available features will be used. If specified
       and if `exclude_non_specified_features=True`, only the features in
