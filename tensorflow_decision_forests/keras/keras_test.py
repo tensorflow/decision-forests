@@ -1332,6 +1332,27 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     with self.assertRaises(ValueError):
       model.save(os.path.join(self.get_temp_dir(), "model"))
 
+  def test_bad_fixed_feature_names(self):
+    # The keras model still don't save as intended
+    # if there are leading underscores. These underscores can still be ignored
+    # inside keras.pd_dataframe_to_tf_dataset when fix_feature_names=True
+    #
+    # https://b.corp.google.com/issues/252952088
+
+    def create_ds(feature_name):
+      return keras.pd_dataframe_to_tf_dataset(
+          pd.DataFrame({
+              feature_name: [1.0, 2.0, 3.0, 4.0],
+              "label": [0, 1, 0, 1]
+          }),
+          label="label",
+          fix_feature_names=False)
+
+    model = keras.GradientBoostedTreesModel()
+    model.fit(create_ds("_xy"))
+    with self.assertRaises(ValueError):
+      model.save(os.path.join(self.get_temp_dir(), "model"))
+
   def test_training_adult_from_file(self):
     # Path to dataset.
     dataset_directory = os.path.join(ydf_test_data_path(), "dataset")
@@ -1465,6 +1486,20 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     for features, _ in dataset:
       for expected_name in ["a_b", "c_d", "e_f", "a_b_"]:
+        self.assertIn(expected_name, features)
+
+  def test_escape_leading_forbidden_characters(self):
+    dataframe = pd.DataFrame({
+        " ab": [0, 1, 2],
+        ",cd": [0, 1, 2],
+        "%ef": [0, 1, 2],
+        "_ab": [0, 1, 2],
+        "label": [0, 1, 2]
+    })
+    dataset = keras.pd_dataframe_to_tf_dataset(dataframe, label="label")
+
+    for features, _ in dataset:
+      for expected_name in ["ab", "cd", "ef", "ab_"]:
         self.assertIn(expected_name, features)
 
   def test_override_save(self):
