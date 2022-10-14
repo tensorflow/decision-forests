@@ -860,6 +860,9 @@ def pd_dataframe_to_tf_dataset(
           new_name = new_name.replace(forbidden_character, "_")
       # Removing incompatible leading underscores
       new_name = new_name.lstrip("_")
+      # Resolving the case when feature name is self
+      if new_name == "self":
+        new_name = "self_"
       # Add a tailing "_" until there are not feature name collisions.
       while new_name in new_names:
         new_name += "_"

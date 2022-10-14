@@ -1337,6 +1337,9 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     # if there are leading underscores. These underscores can still be ignored
     # inside keras.pd_dataframe_to_tf_dataset when fix_feature_names=True
     #
+    # Another case, when the feature name is "self", this causes a signature
+    # error.
+    #
     # https://b.corp.google.com/issues/252952088
 
     def create_ds(feature_name):
@@ -1351,6 +1354,11 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     model = keras.GradientBoostedTreesModel()
     model.fit(create_ds("_xy"))
     with self.assertRaises(ValueError):
+      model.save(os.path.join(self.get_temp_dir(), "model"))
+
+    model = keras.GradientBoostedTreesModel()
+    model.fit(create_ds("self"))
+    with self.assertRaises(TypeError):
       model.save(os.path.join(self.get_temp_dir(), "model"))
 
   def test_training_adult_from_file(self):
@@ -1500,6 +1508,19 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     for features, _ in dataset:
       for expected_name in ["ab", "cd", "ef", "ab_"]:
+        self.assertIn(expected_name, features)
+
+  def test_escape_feature_name_is_self(self):
+    dataframe = pd.DataFrame({
+        "self": [0, 1, 2],
+        " self": [0, 1, 2],
+        "self%": [0, 1, 2],
+        "label": [0, 1, 2]
+    })
+    dataset = keras.pd_dataframe_to_tf_dataset(dataframe, label="label")
+
+    for features, _ in dataset:
+      for expected_name in ["self_", "self__", "self___"]:
         self.assertIn(expected_name, features)
 
   def test_override_save(self):
