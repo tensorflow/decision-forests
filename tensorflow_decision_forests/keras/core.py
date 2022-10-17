@@ -305,13 +305,13 @@ class CoreModel(InferenceCoreModel):
       https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/learners.md.
     features: Specify the list and semantic of the input features of the model.
       If not specified, all the available features will be used. If specified
-      and if "exclude_non_specified_features=True", only the features in
+      and if `exclude_non_specified_features=True`, only the features in
       "features" will be used by the model. If "preprocessing" is used,
       "features" corresponds to the output of the preprocessing. In this case,
       it is recommended for the preprocessing to return a dictionary of tensors.
     exclude_non_specified_features: If true, only use the features specified in
       "features".
-    preprocessing: Functional keras model or @tf.function to apply on the input
+    preprocessing: Functional keras model or `@tf.function` to apply on the input
       feature before the model to train. This preprocessing model can consume
       and return tensors, list of tensors or dictionary of tensors. If
       specified, the model only "sees" the output of the preprocessing (and not
@@ -319,11 +319,11 @@ class CoreModel(InferenceCoreModel):
       models on top of each other. Unlike preprocessing done in the tf.dataset,
       the operation in "preprocessing" are serialized with the model.
     postprocessing: Like "preprocessing" but applied on the model output.
-    ranking_group: Only for task=Task.RANKING. Name of a tf.string feature that
+    ranking_group: Only for `task=Task.RANKING`. Name of a `tf.string` feature that
       identifies queries in a query/document ranking task. The ranking group is
       not added automatically for the set of features if
-      exclude_non_specified_features=false.
-    uplift_treatment: Only for task=Task.CATEGORICAL_UPLIFT and task=Task.
+      `exclude_non_specified_features=false`.
+    uplift_treatment: Only for `task=Task.CATEGORICAL_UPLIFT` and `task=Task`.
       NUMERICAL_UPLIFT. Name of an integer feature that identifies the treatment
       in an uplift problem. The value 0 is reserved for the control treatment.
     temp_directory: Temporary directory used to store the model Assets after the
@@ -357,7 +357,7 @@ class CoreModel(InferenceCoreModel):
       hyper-parameter of the model were changed such that an initially completed
       training is now incomplete (e.g. increasing the number of trees).
       Note: Training can only be resumed if the training datasets is exactly the
-        same (i.e. no reshuffle in the tf.data.Dataset).
+        same (i.e. no reshuffle in the `tf.data.Dataset`).
     check_dataset: If set to true, test if the dataset is well configured for
       the training: (1) Check if the dataset does contains any `repeat`
       operations, (2) Check if the dataset does contain a `batch` operation, (3)
@@ -371,7 +371,7 @@ class CoreModel(InferenceCoreModel):
     discretize_numerical_features: If true, discretize all the numerical
       features before training. Discretized numerical features are faster to
       train with, but they can have a negative impact on the model quality.
-      Using discretize_numerical_features=True is equivalent as setting the
+      Using `discretize_numerical_features=True` is equivalent as setting the
       feature semantic DISCRETIZED_NUMERICAL in the `feature` argument. See the
       definition of DISCRETIZED_NUMERICAL for more details.
     num_discretize_numerical_bins: Number of bins used when disretizing
@@ -820,15 +820,16 @@ class CoreModel(InferenceCoreModel):
     ==============
 
     It is recommended to use a Pandas Dataframe dataset and to convert it to
-    a TensorFlow dataset with "pd_dataframe_to_tf_dataset()":
-
+    a TensorFlow dataset with `pd_dataframe_to_tf_dataset()`:
+      ```python
       pd_dataset = pandas.Dataframe(...)
       tf_dataset = pd_dataframe_to_tf_dataset(dataset, label="my_label")
       model.fit(pd_dataset)
+      ```
 
     The following dataset formats are supported:
 
-      1. "x" is a tf.data.Dataset containing a tuple "(features, labels)".
+      1. "x" is a `tf.data.Dataset` containing a tuple "(features, labels)".
          "features" can be a dictionary a tensor, a list of tensors or a
          dictionary of tensors (recommended). "labels" is a tensor.
 
@@ -852,7 +853,7 @@ class CoreModel(InferenceCoreModel):
 
     Input features do not need to be normalized (e.g. dividing numerical values
     by the variance) or indexed (e.g. replacing categorical string values by
-    an integer). Additionnaly, missing values can be consumed natively.
+    an integer). Additionally, missing values can be consumed natively.
 
     Distributed training
     ====================
@@ -863,7 +864,7 @@ class CoreModel(InferenceCoreModel):
     In this case, the dataset is read asynchronously in between the workers. The
     distribution of the training depends on the learning algorithm.
 
-    Like for non-distributed training, the dataset should be read eactly once.
+    Like for non-distributed training, the dataset should be read exactly once.
     The simplest solution is to divide the dataset into different files (i.e.
     shards) and have each of the worker read a non overlapping subset of shards.
 
@@ -871,7 +872,7 @@ class CoreModel(InferenceCoreModel):
     dataset should not contain any repeat operation.
 
     Currently (to be changed), the validation dataset (if provided) is simply
-    feed to the "model.evaluate()" method. Therefore, it should satify Keras'
+    feed to the `model.evaluate()` method. Therefore, it should satisfy Keras'
     evaluate API. Notably, for distributed training, the validation dataset
     should be infinite (i.e. have a repeat operation).
 
@@ -881,6 +882,7 @@ class CoreModel(InferenceCoreModel):
     Here is a single example of distributed training using PSS for both dataset
     reading and training distribution.
 
+      ```python
       def dataset_fn(context, paths, training=True):
         ds_path = tf.data.Dataset.from_tensor_slices(paths)
 
@@ -937,6 +939,7 @@ class CoreModel(InferenceCoreModel):
       model.fit(sharded_train_paths)
       evaluation = model.evaluate(test_dataset, steps=num_test_examples //
         batch_size)
+      ```
 
     Args:
       x: Training dataset (See details above for the supported formats).
@@ -947,13 +950,13 @@ class CoreModel(InferenceCoreModel):
         be called equivalently before/after the fit function.
       verbose: Verbosity mode. 0 = silent, 1 = small details, 2 = full details.
       validation_steps: Number of steps in the evaluation dataset when
-        evaluating the trained model with model.evaluate(). If not specified,
+        evaluating the trained model with `model.evaluate()`. If not specified,
         evaluates the model on the entire dataset (generally recommended; not
         yet supported for distributed datasets).
       validation_data: Validation dataset. If specified, the learner might use
         this dataset to help training e.g. early stopping.
       sample_weight: Training weights. Note: training weights can also be
-        provided as the third output in a tf.data.Dataset e.g. (features, label,
+        provided as the third output in a `tf.data.Dataset` e.g. (features, label,
         weights).
       steps_per_epoch: [Parameter will be removed] Number of training batch to
         load before training the model. Currently, only supported for
@@ -962,7 +965,7 @@ class CoreModel(InferenceCoreModel):
         (integers) to a weight (float) value. Only available for non-Distributed
         training. For maximum compatibility, feed example weights through the
         tf.data.Dataset or using the `weight` argument of
-        pd_dataframe_to_tf_dataset.
+        `pd_dataframe_to_tf_dataset`.
       **kwargs: Extra arguments passed to the core keras model's fit. Note that
         not all keras' model fit arguments are supported.
 
@@ -1095,8 +1098,8 @@ class CoreModel(InferenceCoreModel):
 
       We recommend training / validating models with finite datasets. For
       backward compatibility with the early version of TF-DF, we also support
-      infinite dataset with specified number of steps (steps_per_epoch and
-      validation_steps arguments). Using a number of steps currently raises
+      infinite dataset with specified number of steps (`steps_per_epoch` and
+      `validation_steps` arguments). Using a number of steps currently raises
       a warning, and will later raise an error (and the logic be removed).
     """
 
@@ -1408,20 +1411,23 @@ class CoreModel(InferenceCoreModel):
       num_io_threads: int = 10):
     """Trains the model on a dataset stored on disk.
 
-    This solution is generally more efficient and easier that loading the
-    dataset with a tf.Dataset both for local and distributed training.
+    This solution is generally more efficient and easier than loading the
+    dataset with a `tf.Dataset` both for local and distributed training.
 
     Usage example:
 
       # Local training
-      model = model = keras.GradientBoostedTreesModel()
+      ```python
+      model = keras.GradientBoostedTreesModel()
       model.fit_on_dataset_path(
         train_path="/path/to/dataset.csv",
         label_key="label",
         dataset_format="csv")
       model.save("/model/path")
-
+      ```
+      
       # Distributed training
+      ```python
       with tf.distribute.experimental.ParameterServerStrategy(...).scope():
         model = model = keras.DistributedGradientBoostedTreesModel()
       model.fit_on_dataset_path(
@@ -1429,20 +1435,19 @@ class CoreModel(InferenceCoreModel):
         label_key="label",
         dataset_format="tfrecord+tfe")
       model.save("/model/path")
-
+      ```
+      
     Args:
-       train_path: Path to the training dataset. Support comma separated files,
-         shard and glob notation.
-       label_key: Name of the label column.
-       weight_key: Name of the weighing column.
-       ranking_key: Name of the ranking column.
-       valid_path: Path to the validation dataset. If not provided, or if the
-         learning algorithm does not support/need a validation dataset,
-         `valid_path` is ignored.
-       dataset_format: Format of the dataset. Should be one of the registered
-         dataset format (see
-         https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/user_manual.md#dataset-path-and-format
-           for more details). The format "csv" always available but it is
+      train_path: Path to the training dataset. Supports comma separated files, shard and glob notation.
+      label_key: Name of the label column.
+      weight_key: Name of the weighing column.
+      ranking_key: Name of the ranking column.
+      valid_path: Path to the validation dataset. If not provided, or if the
+               learning algorithm does not supports/needs a validation dataset,
+               `valid_path` is ignored.
+      dataset_format: Format of the dataset. Should be one of the registered
+         dataset format (see [User Manual](https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/user_manual.md#dataset-path-and-format)
+           for more details). The format "csv" is always available but it is
            generally only suited for small datasets.
       max_num_scanned_rows_to_accumulate_statistics: Maximum number of examples
         to scan to determine the statistics of the features (i.e. the dataspec,
@@ -1466,8 +1471,8 @@ class CoreModel(InferenceCoreModel):
         (Dense,Sparse,Ragged)TensorSpec (or structure of TensorSpec e.g.
         dictionary, list) corresponding to input signature of the model. If not
         specified, the input model signature is created by
-        "build_default_input_model_signature". For example, specify
-        "input_model_signature_fn" if an numerical input feature (which is
+        `build_default_input_model_signature`. For example, specify
+        `input_model_signature_fn` if an numerical input feature (which is
         consumed as DenseTensorSpec(float32) by default) will be feed
         differently (e.g. RaggedTensor(int64)).
       num_io_threads: Number of threads to use for IO operations e.g. reading a
@@ -1816,7 +1821,7 @@ def _list_explicit_arguments(func):
 def _parse_hp_template(template_name) -> Tuple[str, Optional[int]]:
   """Parses a template name as specified by the user.
 
-  Template can versionned:
+  Template can be versionned:
     "my_template@v5" -> Returns (my_template, 5)
   or non versionned:
     "my_template" -> Returns (my_template, None)
@@ -1967,7 +1972,7 @@ def _check_dataset(ds: tf.data.Dataset):
   Raise an exception otherwise.
 
   Args:
-    ds: A tf.data.Dataset.
+    ds: A `tf.data.Dataset`.
   """
 
   def error(message):
@@ -2020,7 +2025,8 @@ def _check_dataset(ds: tf.data.Dataset):
 
 
 def _get_operation(dataset, cls):
-  """Returns an operation defined by cls if present in dataset or else None."""
+  """Returns an operation defined by cls if present in dataset or else `None`.
+  """
   try:
     if not isinstance(dataset, tf.data.Dataset):
       return None
@@ -2055,13 +2061,13 @@ def _contains_shuffle(dataset) -> bool:
 
 
 def _get_batch_size(dataset) -> Optional[int]:
-  """Returns batch_size if dataset contains a "batch()" operation or else None.
+  """Returns batch_size if dataset contains a "batch()" operation or else `None`.
 
   Args:
-    dataset: A tf.data.Dataset.
+    dataset: A `tf.data.Dataset`.
 
   Returns:
-    The batch size, or None if not batch operation was found.
+    The batch size, or `None` if not batch operation was found.
   """
 
   operation = _get_operation(dataset, dataset_ops.BatchDataset)

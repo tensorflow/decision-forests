@@ -19,7 +19,7 @@ the library through WSL+Linux.
 
 ## Usage example
 
-A minimal end-to-end run looks as follow:
+A minimal end-to-end run looks as follows:
 
 ```python
 import tensorflow_decision_forests as tfdf
