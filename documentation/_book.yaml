@@ -45,6 +45,8 @@ upper_tabs:
         path: /decision_forests/tutorials/beginner_colab
       - title: Text and pre-trained embeddings
         path: /decision_forests/tutorials/intermediate_colab
+      - title: Making predictions
+        path: /decision_forests/tutorials/predict_colab
       - title: Inspect and debug
         path: /decision_forests/tutorials/advanced_colab
       - title: Model composition
