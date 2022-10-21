@@ -24,7 +24,7 @@
 #
 # Usage example
 #
-#   RUN_TESTS=1 PY_VERSION=3.8 TF_VERSION=2.10.0 ./tools/test_bazel.sh
+#   RUN_TESTS=1 PY_VERSION=3.8 TF_VERSION=2.11.0 ./tools/test_bazel.sh
 
 set -vex
 

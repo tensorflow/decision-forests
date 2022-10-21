@@ -1,15 +1,16 @@
 # Changelog
 
-## HEAD
+## 1.1.0rc0 - 2022-10-21
 
 ### Features
 
+-   Support for Tensorflow Serving APIs.
 -   Add support for zipped Yggdrasil Decision Forests model for
     `yggdrasil_model_to_keras_model`.
 
 ### Fix
 
--   Using loaded datasets with TF-DF no longer fail (Github #131).
+-   Using loaded datasets with TF-DF no longer fails (Github #131).
 -   Automatically infer the semantic of int8 values as numerical (was
     categorical before).
 
