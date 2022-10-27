@@ -254,7 +254,6 @@ if [ ${INSTALL_PYENV} == "INSTALL_PYENV" ]; then
     eval "$(pyenv init --path)"
     eval "$(pyenv init -)"
     eval "$(pyenv virtualenv-init -)"
-    source ~/.profile
   fi
 fi
 
