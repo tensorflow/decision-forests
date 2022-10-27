@@ -210,7 +210,8 @@ function e2e_pyenv() {
   VERSION="$1"
   shift
 
-  pyenv update
+  # Don't force updating pyenv, we use a fixed version.
+  # pyenv update
 
   ENVNAME=env_${VERSION}
   pyenv install ${VERSION} -s
@@ -234,18 +235,24 @@ shift | true
 if [ ${INSTALL_PYENV} == "INSTALL_PYENV" ]; then 
   if ! [ -x "$(command -v pyenv)" ]; then
     echo "Pyenv not found."
-    echo "Installing build deps, pyenv 2.3.0 and pyenv virtualenv 1.1.5"
+    echo "Installing build deps, pyenv 2.3.5 and pyenv virtualenv 1.1.5"
     # Install python dependencies.
-    apt-get update
-    apt-get install -qq make build-essential libssl-dev zlib1g-dev \
+    sudo apt-get update
+    sudo apt-get install -qq make build-essential libssl-dev zlib1g-dev \
               libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
               libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev \
               libffi-dev liblzma-dev
-    git clone --branch v2.3.0 https://github.com/pyenv/pyenv.git
+    git clone https://github.com/pyenv/pyenv.git
+    (
+      cd pyenv && git checkout bb0f2ae1a7867a06c1692e00efd3abe2113b8f83
+    )
     PYENV_ROOT="$(pwd)/pyenv"
     export PATH="$PYENV_ROOT/bin:$PATH"
+    eval "$(pyenv init --path)"
     eval "$(pyenv init -)"
     git clone --branch v1.1.5 https://github.com/pyenv/pyenv-virtualenv.git $(pyenv root)/plugins/pyenv-virtualenv
+    eval "$(pyenv init --path)"
+    eval "$(pyenv init -)"
     eval "$(pyenv virtualenv-init -)"
     source ~/.profile
   fi
