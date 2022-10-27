@@ -22,7 +22,7 @@ import copy
 from functools import partial  # pylint: disable=g-importing-member
 import os
 import tempfile
-from typing import Optional, List, Dict, Any, Union, Text, Literal
+from typing import Optional, List, Dict, Any, Union, Text
 import uuid
 import zipfile
 

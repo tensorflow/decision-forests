@@ -21,7 +21,7 @@ import setuptools
 from setuptools.command.install import install
 from setuptools.dist import Distribution
 
-_VERSION = "1.1.0rc0"
+_VERSION = "1.1.0rc1"
 
 with open("README.md", "r", encoding="utf-8") as fh:
   long_description = fh.read()
