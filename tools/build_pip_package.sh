@@ -36,13 +36,8 @@
 #     Will be installed by this script if INSTALL_PYENV is set to INSTALL_PYENV.
 #
 #   Auditwheel
-#     Note: "libtensorflow_framework.so.2" need to be added to the allowlisted
-#     files (for example, in "policy.json" in "/home/${USER}/.local/lib/
-#     python3.9/site-packages/auditwheel/policy/policy.json").
-#     This change is done automatically (see "patch_auditwheel" function). If
-#     the automatic patch does not work, it has to be done manually by adding
-#     "libtensorflow_framework.so.2" next to each "libresolv.so.2" entries
-#     See https://github.com/tensorflow/tensorflow/issues/31807
+#     Auditwheel needs to be at least version 5.2.0. The script will attempt to
+#     update Auditwheel to the latest version.
 #
 
 set -xve
@@ -55,26 +50,11 @@ function is_macos() {
 # Temporary directory used to assemble the package.
 SRCPK="$(pwd)/tmp_package"
 
-function patch_auditwheel() {
+function check_auditwheel() {
   PYTHON="$1"
   shift
-  # Patch auditwheel for TensorFlow
-  AUDITWHEEL_DIR="$(${PYTHON} -m pip show auditwheel | grep "Location:")"
-  AUDITWHEEL_DIR="${AUDITWHEEL_DIR:10}/auditwheel"
-  echo "Auditweel location: ${AUDITWHEEL_DIR}"
-  POLICY_PATH="${AUDITWHEEL_DIR}/policy/manylinux-policy.json"
-  TF_DYNAMIC_FILENAME="libtensorflow_framework.so.2"
-  if ! grep -q "${TF_DYNAMIC_FILENAME}" "${POLICY_PATH}"; then
-    echo "Patching Auditwheel located at ${POLICY_PATH}"
-    cp "${POLICY_PATH}" "${POLICY_PATH}.orig"
-    if is_macos; then
-      sed -i '' "s/\"libresolv.so.2\"/\"libresolv.so.2\",\"${TF_DYNAMIC_FILENAME}\"/g" "${POLICY_PATH}"
-    else
-      sed -i "s/\"libresolv.so.2\"/\"libresolv.so.2\",\"${TF_DYNAMIC_FILENAME}\"/g" "${POLICY_PATH}"
-    fi
-  else
-    echo "Auditwheel already patched"
-  fi
+  AUDITWHEEL_DIR="$(${PYTHON} -m pip show auditwheel | grep "Version:")"
+  echo "Auditwheel needs to be at least Version 5.2.0, currently ${AUDITWHEEL_DIR}"
 }
 
 # Pypi package version compatible with a given version of python.
@@ -168,7 +148,7 @@ function test_package() {
   if is_macos; then
     PACKAGEPATH="dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-*.whl"
   else
-    PACKAGEPATH="dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-linux_x86_64.whl"
+    PACKAGEPATH="dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-manylinux2014_x86_64.whl"
   fi
   ${PIP} install ${PACKAGEPATH}
 
@@ -187,22 +167,20 @@ function e2e_native() {
   PACKAGE=$(python_to_package_version ${PYTHON})
 
   install_dependencies ${PYTHON}
-  patch_auditwheel ${PYTHON}
+  check_auditwheel ${PYTHON}
   build_package ${PYTHON}
-  test_package ${PYTHON} ${PACKAGE}
 
   # Fix package.
   if is_macos; then
     PACKAGEPATH="dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-*.whl"
+    NEW_PACKAGEPATH=
   else
     PACKAGEPATH="dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-linux_x86_64.whl"
   fi
-  TF_LFLAGS="$(${PYTHON} -c 'import tensorflow as tf; print(tf.sysconfig.get_link_flags()[0])')"
-  SHARED_LIBRARY_DIR=${TF_LFLAGS:2}
-  echo "Old LD_LIBRARY_PATH was ${LD_LIBRARY_PATH}"
-  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SHARED_LIBRARY_DIR
-  echo "New LD_LIBRARY_PATH is ${LD_LIBRARY_PATH}"
-  auditwheel repair --plat manylinux2014_x86_64 -w dist ${PACKAGEPATH}
+  TF_DYNAMIC_FILENAME="libtensorflow_framework.so.2"
+  auditwheel repair --plat manylinux2014_x86_64 -w dist --exclude ${TF_DYNAMIC_FILENAME} ${PACKAGEPATH}
+
+  test_package ${PYTHON} ${PACKAGE}
 }
 
 # Builds and tests a pip package in Pyenv.
