@@ -5,11 +5,13 @@ is a tool to run TensorFlow models online in large production settings using a
 RPC or REST API. TensorFlow Decision Forests (TF-DF) is supported natively by TF
 Serving >=2.11.
 
-Note: TensorFlow Serving 2.11 was not yet released (Oct. 2022). In the meantime,
-*TensorFlow Serving 2.11 Nightly* with support with TF-DF is available
-[here](https://github.com/tensorflow/decision-forests/releases/tag/serving-1.0.1).
-Prior version of TF Serving (e.g. TF Serving 2.8-2.10) are compatible with
-TF-DF. However, they requires to be *re-compiled* with TF-DF support
+**Warning:** TensorFlow Serving only support natively TensorFlow Decision
+Forests since version 2.11. Until TF Serving 2.11 is release, use the Until the
+version In the *TensorFlow Serving 2.11 Nightly* or
+[own pre-compiled version](https://github.com/tensorflow/decision-forests/releases/tag/serving-1.0.1)
+of TensorFlow Serving. Prior versions of TF Serving (e.g. TF Serving 2.8-2.10)
+are compatible with TF-DF. However, they requires to be *re-compiled* with TF-DF
+support
 ([instructions](https://github.com/tensorflow/decision-forests/blob/main/documentation/tensorflow_serving.md#compile-tf-seringtf-decision-forests-from-source)).
 
 TF-DF models are directly compatible with TF Serving. Yggdrasil models can be
@@ -17,6 +19,80 @@ used with TF Serving after being
 [converted](https://ydf.readthedocs.io/en/latest/convert_model.html#convert-a-yggdrasil-model-to-a-tensorflow-decision-forests-model)
 first.
 
-Check the
-[TF Serving + TF-DF tutorial](https://ydf.readthedocs.io/en/latest/tf_serving.html#)
-for detailed example.
+## Limitations
+
+TensorFlow adds a significant amount of computation overhead. For small latency
+sensitive models (e.g., models running is less than 1µs), this overhead can be
+an order of magnitude larger the cost of the model itself. In this case, it is
+recommended to run the TF-DF models with
+[Yggdrasil Decision Forests](https://ydf.readthedocs.io).
+
+## Usage example
+
+The following example shows how to run a TF-DF model in TF Serving:
+
+First, [install TF Serving](https://github.com/tensorflow/serving#set-up). In
+this example, we will use a pre-compiled version of TF-Serving + TF-DF.
+
+```shell
+# Download TF Serving
+wget https://github.com/tensorflow/decision-forests/releases/download/serving-1.0.1/tensorflow_model_server_linux.zip
+unzip tensorflow_model_server_linux.zip
+
+# Check that TF Serving works.
+./tensorflow_model_server --version
+```
+
+In this example, we use an already trained TF-DF model trained.
+
+```shell
+# Get a TF-DF model
+git clone https://github.com/tensorflow/decision-forests.git
+MODEL_PATH=$(pwd)/decision-forests/tensorflow_decision_forests/test_data/model/saved_model_adult_gbt
+
+echo "The TF-DF model is available at: ${MODEL_PATH}"
+```
+
+**Notes:** TF-Serving requires the model's full path. This is why we use
+`$(pwd)`.
+
+TF-Serving supports model versioning. The model should be contained in a
+directory whose name is the version of the model. A model version is an integer
+e.g., "1". Here is a typical directory for TF-Serving.
+
+-   `/path/to/model`
+    -   `1` : Version 1 of the model
+    -   `5` : Version 5 of the model
+    -   `6` : Version 6 of the model
+
+For this example, we only need to put the model in a directory called "1".
+
+```shell
+mkdir -p /tmp/tf_serving_model
+cp -R "${MODEL_PATH}" /tmp/tf_serving_model/1
+```
+
+Now, we can start TF-Sering on the model.
+
+```shell
+./tensorflow_model_server \
+    --rest_api_port=8502 \
+    --model_name=my_model \
+    --model_base_path=/tmp/tf_serving_model
+```
+
+Finally, you can send a request to TF Serving using the Rest API. Two formats
+are available: predict+instances API and predict+inputs API. Here is an example
+of each of them:
+
+```shell
+# Predictions with the predict+instances API.
+curl http://localhost:8502/v1/models/my_model:predict -X POST \
+    -d '{"instances": [{"age":39,"workclass":"State-gov","fnlwgt":77516,"education":"Bachelors","education_num":13,"marital_status":"Never-married","occupation":"Adm-clerical","relationship":"Not-in-family","race":"White","sex":"Male","capital_gain":2174,"capital_loss":0,"hours_per_week":40,"native_country":"United-States"}]}'
+```
+
+```shell
+# Predictions with the predict+inputs API
+curl http://localhost:8502/v1/models/my_model:predict -X POST \
+    -d '{"inputs": {"age":[39],"workclass":["State-gov"],"fnlwgt":[77516],"education":["Bachelors"],"education_num":[13],"marital_status":["Never-married"],"occupation":["Adm-clerical"],"relationship":["Not-in-family"],"race":["White"],"sex":["Male"],"capital_gain":[2174],"capital_loss":[0],"hours_per_week":[40],"native_country":["United-States"]}}'
+```
