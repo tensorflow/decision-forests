@@ -38,6 +38,8 @@ upper_tabs:
         path: /decision_forests/tensorflow_serving
       - title: Distributed Training
         path: /decision_forests/distributed_training
+      - title: Runnig models in JavaScript
+        path: https://ydf.readthedocs.io/en/latest/js_serving.html
       - heading: Tutorials
       - title: Overview
         path: /decision_forests/tutorials/index
