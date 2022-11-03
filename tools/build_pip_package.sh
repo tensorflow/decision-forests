@@ -196,7 +196,7 @@ function e2e_native() {
     PACKAGEPATH="dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-linux_x86_64.whl"
   fi
   TF_DYNAMIC_FILENAME="libtensorflow_framework.so.2"
-  ${PYTHON} auditwheel repair --plat manylinux2014_x86_64 -w dist --exclude ${TF_DYNAMIC_FILENAME} ${PACKAGEPATH}
+  ${PYTHON} -m auditwheel repair --plat manylinux2014_x86_64 -w dist --exclude ${TF_DYNAMIC_FILENAME} ${PACKAGEPATH}
 
   test_package ${PYTHON} ${PACKAGE}
 }
