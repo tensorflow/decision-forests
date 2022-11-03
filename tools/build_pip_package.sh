@@ -158,6 +158,24 @@ function test_package() {
 
   # Run a small example
   ${PYTHON} examples/minimal.py
+
+  mkdir previous_package
+  ${PYTHON} -m pip download --no-deps -d previous_package tensorflow-decision-forests
+  local old_file_size=`du -k "previous_package*" | cut -f1`
+  local new_file_size=`du -k "${PACKAGEPATH}" | cut -f1`
+  local scaled_old_file_size=$(($old_file_size * 12))
+  local scaled_new_file_size=$(($new_file_size * 10))
+  if [ "$scaled_new_file_size" -gt "$scaled_old_file_size" ]; then
+    echo "New package is 20% larger than the previous one."
+    echo "This probably indicates a problem, aborting."
+    exit 1
+  fi
+  scaled_new_file_size=$(($new_file_size * 8))
+  if [ "$scaled_new_file_size" -lt "$scaled_old_file_size" ]; then
+    echo "New package is 20% smaller than the previous one."
+    echo "This probably indicates a problem, aborting."
+    exit 1
+  fi
 }
 
 # Builds and tests a pip package in a given version of python
@@ -178,7 +196,7 @@ function e2e_native() {
     PACKAGEPATH="dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-linux_x86_64.whl"
   fi
   TF_DYNAMIC_FILENAME="libtensorflow_framework.so.2"
-  auditwheel repair --plat manylinux2014_x86_64 -w dist --exclude ${TF_DYNAMIC_FILENAME} ${PACKAGEPATH}
+  ${PYTHON} auditwheel repair --plat manylinux2014_x86_64 -w dist --exclude ${TF_DYNAMIC_FILENAME} ${PACKAGEPATH}
 
   test_package ${PYTHON} ${PACKAGE}
 }
