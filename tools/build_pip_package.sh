@@ -237,7 +237,7 @@ if [ ${INSTALL_PYENV} == "INSTALL_PYENV" ]; then
     sudo apt-get install -qq make build-essential libssl-dev zlib1g-dev \
               libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
               libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev \
-              libffi-dev liblzma-dev
+              libffi-dev liblzma-dev patchelf
     git clone https://github.com/pyenv/pyenv.git
     (
       cd pyenv && git checkout bb0f2ae1a7867a06c1692e00efd3abe2113b8f83
