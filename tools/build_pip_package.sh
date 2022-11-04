@@ -162,6 +162,7 @@ function test_package() {
   # Run a small example
   ${PYTHON} examples/minimal.py
 
+  rm -rf previous_package
   mkdir previous_package
   ${PYTHON} -m pip download --no-deps -d previous_package tensorflow-decision-forests
   local old_file_size=`du -k "previous_package" | cut -f1`
