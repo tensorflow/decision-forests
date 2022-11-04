@@ -151,7 +151,7 @@ function test_package() {
   if is_macos; then
     PACKAGEPATH="dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-*.whl"
   else
-    PACKAGEPATH="dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-manylinux2014_x86_64.whl"
+    PACKAGEPATH="dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*.manylinux2014_x86_64.whl"
   fi
   ${PIP} install ${PACKAGEPATH}
 
@@ -194,7 +194,6 @@ function e2e_native() {
   # Fix package.
   if is_macos; then
     PACKAGEPATH="dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-*.whl"
-    NEW_PACKAGEPATH=
   else
     PACKAGEPATH="dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-linux_x86_64.whl"
   fi
