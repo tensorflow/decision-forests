@@ -36,8 +36,8 @@
 #     Will be installed by this script if INSTALL_PYENV is set to INSTALL_PYENV.
 #
 #   Auditwheel
-#     Auditwheel needs to be at least version 5.2.0. The script will attempt to
-#     update Auditwheel to the latest version.
+#     Auditwheel needs to be version 5.2.0. The script will attempt to
+#     update Auditwheel to this version.
 #
 
 set -xve
@@ -53,8 +53,11 @@ SRCPK="$(pwd)/tmp_package"
 function check_auditwheel() {
   PYTHON="$1"
   shift
-  AUDITWHEEL_DIR="$(${PYTHON} -m pip show auditwheel | grep "Version:")"
-  echo "Auditwheel needs to be at least Version 5.2.0, currently ${AUDITWHEEL_DIR}"
+  local auditwheel_version="$(${PYTHON} -m pip show auditwheel | grep "Version:")"
+  if [ "$auditwheel_version" != "Version: 5.2.0" ]; then
+   echo "Auditwheel needs to be Version 5.2.0, currently ${auditwheel_version}"
+   exit 1
+  fi
 }
 
 # Pypi package version compatible with a given version of python.
@@ -74,7 +77,7 @@ function install_dependencies() {
   ${PYTHON} -m pip install setuptools -U
   ${PYTHON} -m pip install build -U
   ${PYTHON} -m pip install virtualenv -U
-  ${PYTHON} -m pip install auditwheel -U
+  ${PYTHON} -m pip install auditwheel==5.2.0
 }
 
 function check_is_build() {
