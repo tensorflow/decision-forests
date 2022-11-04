@@ -164,8 +164,8 @@ function test_package() {
 
   mkdir previous_package
   ${PYTHON} -m pip download --no-deps -d previous_package tensorflow-decision-forests
-  local old_file_size=`du -k "previous_package*" | cut -f1`
-  local new_file_size=`du -k "${PACKAGEPATH}" | cut -f1`
+  local old_file_size=`du -k "previous_package" | cut -f1`
+  local new_file_size=`du -k $PACKAGEPATH | cut -f1`
   local scaled_old_file_size=$(($old_file_size * 12))
   local scaled_new_file_size=$(($new_file_size * 10))
   if [ "$scaled_new_file_size" -gt "$scaled_old_file_size" ]; then
