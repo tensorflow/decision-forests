@@ -173,7 +173,7 @@ function test_package() {
     echo "This probably indicates a problem, aborting."
     exit 1
   fi
-  scaled_new_file_size=$(($new_file_size * 8))
+  scaled_old_file_size=$(($old_file_size * 8))
   if [ "$scaled_new_file_size" -lt "$scaled_old_file_size" ]; then
     echo "New package is 20% smaller than the previous one."
     echo "This probably indicates a problem, aborting."
