@@ -1000,6 +1000,10 @@ class GradientBoostedTreesModel(core.CoreModel):
       - `LOSS_INCREASE`: Stop the training when the validation does not
         decrease for `early_stopping_num_trees_look_ahead` trees. Default:
         "LOSS_INCREASE".
+    early_stopping_initial_iteration: 0-based index of the first iteration
+      considered for early stopping computation. Increasing this value prevents
+      too early stopping due to noisy initial iterations of the learner.
+      Default: 10.
     early_stopping_num_trees_look_ahead: Rolling number of trees used to detect
       validation loss increase and trigger early stopping. Default: 30.
     focal_loss_alpha: EXPERIMENTAL. Weighting parameter for focal loss,
@@ -1242,6 +1246,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       compute_permutation_variable_importance: Optional[bool] = False,
       dart_dropout: Optional[float] = 0.01,
       early_stopping: Optional[str] = "LOSS_INCREASE",
+      early_stopping_initial_iteration: Optional[int] = 10,
       early_stopping_num_trees_look_ahead: Optional[int] = 30,
       focal_loss_alpha: Optional[float] = 0.5,
       focal_loss_gamma: Optional[float] = 2.0,
@@ -1308,6 +1313,8 @@ class GradientBoostedTreesModel(core.CoreModel):
             dart_dropout,
         "early_stopping":
             early_stopping,
+        "early_stopping_initial_iteration":
+            early_stopping_initial_iteration,
         "early_stopping_num_trees_look_ahead":
             early_stopping_num_trees_look_ahead,
         "focal_loss_alpha":

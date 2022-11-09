@@ -1339,8 +1339,6 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     #
     # Another case, when the feature name is "self", this causes a signature
     # error.
-    #
-    # https://b.corp.google.com/issues/252952088
 
     def create_ds(feature_name):
       return keras.pd_dataframe_to_tf_dataset(

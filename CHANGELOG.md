@@ -1,18 +1,24 @@
 # Changelog
 
-## 1.1.0rc1 - 2022-10-27
+## 1.1.0rc2 - 2022-11-07
 
 ### Features
 
 -   Support for Tensorflow Serving APIs.
 -   Add support for zipped Yggdrasil Decision Forests model for
     `yggdrasil_model_to_keras_model`.
+-   Added model prediction tutorial.
+-   Prevent premature stopping of GBT training through new parameter
+    `early_stopping_initial_iteration`.
 
 ### Fix
 
 -   Using loaded datasets with TF-DF no longer fails (Github #131).
 -   Automatically infer the semantic of int8 values as numerical (was
     categorical before).
+-   Build script fixed
+-   Model saving no longer fails when using invalid feature names.
+-   Added keyword to pandas dataset drop (Github #135).
 
 ## 1.0.1 - 2022-09-07
 

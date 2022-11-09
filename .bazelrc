@@ -16,10 +16,6 @@ common --experimental_repo_remote_exec
 build --announce_rc
 build -c opt
 
-# Support for newer version of Bazel with the (old) TensorFlow code.
-# build --incompatible_blacklisted_protos_requires_proto_info=false # Only for bazel<=4.
-build --incompatible_linkopts_to_linklibs=false
-
 # Allow to use tensorflow internal methods.
 build --nocheck_visibility
 
