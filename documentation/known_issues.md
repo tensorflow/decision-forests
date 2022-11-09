@@ -61,7 +61,7 @@ tensorflow_decision_forests | tensorflow
     [squeezes](https://www.tensorflow.org/api_docs/python/tf/squeeze) its
     inputs.
 
-## No all models support distributed training and distribute strategies
+## Not all models support distributed training and distribute strategies
 
 Unless specified, models are trained on a single machine and are not compatible
 with distribution strategies. For example the `GradientBoostedTreesModel` does
@@ -83,3 +83,14 @@ however, may speed up serving.
 
 TF-DF does not implement the APIs required to convert a trained/untrained model
 to the estimator format.
+
+## Loaded models behave differently than Python models.
+
+While abstracted by the Keras API, a model instantiated in Python (e.g., with
+`tfdf.keras.RandomForestModel()`) and a model loaded from disk (e.g., with
+`tf.keras.models.load_model()`) can behave differently. Notably, a Python
+instantiated model automatically applies necessary type conversions. For
+example, if a `float64` feature is fed to a model expecting a `float32` feature,
+this conversion is performed implicitly. However, such a conversion is not
+possible for models loaded from disk. It is therefore important that the
+training data and the inference data always have the exact same type.
