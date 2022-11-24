@@ -42,6 +42,14 @@
 // systems are available to identify a resource: (1) a model_identifier (stored
 // as string) or (2) a model_handle (stored as a resource handle).
 //
+// Inference caches (working memory used during the infernce) are reused in
+// between prediction calls. Such memory re-use reduce the amount of heap
+// allocation. A separate cache is instantiated for each concurent prediction
+// thread with the following limitations:
+//  - No more than kMaxPreAllocatedEngineCaches caches can be kept.
+//  - Caches consuming more than kMaxPreAllocatedEngineCacheSize bytes of memory
+//    are not kept.
+//
 #include <algorithm>
 
 #include "absl/status/status.h"
@@ -322,6 +330,9 @@ class AbstractInferenceEngine {
   class AbstractCache {
    public:
     virtual ~AbstractCache() = default;
+
+    // Size, in bytes, of the cache.
+    virtual uint64_t MemoryUsage() const = 0;
   };
 
   // Creates a cache: one per inference op instance.
@@ -352,6 +363,8 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
       : model_(std::move(model)) {}
 
   class Cache : public AbstractCache {
+    uint64_t MemoryUsage() const override { return dataset_.MemoryUsage(); }
+
    private:
     dataset::VerticalDataset dataset_;
 
@@ -653,6 +666,14 @@ class SemiFastGenericInferenceEngine : public AbstractInferenceEngine {
   }
 
   class Cache : public AbstractCache {
+    uint64_t MemoryUsage() const override {
+      uint64_t usage = predictions_.size() * sizeof(float);
+      if (examples_) {
+        usage += examples_->MemoryUsage();
+      }
+      return usage;
+    }
+
    private:
     // Cache of pre-allocated predictions.
     std::vector<float> predictions_;
@@ -1453,6 +1474,10 @@ class SimpleMLInferenceOp : public OpKernel {
 
   void ReturnEngineCache(
       std::unique_ptr<AbstractInferenceEngine::AbstractCache>&& cache) {
+    if (cache->MemoryUsage() > kMaxPreAllocatedEngineCacheSize) {
+      // The cache is too large for being kept.
+      return;
+    }
     tf::mutex_lock lock_engine_mutex(engine_cache_mutex_);
     if (engine_caches_.size() < kMaxPreAllocatedEngineCaches) {
       engine_caches_.push_back(std::move(cache));
@@ -1466,6 +1491,11 @@ class SimpleMLInferenceOp : public OpKernel {
   // "kMaxPreAllocatedEngineCaches" engine caches can be allocated at one time.
   // However, these engine cache will be deallocated after being used.
   static constexpr int kMaxPreAllocatedEngineCaches = 32;
+
+  // Maximum size, in bytes, of the engine cache objects to keep in memory to
+  // avoid excessive heap allocations. Cache items greater than this value are
+  // discarded after been used (instead of being kept for later reuse).
+  static constexpr int kMaxPreAllocatedEngineCacheSize = 10e6;  // 10MB
 
   // Identifier of the model. Copy of the "model_identifier" attribute.
   std::string model_identifier_;
