@@ -1,5 +1,12 @@
 # Changelog
 
+## HEAD
+
+### Features
+
+-   Setting "subsample" is enough enable random subsampling (to need to also set
+    "sampling_method=RANDOM").
+
 ## 1.1.0 - 2022-11-18
 
 ### Features

@@ -2240,6 +2240,11 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         minimum_accuracy=0.864,
         check_serialization=True)
 
+  def test_gbt_hp_sampling(self):
+    model = keras.GradientBoostedTreesModel(subsample=0.1)
+    self.assertEqual(model.learner_params["sampling_method"], "RANDOM")
+    self.assertEqual(model.learner_params["subsample"], 0.1)
+
 
 if __name__ == "__main__":
   tf.test.main()
