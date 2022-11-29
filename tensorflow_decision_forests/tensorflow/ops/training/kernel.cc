@@ -19,6 +19,8 @@
 
 #include <algorithm>
 #include <csignal>
+#include <cstdint>
+#include <memory>
 
 #include "absl/status/statusor.h"
 #include "absl/strings/substitute.h"
@@ -727,6 +729,14 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("model_id", &model_id_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("learner", &learner_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("use_file_prefix", &use_file_prefix_));
+    OP_REQUIRES_OK(
+        ctx, ctx->GetAttr("create_model_resource", &create_model_resource_));
+    OP_REQUIRES_OK(ctx, ctx->GetAttr("blocking", &blocking_));
+
+    if (model_id_.empty()) {
+      OP_REQUIRES_OK(
+          ctx, tf::Status(tf::error::INVALID_ARGUMENT, "Model id is empty"));
+    }
 
     std::string serialized_guide;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("guide", &serialized_guide));
@@ -814,28 +824,26 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
     LOG(INFO) << "Start Yggdrasil model training";
     LOG(INFO) << "Collect training examples";
 
-    tf::Tensor* success_tensor = nullptr;
+    tf::Tensor* output_tensor = nullptr;
     OP_REQUIRES_OK(
-        ctx, ctx->allocate_output(0, tf::TensorShape({}), &success_tensor));
-    auto success = success_tensor->scalar<bool>();
-    success() = true;
+        ctx, ctx->allocate_output(0, tf::TensorShape({}), &output_tensor));
+    output_tensor->scalar<int32_t>()() = -1;
 
     if (!HasTrainingExamples(ctx)) {
-      LOG(INFO) << "No training example available. Ignore training request.";
-      success() = false;
+      LOG(WARNING) << "No training example available. Ignore training request.";
       return;
     }
 
-    dataset::VerticalDataset dataset;
+    auto dataset = absl::make_unique<dataset::VerticalDataset>();
     std::string label_feature;
     std::string weight_feature;
     std::vector<std::string> input_features;
     OP_REQUIRES_OK(ctx, CreateTrainingDatasetFromFeatures(
-                            ctx, DatasetType::kTraining, &dataset,
+                            ctx, DatasetType::kTraining, dataset.get(),
                             &label_feature, &weight_feature, &input_features));
 
     LOG(INFO) << "Training dataset:\n"
-              << dataset::PrintHumanReadable(dataset.data_spec(), false);
+              << dataset::PrintHumanReadable(dataset->data_spec(), false);
 
     std::unique_ptr<dataset::VerticalDataset> valid_dataset;
     if (has_validation_dataset_) {
@@ -942,45 +950,99 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
     learner->set_stop_training_trigger(&interruption::stop_training);
 #endif
 
-    LOG(INFO) << "Train model";
-    absl::StatusOr<std::unique_ptr<model::AbstractModel>> model;
-    if (valid_dataset) {
-      model = learner->TrainWithStatus(dataset, *valid_dataset);
-    } else {
-      model = learner->TrainWithStatus(dataset);
-    }
-
-#ifdef TFDF_STOP_TRAINING_ON_INTERRUPT
-    OP_REQUIRES_OK(ctx, interruption::DisableUserInterruption());
-#endif
-
-    OP_REQUIRES_OK(ctx, utils::FromUtilStatus(model.status()));
-
-    // Export model to disk.
-    if (!model_dir_.empty()) {
-      if (use_file_prefix_) {
-        LOG(INFO) << "Export model in log directory: " << model_dir_
-                  << " with prefix " << model_id_;
-        OP_REQUIRES_OK(
-            ctx, utils::FromUtilStatus(SaveModel(
-                     tf::io::JoinPath(model_dir_, "model"), model.value().get(),
-                     {/*.file_prefix =*/model_id_})));
-      } else {
-        LOG(INFO) << "Export model in log directory: " << model_dir_
-                  << " without prefix";
-        OP_REQUIRES_OK(ctx, utils::FromUtilStatus(
-                                SaveModel(tf::io::JoinPath(model_dir_, "model"),
-                                          model.value().get())));
-      }
-    }
-
-    // Export model to model resource.
-    if (!model_id_.empty()) {
-      LOG(INFO) << "Save model in resources";
-      auto* model_container = new YggdrasilModelContainer();
-      *model_container->mutable_model() = std::move(model.value());
+    YggdrasilModelContainer* model_container = nullptr;
+    if (create_model_resource_) {
+      model_container = new YggdrasilModelContainer();
       OP_REQUIRES_OK(ctx, ctx->resource_manager()->Create(
                               kModelContainer, model_id_, model_container));
+    }
+
+    // Create a std::function to train the model.
+    //
+    // Note: The capture of std::function should be copiable.
+    struct TrainingState {
+      std::string model_dir;
+      bool use_file_prefix;
+      std::string model_id;
+      YggdrasilModelContainer* model_container;
+      std::unique_ptr<dataset::VerticalDataset> valid_dataset;
+      std::unique_ptr<dataset::VerticalDataset> dataset;
+      std::unique_ptr<model::AbstractLearner> learner;
+    };
+
+    auto training_state = std::make_shared<TrainingState>();
+    training_state->model_dir = this->model_dir_;
+    training_state->model_id = this->model_id_;
+    training_state->use_file_prefix = this->use_file_prefix_;
+    training_state->model_container = model_container;
+    training_state->valid_dataset = std::move(valid_dataset);
+    training_state->dataset = std::move(dataset);
+    training_state->learner = std::move(learner);
+
+    auto async_train = [training_state]() -> absl::Status {
+      LOG(INFO) << "Train model";
+      absl::StatusOr<std::unique_ptr<model::AbstractModel>> model;
+      if (training_state->valid_dataset) {
+        model = training_state->learner->TrainWithStatus(
+            *training_state->dataset, *training_state->valid_dataset);
+      } else {
+        model =
+            training_state->learner->TrainWithStatus(*training_state->dataset);
+      }
+
+#ifdef TFDF_STOP_TRAINING_ON_INTERRUPT
+      RETURN_IF_ERROR(
+          utils::ToUtilStatus(interruption::DisableUserInterruption()));
+#endif
+
+      RETURN_IF_ERROR(model.status());
+
+      // Export model to disk.
+      if (!training_state->model_dir.empty()) {
+        if (training_state->use_file_prefix) {
+          LOG(INFO) << "Export model in log directory: "
+                    << training_state->model_dir << " with prefix "
+                    << training_state->model_id;
+          RETURN_IF_ERROR(
+              SaveModel(tf::io::JoinPath(training_state->model_dir, "model"),
+                        model.value().get(),
+                        {/*.file_prefix =*/training_state->model_id}));
+        } else {
+          LOG(INFO) << "Export model in log directory: "
+                    << training_state->model_dir << " without prefix";
+          RETURN_IF_ERROR(
+              SaveModel(tf::io::JoinPath(training_state->model_dir, "model"),
+                        model.value().get()));
+        }
+      }
+
+      // Export model to model resource.
+      if (training_state->model_container) {
+        LOG(INFO) << "Save model in resources";
+        *training_state->model_container->mutable_model() =
+            std::move(model.value());
+      }
+
+      return absl::OkStatus();
+    };
+
+    auto process_id_or = StartLongRunningProcess(ctx, std::move(async_train));
+    if (!process_id_or.ok()) {
+      OP_REQUIRES_OK(ctx, utils::FromUtilStatus(process_id_or.status()));
+    }
+    output_tensor->scalar<int32_t>()() = process_id_or.value();
+
+    if (blocking_) {
+      while (true) {
+        auto status_or =
+            GetLongRunningProcessStatus(ctx, process_id_or.value());
+        if (!status_or.ok()) {
+          OP_REQUIRES_OK(ctx, utils::FromUtilStatus(status_or.status()));
+        }
+        if (status_or.value() == LongRunningProcessStatus::kSuccess) {
+          break;
+        }
+      }
     }
   }
 
@@ -1009,6 +1071,7 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
     const auto label_status =
         ctx->resource_manager()->Lookup<AbstractFeatureResource, true>(
             kModelContainer, label_id_, &tmp_feature);
+    tmp_feature->Unref();
     return label_status.ok();
   }
 
@@ -1018,7 +1081,9 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
   std::string model_dir_;
   std::string model_id_;
   std::string learner_;
+  bool create_model_resource_;
   bool use_file_prefix_;
+  bool blocking_;
 
   model::proto::GenericHyperParameters hparams_;
   model::proto::Task task_;

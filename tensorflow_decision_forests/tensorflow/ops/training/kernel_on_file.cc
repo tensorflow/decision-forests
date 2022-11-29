@@ -74,6 +74,13 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("model_dir", &model_dir_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("model_id", &model_id_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("use_file_prefix", &use_file_prefix_));
+    OP_REQUIRES_OK(
+        ctx, ctx->GetAttr("create_model_resource", &create_model_resource_));
+
+    if (model_id_.empty()) {
+      OP_REQUIRES_OK(
+          ctx, tf::Status(tf::error::INVALID_ARGUMENT, "Model id is empty"));
+    }
 
     std::string serialized_guide;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("guide", &serialized_guide));
@@ -117,12 +124,6 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
   void Compute(tf::OpKernelContext* ctx) override {
     LOG(INFO) << "Start Yggdrasil model training from disk";
 
-    tf::Tensor* success_tensor = nullptr;
-    OP_REQUIRES_OK(
-        ctx, ctx->allocate_output(0, tf::TensorShape({}), &success_tensor));
-    auto success = success_tensor->scalar<bool>();
-    success() = true;
-
     // TODO: Cache the dataspec.
     dataset::proto::DataSpecification data_spec;
     dataset::CreateDataSpec(train_dataset_path_, false, guide_, &data_spec);
@@ -148,46 +149,92 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
     learner->set_stop_training_trigger(&interruption::stop_training);
 #endif
 
-    LOG(INFO) << "Train model";
-    absl::optional<std::string> valid_dataset_path;
-    if (!valid_dataset_path_.empty()) {
-      valid_dataset_path = valid_dataset_path_;
-    }
-    auto model = learner->TrainWithStatus(train_dataset_path_, data_spec,
-                                          valid_dataset_path);
-
-#ifdef TFDF_STOP_TRAINING_ON_INTERRUPT
-    OP_REQUIRES_OK(ctx, interruption::DisableUserInterruption());
-#endif
-
-    OP_REQUIRES_OK(ctx, utils::FromUtilStatus(model.status()));
-
-    // Export model to disk.
-    if (!model_dir_.empty()) {
-      if (use_file_prefix_) {
-        LOG(INFO) << "Export model in log directory: " << model_dir_
-                  << " with prefix " << model_id_;
-        OP_REQUIRES_OK(
-            ctx, utils::FromUtilStatus(SaveModel(
-                     tf::io::JoinPath(model_dir_, "model"), model.value().get(),
-                     {/*.file_prefix =*/model_id_})));
-      } else {
-        LOG(INFO) << "Export model in log directory: " << model_dir_
-                  << " without prefix";
-        OP_REQUIRES_OK(ctx, utils::FromUtilStatus(
-                                SaveModel(tf::io::JoinPath(model_dir_, "model"),
-                                          model.value().get())));
-      }
-    }
-
-    // Export model to model resource.
-    if (!model_id_.empty()) {
-      LOG(INFO) << "Save model in resources";
-      auto* model_container = new YggdrasilModelContainer();
-      *model_container->mutable_model() = std::move(model.value());
+    YggdrasilModelContainer* model_container = nullptr;
+    if (create_model_resource_) {
+      model_container = new YggdrasilModelContainer();
       OP_REQUIRES_OK(ctx, ctx->resource_manager()->Create(
                               kModelContainer, model_id_, model_container));
     }
+
+    // Create a std::function to train the model.
+    //
+    // Note: The capture of std::function should be copiable.
+    struct TrainingState {
+      std::string model_dir;
+      std::string train_dataset_path;
+      absl::optional<std::string> valid_dataset_path;
+      dataset::proto::DataSpecification data_spec;
+
+      bool use_file_prefix;
+      std::string model_id;
+      YggdrasilModelContainer* model_container;
+      std::unique_ptr<model::AbstractLearner> learner;
+    };
+
+    auto training_state = std::make_shared<TrainingState>();
+    training_state->model_dir = this->model_dir_;
+    training_state->model_id = this->model_id_;
+    training_state->use_file_prefix = this->use_file_prefix_;
+    training_state->model_container = model_container;
+    if (!valid_dataset_path_.empty()) {
+      training_state->valid_dataset_path = std::move(valid_dataset_path_);
+    }
+    training_state->train_dataset_path = std::move(train_dataset_path_);
+    training_state->data_spec = std::move(data_spec);
+    training_state->learner = std::move(learner);
+
+    auto async_train = [training_state]() -> absl::Status {
+      LOG(INFO) << "Train model";
+
+      auto model = training_state->learner->TrainWithStatus(
+          training_state->train_dataset_path, training_state->data_spec,
+          training_state->valid_dataset_path);
+
+#ifdef TFDF_STOP_TRAINING_ON_INTERRUPT
+      RETURN_IF_ERROR(
+          utils::ToUtilStatus(interruption::DisableUserInterruption()));
+#endif
+
+      RETURN_IF_ERROR(model.status());
+
+      // Export model to disk.
+      if (!training_state->model_dir.empty()) {
+        if (training_state->use_file_prefix) {
+          LOG(INFO) << "Export model in log directory: "
+                    << training_state->model_dir << " with prefix "
+                    << training_state->model_id;
+          RETURN_IF_ERROR(
+              SaveModel(tf::io::JoinPath(training_state->model_dir, "model"),
+                        model.value().get(),
+                        {/*.file_prefix =*/training_state->model_id}));
+        } else {
+          LOG(INFO) << "Export model in log directory: "
+                    << training_state->model_dir << " without prefix";
+          RETURN_IF_ERROR(
+              SaveModel(tf::io::JoinPath(training_state->model_dir, "model"),
+                        model.value().get()));
+        }
+      }
+
+      // Export model to model resource.
+      if (training_state->model_container) {
+        LOG(INFO) << "Save model in resources";
+        *training_state->model_container->mutable_model() =
+            std::move(model.value());
+      }
+
+      return absl::OkStatus();
+    };
+
+    auto process_id_or = StartLongRunningProcess(ctx, std::move(async_train));
+    if (!process_id_or.ok()) {
+      OP_REQUIRES_OK(ctx, utils::FromUtilStatus(process_id_or.status()));
+    }
+
+    tf::Tensor* output_tensor = nullptr;
+    OP_REQUIRES_OK(
+        ctx, ctx->allocate_output(0, tf::TensorShape({}), &output_tensor));
+    output_tensor->scalar<int32_t>()() = process_id_or.value();
   }
 
  private:
@@ -196,6 +243,7 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
   std::string train_dataset_path_;
   std::string valid_dataset_path_;
   bool use_file_prefix_;
+  bool create_model_resource_;
 
   model::proto::GenericHyperParameters hparams_;
   model::proto::TrainingConfig training_config_;

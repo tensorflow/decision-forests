@@ -24,6 +24,22 @@
 namespace tensorflow_decision_forests {
 namespace ops {
 
+// Status of long running operations.
+enum LongRunningProcessStatus {
+  kInProgress = 0,
+  kSuccess = 1,
+};
+
+// Starts a long running process. Returns the id of the process.
+absl::StatusOr<int32_t> StartLongRunningProcess(
+    ::tensorflow::OpKernelContext* ctx, std::function<absl::Status()>&& call);
+
+// Checks the status of a long running process. If the returned status of a
+// process is success or failure, the status of the process should not be
+// queried again.
+absl::StatusOr<LongRunningProcessStatus> GetLongRunningProcessStatus(
+    ::tensorflow::OpKernelContext* ctx, int32_t process_id);
+
 // If TFDF_STOP_TRAINING_ON_INTERRUPT is set, model training is interrupted with
 // the "set_stop_training_trigger()" API when the process receives a "program
 // interrupt" signal (i.e. SIGINT).

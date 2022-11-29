@@ -77,6 +77,7 @@ cc_library(
         "feature_on_file.cc",
         "kernel.cc",
         "kernel_on_file.cc",
+        "long_process.cc",
     ],
     hdrs = [
         "feature_on_file.h",
@@ -88,6 +89,7 @@ cc_library(
         "//conditions:default": [],
     }),
     deps = [
+        "@com_google_absl//absl/random",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec",
@@ -102,7 +104,9 @@ cc_library(
         "@ydf//yggdrasil_decision_forests/learner/distributed_decision_tree/dataset_cache:dataset_cache_common",
         "@ydf//yggdrasil_decision_forests/model:abstract_model",
         "@ydf//yggdrasil_decision_forests/model:model_library",
+        "@ydf//yggdrasil_decision_forests/utils:concurrency",
         "@ydf//yggdrasil_decision_forests/utils:distribution_cc_proto",
+        "@ydf//yggdrasil_decision_forests/utils:synchronization_primitives",
         "@ydf//yggdrasil_decision_forests/utils:tensorflow",
     ] + select({
         "@ydf//yggdrasil_decision_forests:tensorflow_with_header_lib": [

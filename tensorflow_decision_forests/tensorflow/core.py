@@ -445,7 +445,7 @@ def train(
     model_dir: Optional[str] = None,
     keep_model_in_resource: Optional[bool] = True,
     try_resume_training: Optional[bool] = False,
-    has_validation_dataset: Optional[bool] = False) -> tf.Operation:
+    has_validation_dataset: Optional[bool] = False):
   """Trains a model on the dataset accumulated by collect_training_examples.
 
   Args:
@@ -511,12 +511,12 @@ def train(
 
   use_file_prefix = True
 
-  return training_op.SimpleMLModelTrainer(
+  process_id = training_op.SimpleMLModelTrainer(
       feature_ids=",".join(feature_ids),
       label_id=_input_key_to_id(model_id, label_id, training_column=True),
       weight_id="" if weight_id is None else _input_key_to_id(
           model_id, weight_id, training_column=True),
-      model_id=model_id if keep_model_in_resource else "",
+      model_id=model_id,
       model_dir=model_dir or "",
       learner=learner,
       hparams=generic_hparms.SerializeToString(),
@@ -525,7 +525,15 @@ def train(
       deployment_config=deployment_config.SerializeToString(),
       guide=guide.SerializeToString(),
       has_validation_dataset=has_validation_dataset,
-      use_file_prefix=use_file_prefix)
+      use_file_prefix=use_file_prefix,
+      create_model_resource=keep_model_in_resource)
+
+  if process_id != -1:
+    # Wait for the training to be done.
+    while True:
+      if training_op.SimpleMLCheckStatus(
+          process_id=process_id) == 1:  # kSuccess
+        break
 
 
 def train_on_file_dataset(
@@ -547,7 +555,7 @@ def train_on_file_dataset(
     keep_model_in_resource: Optional[bool] = True,
     working_cache_path: Optional[str] = None,
     distribution_config: Optional[DistributionConfiguration] = None,
-    try_resume_training: Optional[bool] = False) -> tf.Operation:
+    try_resume_training: Optional[bool] = False):
   """Trains a model on dataset stored on file.
 
   The input arguments and overall logic of this OP is similar to the ":train"
@@ -655,16 +663,24 @@ def train_on_file_dataset(
 
   use_file_prefix = True
 
-  return training_op.SimpleMLModelTrainerOnFile(
+  process_id = training_op.SimpleMLModelTrainerOnFile(
       train_dataset_path=train_dataset_path,
       valid_dataset_path=valid_dataset_path if valid_dataset_path else "",
-      model_id=model_id if keep_model_in_resource else "",
+      model_id=model_id,
       model_dir=model_dir or "",
       hparams=generic_hparms.SerializeToString(),
       training_config=training_config.SerializeToString(),
       deployment_config=deployment_config.SerializeToString(),
       guide=guide.SerializeToString(),
-      use_file_prefix=use_file_prefix)
+      use_file_prefix=use_file_prefix,
+      create_model_resource=keep_model_in_resource)
+
+  if process_id != -1:
+    # Wait for the training to be done.
+    while True:
+      if training_op.SimpleMLCheckStatus(
+          process_id=process_id) == 1:  # kSuccess
+        break
 
 
 def finalize_distributed_dataset_collection(cluster_coordinator,
