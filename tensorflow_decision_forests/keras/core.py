@@ -533,6 +533,21 @@ class CoreModel(InferenceCoreModel):
     """
     super(CoreModel, self).load_weights(*args, **kwargs)
 
+  def train_on_batch(self, *args, **kwargs):
+    """No supported for Tensorflow Decision Forests models.
+
+    Decision forests are not trained in batches the same way neural networks
+    are. To avoid confusion, train_on_batch is disabled.
+
+    Args:
+      *args: Ignored
+      **kwargs: Ignored.
+    """
+    raise NotImplementedError("Decision Forests are not trained in batches by "
+                              "definition. If you plan to update a model with "
+                              "new data, create a new model on the entire "
+                              "dataset.")
+
   # This function should not be serialized in the SavedModel.
   @no_automatic_dependency_tracking
   @tf.function(reduce_retracing=True)

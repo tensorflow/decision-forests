@@ -2245,6 +2245,11 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     self.assertEqual(model.learner_params["sampling_method"], "RANDOM")
     self.assertEqual(model.learner_params["subsample"], 0.1)
 
+  def test_gbt_fails_train_on_batch(self):
+    model = keras.GradientBoostedTreesModel()
+    with self.assertRaises(NotImplementedError):
+      model.train_on_batch()
+
 
 if __name__ == "__main__":
   tf.test.main()
