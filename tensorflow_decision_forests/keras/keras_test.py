@@ -1655,7 +1655,16 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     predictions = model.predict(x_train)
     self.assertEqual(predictions.shape[1], 1)
 
-  def test_resume_training(self):
+  # Note: QuickScorer cannot support more than 64 notes (i.e. max-depth 6).
+  # When using max_depth=10, the quick scorer engine will not be used.
+  @parameterized.parameters(
+      ("binomial", 6, "BINOMIAL_LOG_LIKELIHOOD", 0.865, True),
+      ("binomial_no_quick_scorer", 10, "BINOMIAL_LOG_LIKELIHOOD", 0.865, False),
+      ("focal", 6, "BINARY_FOCAL_LOSS", 0.862, False),
+      ("focal_no_quick_scorer", 10, "BINARY_FOCAL_LOSS", 0.862, False),
+  )
+  def test_resume_training(self, name, max_depth, loss, min_accuracy,
+                           accuracy_should_increase):
     # Path to dataset.
     dataset_directory = os.path.join(ydf_test_data_path(), "dataset")
     train_path = os.path.join(dataset_directory, "adult_train.csv")
@@ -1668,7 +1677,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     test_ds = keras.pd_dataframe_to_tf_dataset(
         pd.read_csv(test_path), label=label)
 
-    model = keras.GradientBoostedTreesModel(num_trees=50, validation_ratio=0.0)
+    model = keras.GradientBoostedTreesModel(
+        num_trees=50, validation_ratio=0.0, loss=loss, max_depth=max_depth)
     model.compile("accuracy")
 
     model.fit(train_ds)
@@ -1683,10 +1693,11 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     logging.info("eval_model_50t: %s", eval_model_50t)
     logging.info("eval_model_100t: %s", eval_model_100t)
 
-    self.assertGreater(eval_model_50t["accuracy"], 0.865)
+    self.assertGreater(eval_model_50t["accuracy"], min_accuracy)
+    self.assertGreater(eval_model_100t["accuracy"], min_accuracy)
 
-    self.assertGreater(eval_model_100t["accuracy"],
-                       eval_model_50t["accuracy"] + 0.001)
+    if accuracy_should_increase:
+      self.assertGreater(eval_model_100t["accuracy"], min_accuracy)
 
   def test_contains_repeat(self):
     a = tf.data.Dataset.from_tensor_slices(range(10))
