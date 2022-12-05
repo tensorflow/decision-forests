@@ -143,10 +143,43 @@ class Tuner(object):
   """Abstract tuner class.
 
   The user is expected to use one of its instances e.g. RandomSearch.
+
+  Attributes:
+    use_predefined_hps: If true, automatically configure the the space of
+      hyper-parameters explored by the tuner. In this case, configuring the
+      hyper-parameters manually (e.g. calling "choice(...)" on the tuner) is not
+      necessary.
+    trial_num_threads: Number of threads used to train the models in each trial.
+      This parameter is different from the `num_threads` parameter of the model
+      constructor that indicates how many threads to use for the overal
+      training+possibly tuning. For example trial_num_threads=2 and
+      num_threads=5, 5 models will be training in parallel during tuning, and
+      each of those models will be trained with 2 threads. In reverse, if you
+      want to run at most 100 threads globally, make sure that
+      trial_num_threads*num_threads = 100.
+    trial_maximum_training_duration_seconds: Maximum training duration of an
+      individual trial expressed in seconds. This parameter is different from
+      the maximum_training_duration_seconds parameter of the model constructor
+      that define the maximum training+tuning duration. Set to None for no time
+      limit.
   """
 
-  def __init__(self):
+  def __init__(self,
+               use_predefined_hps: bool = False,
+               trial_num_threads: int = 1,
+               trial_maximum_training_duration_seconds: Optional[float] = None):
     self._train_config = TrainConfig(learner="HYPERPARAMETER_OPTIMIZER")
+    self._use_predefined_hps = use_predefined_hps
+
+    proto = self._optimizer_proto()
+
+    if self._use_predefined_hps:
+      proto.predefined_search_space.SetInParent()
+
+    proto.base_learner_deployment.num_threads = trial_num_threads
+
+    if trial_maximum_training_duration_seconds is not None:
+      proto.base_learner.maximum_training_duration_seconds = trial_maximum_training_duration_seconds
 
   def train_config(self) -> TrainConfig:
     """YDF training configuration for the Hyperparameter optimizer."""
@@ -189,10 +222,34 @@ class RandomSearch(Tuner):
 
   Attributes:
     num_trials: Number of random hyperparameter values to evaluate.
+    use_predefined_hps: If true, automatically configure the the space of
+      hyper-parameters explored by the tuner. In this case, configuring the
+      hyper-parameters manually (e.g. calling "choice(...)" on the tuner) is not
+      necessary.
+    trial_num_threads: Number of threads used to train the models in each trial.
+      This parameter is different from the `num_threads` parameter of the model
+      constructor that indicates how many threads to use for the overal
+      training+possibly tuning. For example trial_num_threads=2 and
+      num_threads=5, 5 models will be training in parallel during tuning, and
+      each of those models will be trained with 2 threads. In reverse, if you
+      want to run at most 100 threads globally, make sure that
+      trial_num_threads*num_threads = 100.
+    trial_maximum_training_duration_seconds: Maximum training duration of an
+      individual trial expressed in seconds. This parameter is different from
+      the maximum_training_duration_seconds parameter of the model constructor
+      that define the maximum training+tuning duration.
   """
 
-  def __init__(self, num_trials: int = 100):
-    super(RandomSearch, self).__init__()
+  def __init__(self,
+               num_trials: int = 100,
+               use_predefined_hps: bool = False,
+               trial_num_threads: int = 1,
+               trial_maximum_training_duration_seconds: Optional[float] = None):
+    super(RandomSearch, self).__init__(
+        use_predefined_hps=use_predefined_hps,
+        trial_num_threads=trial_num_threads,
+        trial_maximum_training_duration_seconds=trial_maximum_training_duration_seconds
+    )
     self._optimizer_proto().optimizer.optimizer_key = "RANDOM"
     self._random_optimizer_proto().num_trials = num_trials
 

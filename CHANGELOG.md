@@ -6,6 +6,8 @@
 
 -   Setting "subsample" is enough enable random subsampling (to need to also set
     "sampling_method=RANDOM").
+-   The Tuner argument "use_predefined_hps" automatically configures the set of
+    hyper-parameters to explore during automatic hyper-parameter tuning.
 
 ## 1.1.0 - 2022-11-18
 

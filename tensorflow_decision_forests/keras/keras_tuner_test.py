@@ -93,6 +93,51 @@ class TFDFTunerTest(tf.test.TestCase):
     # This is a lot of text.
     _ = model.make_inspector().tuning_logs(return_format="proto")
 
+  def test_random_adult_in_memory_predefined_hpspace(self):
+
+    # Prepare the datasets
+    dataset_directory = os.path.join(test_data_path(), "dataset")
+    train_path = os.path.join(dataset_directory, "adult_train.csv")
+    test_path = os.path.join(dataset_directory, "adult_test.csv")
+
+    label = "income"
+
+    train_ds = tfdf.keras.pd_dataframe_to_tf_dataset(
+        pd.read_csv(train_path), label=label)
+    test_ds = tfdf.keras.pd_dataframe_to_tf_dataset(
+        pd.read_csv(test_path), label=label)
+
+    # Configure and train the model
+    tuner = tfdf.tuner.RandomSearch(num_trials=30, use_predefined_hps=True)
+    model = tfdf.keras.GradientBoostedTreesModel(num_trees=50, tuner=tuner)
+    model.fit(train_ds)
+
+    # Evaluate the model
+    model.compile(["accuracy"])
+    evaluation = model.evaluate(test_ds, return_dict=True)
+    self.assertGreater(evaluation["accuracy"], 0.87)
+
+    tuning_logs = model.make_inspector().tuning_logs()
+    logging.info("Tuning logs:\n%s", tuning_logs)
+
+    self.assertSetEqual(
+        set(tuning_logs.columns),
+        set([
+            "score", "evaluation_time", "best",
+            "num_candidate_attributes_ratio", "use_hessian_gain",
+            "growing_strategy", "max_depth", "max_num_nodes", "subsample",
+            "shrinkage", "sampling_method", "sparse_oblique_weights",
+            "sparse_oblique_projection_density_factor", "categorical_algorithm",
+            "min_examples", "sparse_oblique_normalization", "split_axis"
+        ]))
+    self.assertEqual(tuning_logs.shape, (30, 17))
+    self.assertEqual(tuning_logs["best"].sum(), 1)
+    self.assertNear(tuning_logs["score"][tuning_logs["best"]].values[0], -0.587,
+                    0.05)
+
+    # This is a lot of text.
+    _ = model.make_inspector().tuning_logs(return_format="proto")
+
 
 if __name__ == "__main__":
   tf.test.main()

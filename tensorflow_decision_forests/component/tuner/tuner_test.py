@@ -24,7 +24,10 @@ from google.protobuf import text_format
 class TunerTest(parameterized.TestCase, tf.test.TestCase):
 
   def test_base(self):
-    tuner = tuner_lib.RandomSearch(num_trials=20)
+    tuner = tuner_lib.RandomSearch(
+        num_trials=20,
+        trial_num_threads=2,
+        trial_maximum_training_duration_seconds=10)
     tuner.choice("a", [1, 2, 3])
     tuner.choice("b", [1.0, 2.0, 3.0])
     tuner.choice("c", ["x", "y"])
@@ -46,6 +49,12 @@ learner: "HYPERPARAMETER_OPTIMIZER"
     [yggdrasil_decision_forests.model.hyperparameters_optimizer_v2.proto.random] {
       num_trials: 20
     }
+  }
+  base_learner {
+    maximum_training_duration_seconds: 10
+  }
+  base_learner_deployment {
+    num_threads: 2
   }
   search_space {
     fields {
