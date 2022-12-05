@@ -12,5 +12,5 @@ def deps():
     # # You can also clone the YDF repository manually.
     # native.local_repository(
     #     name = "ydf",
-    #     path = "../yggdrasil_decision_forests_bazel",
+    #     path = "../yggdrasil-decision-forests",
     # )

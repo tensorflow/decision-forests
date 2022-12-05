@@ -43,7 +43,13 @@ constexpr char kProcessContainer[] = "decision_forests_process";
 class RunningProcessResource : public ::tensorflow::ResourceBase {
  public:
   RunningProcessResource() = default;
-  virtual ~RunningProcessResource() override{};
+
+  virtual ~RunningProcessResource() override {
+    if (thread_) {
+      thread_->Join();
+    }
+  };
+
   std::string DebugString() const override { return ""; }
 
   // Start a long running process. Can only be called once.
@@ -104,7 +110,7 @@ absl::StatusOr<LongRunningProcessStatus> GetLongRunningProcessStatus(
     tf::OpKernelContext* ctx, int32_t process_id) {
   // Get the rtf resource containing the running process.
   const auto resource_name = absl::StrCat(process_id);
-  RunningProcessResource* process_container;
+  RunningProcessResource* process_container = nullptr;
   auto find_container_status =
       ctx->resource_manager()->Lookup<RunningProcessResource, true>(
           kProcessContainer, resource_name, &process_container);
