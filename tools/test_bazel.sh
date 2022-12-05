@@ -162,7 +162,7 @@ time ${BAZEL} ${STARTUP_FLAGS} build ${BUILD_RULES} ${FLAGS} --build_tag_filters
 
 # Unit test library
 if [ "${RUN_TESTS}" = 1 ]; then
-  time ${BAZEL} ${STARTUP_FLAGS} test ${TEST_RULES} ${FLAGS} --test_size_filters=small,medium,large --test_tag_filters=-tfdistributed
+  time ${BAZEL} ${STARTUP_FLAGS} test ${TEST_RULES} ${FLAGS} --flaky_test_attempts=1 --test_size_filters=small,medium,large --test_tag_filters=-tfdistributed
 fi
 
 # Example of dependency check.

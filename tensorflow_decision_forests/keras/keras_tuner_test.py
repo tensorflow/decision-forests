@@ -73,7 +73,7 @@ class TFDFTunerTest(tf.test.TestCase):
     # Evaluate the model
     model.compile(["accuracy"])
     evaluation = model.evaluate(test_ds, return_dict=True)
-    self.assertGreater(evaluation["accuracy"], 0.87)
+    self.assertGreater(evaluation["accuracy"], 0.867)
 
     tuning_logs = model.make_inspector().tuning_logs()
     logging.info("Tuning logs:\n%s", tuning_logs)
@@ -115,7 +115,7 @@ class TFDFTunerTest(tf.test.TestCase):
     # Evaluate the model
     model.compile(["accuracy"])
     evaluation = model.evaluate(test_ds, return_dict=True)
-    self.assertGreater(evaluation["accuracy"], 0.87)
+    self.assertGreater(evaluation["accuracy"], 0.867)
 
     tuning_logs = model.make_inspector().tuning_logs()
     logging.info("Tuning logs:\n%s", tuning_logs)
