@@ -503,7 +503,7 @@ tf::Status FeatureSet::InitializeDatasetFromFeatures(
       }));
 
   TF_RETURN_IF_ERROR_FROM_ABSL_STATUS(dataset::FinalizeComputeSpec(
-      {}, accumulator, dataset->mutable_data_spec()));
+      guide, accumulator, dataset->mutable_data_spec()));
 
   return tf::OkStatus();
 }

@@ -6,6 +6,11 @@
 
 -   Setting "subsample" is enough enable random subsampling (to need to also set
     "sampling_method=RANDOM").
+-   Add "min_vocab_frequency" argument in "FeatureUsage" to control the minimum
+    frequency of categorical items.
+-   Add "override_global_imputation_value" argument in "FeatureUsage" to
+    override the value used for global imputation of missing value by the
+    global-imputation algorithm.
 -   The Tuner argument "use_predefined_hps" automatically configures the set of
     hyper-parameters to explore during automatic hyper-parameter tuning.
 

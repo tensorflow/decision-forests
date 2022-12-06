@@ -2261,6 +2261,28 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     with self.assertRaises(NotImplementedError):
       model.train_on_batch()
 
+  def test_override_global_imputation_value(self):
+    dataframe = pd.DataFrame({
+        # "A" is the most frequent value.
+        "x": ["A", "A", "A", "B", "B", "C"],
+        "y": [0, 1, 0, 1, 0, 1],
+    })
+    dataset = keras.pd_dataframe_to_tf_dataset(dataframe, label="y")
+    model = keras.GradientBoostedTreesModel(features=[
+        keras.FeatureUsage(
+            name="x",
+            semantic=keras.FeatureSemantic.CATEGORICAL,
+            min_vocab_frequency=1,
+            override_global_imputation_value="B")
+    ])
+    model.fit(dataset)
+
+    inspector = model.make_inspector()
+    self.assertEqual(inspector.dataspec.columns[0].name, "x")
+    # The values are ordered by frequency. 1 is A, 2 is B, 3 is C.
+    self.assertEqual(
+        inspector.dataspec.columns[0].categorical.most_frequent_value, 2)
+
 
 if __name__ == "__main__":
   tf.test.main()

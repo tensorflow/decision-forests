@@ -49,7 +49,7 @@ from datetime import datetime  # pylint: disable=g-importing-member
 import inspect
 import os
 import tempfile
-from typing import Optional, List, Dict, Any, Text, Tuple, NamedTuple, Set
+from typing import Optional, List, Dict, Any, Text, Tuple, NamedTuple, Set, Union
 
 import tensorflow as tf
 
@@ -164,13 +164,27 @@ class FeatureUsage(object):
       of unique categorical values stored as string. If more categorical values
       are present, the least frequent values are grouped into a
       Out-of-vocabulary item. Reducing the value can improve or hurt the model.
+    min_vocab_frequency: For CATEGORICAL and CATEGORICAL_SET features only.
+      Minimum number of occurence of a categorical value. Values present less
+      than "min_vocab_frequency" times in the training dataset are treated as
+      "Out-of-vocabulary".
+    override_global_imputation_value: For CATEGORICAL and CATEGORICAL_SET
+      features only. If set, replaces the global imputation value used to handle
+      missing values. That is, at inference time, missing values will be treated
+      as "override_global_imputation_value". "override_global_imputation_value"
+      can only be used on categorical features and on columns not containing
+      missing values in the training dataset. If the algorithm used to handle
+      missing values is not "GLOBAL_IMPUTATION" (default algorithm), this value
+      is ignored.
   """
 
   def __init__(self,
                name: Text,
                semantic: Optional[FeatureSemantic] = None,
                num_discretized_numerical_bins: Optional[int] = None,
-               max_vocab_count: Optional[int] = None):
+               max_vocab_count: Optional[int] = None,
+               min_vocab_frequency: Optional[int] = None,
+               override_global_imputation_value: Optional[str] = None):
 
     self._name = name
     self._semantic = semantic
@@ -188,6 +202,13 @@ class FeatureUsage(object):
       if max_vocab_count is not None:
         raise ValueError("\"max_vocab_count\" only works for CATEGORICAL "
                          "and CATEGORICAL_SET semantic.")
+      if min_vocab_frequency is not None:
+        raise ValueError("\"min_vocab_frequency\" only works for CATEGORICAL "
+                         "and CATEGORICAL_SET semantic.")
+      if override_global_imputation_value is not None:
+        raise ValueError(
+            "\"override_global_imputation_value\" only works for CATEGORICAL "
+            "and CATEGORICAL_SET semantic.")
 
     if semantic is None:
       # The semantic is automatically determined at training time.
@@ -209,6 +230,12 @@ class FeatureUsage(object):
 
       if max_vocab_count:
         self._guide.categorial.max_vocab_count = max_vocab_count
+
+      if override_global_imputation_value:
+        self._guide.categorial.override_most_frequent_item.str_value = override_global_imputation_value
+
+      if min_vocab_frequency:
+        self._guide.categorial.min_vocab_frequency = min_vocab_frequency
 
     else:
       raise ValueError("Non supported semantic {}".format(semantic))
@@ -311,17 +338,17 @@ class CoreModel(InferenceCoreModel):
       it is recommended for the preprocessing to return a dictionary of tensors.
     exclude_non_specified_features: If true, only use the features specified in
       "features".
-    preprocessing: Functional keras model or `@tf.function` to apply on the input
-      feature before the model to train. This preprocessing model can consume
-      and return tensors, list of tensors or dictionary of tensors. If
+    preprocessing: Functional keras model or `@tf.function` to apply on the
+      input feature before the model to train. This preprocessing model can
+      consume and return tensors, list of tensors or dictionary of tensors. If
       specified, the model only "sees" the output of the preprocessing (and not
       the raw input). Can be used to prepare the features or to stack multiple
       models on top of each other. Unlike preprocessing done in the tf.dataset,
       the operation in "preprocessing" are serialized with the model.
     postprocessing: Like "preprocessing" but applied on the model output.
-    ranking_group: Only for `task=Task.RANKING`. Name of a `tf.string` feature that
-      identifies queries in a query/document ranking task. The ranking group is
-      not added automatically for the set of features if
+    ranking_group: Only for `task=Task.RANKING`. Name of a `tf.string` feature
+      that identifies queries in a query/document ranking task. The ranking
+      group is not added automatically for the set of features if
       `exclude_non_specified_features=false`.
     uplift_treatment: Only for `task=Task.CATEGORICAL_UPLIFT` and `task=Task`.
       NUMERICAL_UPLIFT. Name of an integer feature that identifies the treatment
@@ -971,8 +998,8 @@ class CoreModel(InferenceCoreModel):
       validation_data: Validation dataset. If specified, the learner might use
         this dataset to help training e.g. early stopping.
       sample_weight: Training weights. Note: training weights can also be
-        provided as the third output in a `tf.data.Dataset` e.g. (features, label,
-        weights).
+        provided as the third output in a `tf.data.Dataset` e.g. (features,
+        label, weights).
       steps_per_epoch: [Parameter will be removed] Number of training batch to
         load before training the model. Currently, only supported for
         distributed training.
@@ -1440,7 +1467,7 @@ class CoreModel(InferenceCoreModel):
         dataset_format="csv")
       model.save("/model/path")
       ```
-      
+
       # Distributed training
       ```python
       with tf.distribute.experimental.ParameterServerStrategy(...).scope():
@@ -1451,19 +1478,21 @@ class CoreModel(InferenceCoreModel):
         dataset_format="tfrecord+tfe")
       model.save("/model/path")
       ```
-      
+
     Args:
-      train_path: Path to the training dataset. Supports comma separated files, shard and glob notation.
+      train_path: Path to the training dataset. Supports comma separated files,
+        shard and glob notation.
       label_key: Name of the label column.
       weight_key: Name of the weighing column.
       ranking_key: Name of the ranking column.
       valid_path: Path to the validation dataset. If not provided, or if the
-               learning algorithm does not supports/needs a validation dataset,
-               `valid_path` is ignored.
+        learning algorithm does not supports/needs a validation dataset,
+        `valid_path` is ignored.
       dataset_format: Format of the dataset. Should be one of the registered
-         dataset format (see [User Manual](https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/user_manual.md#dataset-path-and-format)
-           for more details). The format "csv" is always available but it is
-           generally only suited for small datasets.
+        dataset format (see [User
+        Manual](https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/user_manual.md#dataset-path-and-format)
+        for more details). The format "csv" is always available but it is
+        generally only suited for small datasets.
       max_num_scanned_rows_to_accumulate_statistics: Maximum number of examples
         to scan to determine the statistics of the features (i.e. the dataspec,
         e.g. mean value, dictionaries). (Currently) the "first" examples of the
