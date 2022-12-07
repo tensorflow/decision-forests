@@ -51,6 +51,7 @@ landing_page:
             <li><a href="https://www.tensorflow.org/decision_forests/api_docs/python/tfdf/all_symbols">API reference</a></li>
             <li><a href="https://ydf.readthedocs.io/">YDF documentation (also applicable to TF-DF)</a></li>
             <li><a href="https://developers.google.com/machine-learning/decision-forests">Google Developers class on decision forests</a></li>
+            <li><a href="https://www.tensorflow.org/decision_forests/simple_ml_for_sheets">Use Simple ML for Sheets to train models in your Google Sheets</a></li>
             </ul>
             </p>
             <h3>Community</h3>

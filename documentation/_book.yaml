@@ -38,8 +38,9 @@ upper_tabs:
         path: /decision_forests/tensorflow_serving
       - title: Distributed Training
         path: /decision_forests/distributed_training
-      - title: Runnig models in JavaScript
+      - title: Running models in JavaScript
         path: https://ydf.readthedocs.io/en/latest/js_serving.html
+        status: external
       - heading: Tutorials
       - title: Overview
         path: /decision_forests/tutorials/index
@@ -62,6 +63,12 @@ upper_tabs:
         path: /decision_forests/developer_manual
       - title: Directory structure
         path: /decision_forests/directory_structure
+      - heading: Simple ML for Sheets
+      - title: Introduction
+        path: /decision_forests/simple_ml_for_sheets/
+      - title: Tutorial
+        status: external
+        path: https://simplemlforsheets.com/tutorial.html
     - name: API Reference
       skip_translation: true
       contents:
