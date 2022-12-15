@@ -4,7 +4,7 @@ package(
     licenses = ["notice"],
 )
 
-pytype_strict_binary(
+py_binary(
     name = "minimal",
     srcs = ["minimal.py"],
     python_version = "PY3",
@@ -18,7 +18,7 @@ pytype_strict_binary(
     ],
 )
 
-pytype_strict_binary(
+py_binary(
     name = "hyperparameter_optimization",
     srcs = ["hyperparameter_optimization.py"],
     python_version = "PY3",
@@ -32,7 +32,7 @@ pytype_strict_binary(
     ],
 )
 
-pytype_strict_binary(
+py_binary(
     name = "distributed_training",
     srcs = ["distributed_training.py"],
     python_version = "PY3",
@@ -47,7 +47,7 @@ pytype_strict_binary(
     ],
 )
 
-pytype_strict_binary(
+py_binary(
     name = "distributed_hyperparameter_optimization",
     srcs = ["distributed_hyperparameter_optimization.py"],
     python_version = "PY3",
