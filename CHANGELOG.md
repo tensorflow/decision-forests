@@ -4,6 +4,9 @@
 
 ### Features
 
+-   Add support for distributed training and distributed hyper-parameter tuning
+    in the OSS build. See
+    https://www.tensorflow.org/decision_forests/distributed_training
 -   Setting "subsample" is enough enable random subsampling (to need to also set
     "sampling_method=RANDOM").
 -   Add "min_vocab_frequency" argument in "FeatureUsage" to control the minimum

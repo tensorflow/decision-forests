@@ -171,7 +171,6 @@ py_test(
     ],
     python_version = "PY3",
     shard_count = 10,
-    tags = ["tfdistributed"],
     deps = [
         # absl/flags dep,
         # absl/logging dep,

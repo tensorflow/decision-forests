@@ -142,27 +142,16 @@ STARTUP_FLAGS="${STARTUP_FLAGS} --bazelrc=${TENSORFLOW_BAZELRC}"
 #
 # FLAGS="$FLAGS --config=rbe_cpu_linux --config=tensorflow_testing_rbe_linux --config=rbe_linux_py3"
 
-# Minimal rules to create and test the Pip Package.
-#
-# Only require a small amount of TF to be compiled.
-BUILD_RULES="//tensorflow_decision_forests/component/...:all //tensorflow_decision_forests/contrib/...:all //tensorflow_decision_forests/keras //tensorflow_decision_forests/keras:grpc_worker_main"
-TEST_RULES="//tensorflow_decision_forests/component/...:all //tensorflow_decision_forests/contrib/...:all //tensorflow_decision_forests/keras/...:all"
-
-
 # All the build rules.
-#
-# BUILD_RULES="//tensorflow_decision_forests/...:all"
-# TEST_RULES="//tensorflow_decision_forests/...:all"
-
-# Tests when distribution strategy is enabled.
-# TEST_RULES="${TEST_RULES} //tensorflow_decision_forests/keras:keras_distributed_test"
+BUILD_RULES="//tensorflow_decision_forests/...:all"
+TEST_RULES="//tensorflow_decision_forests/...:all"
 
 # Build library
 time ${BAZEL} ${STARTUP_FLAGS} build ${BUILD_RULES} ${FLAGS} --build_tag_filters=-tfdistributed
 
 # Unit test library
 if [ "${RUN_TESTS}" = 1 ]; then
-  time ${BAZEL} ${STARTUP_FLAGS} test ${TEST_RULES} ${FLAGS} --flaky_test_attempts=1 --test_size_filters=small,medium,large --test_tag_filters=-tfdistributed
+  time ${BAZEL} ${STARTUP_FLAGS} test ${TEST_RULES} ${FLAGS} --flaky_test_attempts=1 --test_size_filters=small,medium,large
 fi
 
 # Example of dependency check.

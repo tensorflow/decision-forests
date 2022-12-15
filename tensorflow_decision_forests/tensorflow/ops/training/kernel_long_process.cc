@@ -54,7 +54,7 @@ class RunningProcessResource : public ::tensorflow::ResourceBase {
 
   // Start a long running process. Can only be called once.
   void Run(std::function<absl::Status()>&& call) {
-    utils::concurrency::MutexLock l(&mutex_);
+    utils::concurrency::MutexLock l(&mutex_);  // Protect "status".
     DCHECK(thread_ == nullptr);
     call_ = std::move(call);
     status_ = LongRunningProcessStatus::kInProgress;

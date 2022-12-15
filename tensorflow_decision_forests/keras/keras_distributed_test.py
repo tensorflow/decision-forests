@@ -18,6 +18,7 @@ from __future__ import print_function
 
 import os
 import subprocess
+import time
 from typing import List, Tuple
 
 from absl import flags
@@ -110,6 +111,9 @@ def _create_in_process_grpc_worker_cluster(
         str(worker_ports[i])
     ]
     subprocess.Popen(args, stdout=subprocess.PIPE)
+    time.sleep(1)
+
+  time.sleep(5)
   return worker_addresses
 
 
@@ -253,6 +257,10 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
   )
   def test_distributed_training_adult(self, use_finite_dataset,
                                       simulate_failures):
+
+    if simulate_failures:
+      self.skipTest("Not tested in OSS build")
+
     # Split the dataset into multiple files.
     train_path = os.path.join(test_data_path(), "dataset", "adult_train.csv")
     test_path = os.path.join(test_data_path(), "dataset", "adult_test.csv")
@@ -447,7 +455,55 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
         "capital_gain", "capital_loss", "hours_per_week", "native_country"
     ])
 
+  def test_distributed_hyperparameter_tuning_on_adult_from_file(self):
+
+    # Path to dataset.
+    dataset_directory = os.path.join(test_data_path(), "dataset")
+    train_path = os.path.join(dataset_directory, "adult_train.csv")
+    test_path = os.path.join(dataset_directory, "adult_test.csv")
+    label = "income"
+
+    # Create the workers
+    cluster_resolver = _create_in_process_tf_ps_cluster(num_workers=5, num_ps=1)
+
+    # Configure the model and datasets
+    strategy = tf.distribute.experimental.ParameterServerStrategy(
+        cluster_resolver)
+
+    with strategy.scope():
+      tuner = tfdf.tuner.RandomSearch(num_trials=10, use_predefined_hps=True)
+      model = tfdf.keras.GradientBoostedTreesModel(tuner=tuner, num_trees=50)
+      model.compile(metrics=["accuracy"])
+
+    training_history = model.fit_on_dataset_path(
+        train_path=train_path,
+        label_key=label,
+        dataset_format="csv",
+        valid_path=test_path)
+    logging.info("Training history: %s", training_history.history)
+
+    logging.info("Trained model:")
+    model.summary()
+    _ = model.make_inspector()
+
+    model._distribution_strategy = None
+    test_df = pd.read_csv(test_path)
+    tf_test = tfdf.keras.pd_dataframe_to_tf_dataset(test_df, label)
+    evaluation = model.evaluate(tf_test, return_dict=True)
+    logging.info("Evaluation: %s", evaluation)
+    self.assertAlmostEqual(evaluation["accuracy"], 0.8703476, delta=0.01)
+
+    features = [feature.name for feature in model.make_inspector().features()]
+    self.assertEqual(features, [
+        "age", "workclass", "fnlwgt", "education", "education_num",
+        "marital_status", "occupation", "relationship", "race", "sex",
+        "capital_gain", "capital_loss", "hours_per_week", "native_country"
+    ])
+
   def test_distributed_training_adult_from_file_with_grpc_worker(self):
+
+    self.skipTest("Not tested in OSS build")
+
     # Path to dataset.
     dataset_directory = os.path.join(test_data_path(), "dataset")
     train_path = os.path.join(dataset_directory, "adult_train.csv")

@@ -184,8 +184,6 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
     training_state->learner = std::move(learner);
 
     auto async_train = [training_state]() -> absl::Status {
-      LOG(INFO) << "Train model";
-
       auto model = training_state->learner->TrainWithStatus(
           training_state->train_dataset_path, training_state->data_spec,
           training_state->valid_dataset_path);

@@ -19,7 +19,9 @@ import logging
 import os
 import re
 import threading
+import time
 from typing import Any, Dict, List, NamedTuple, Optional, Text, Union
+import uuid
 
 import tensorflow as tf
 
@@ -27,11 +29,11 @@ from tensorflow.python.distribute import distribute_lib
 from tensorflow.python.distribute import parameter_server_strategy_v2
 from tensorflow.python.distribute.coordinator import cluster_coordinator as cluster_coordinator_lib
 from tensorflow_decision_forests.tensorflow import core_inference
-from tensorflow_decision_forests.tensorflow.distribute import tf_distribution_pb2
 from tensorflow_decision_forests.tensorflow.ops.training import op as training_op
 from yggdrasil_decision_forests.dataset import data_spec_pb2
 from yggdrasil_decision_forests.learner import abstract_learner_pb2
 from yggdrasil_decision_forests.model import hyperparameter_pb2
+from yggdrasil_decision_forests.utils.distribute.implementations.grpc import grpc_pb2
 
 # Suffix added to the name of the tf resource to hold the validation
 # dataset for the feature, when present. For example, if a column with id
@@ -64,12 +66,7 @@ column_type_to_semantic = core_inference.column_type_to_semantic
 CATEGORICAL_INTEGER_OFFSET = core_inference.CATEGORICAL_INTEGER_OFFSET
 
 # pylint: disable=g-import-not-at-top,import-error,unused-import,broad-except
-try:
-  from tensorflow_decision_forests.tensorflow.distribute import op as distributed_op
-  from tensorflow.python.distribute.coordinator import coordinator_context
-except Exception as e:
-  distributed_op = None
-  coordinator_context = None
+from tensorflow.python.distribute.coordinator import coordinator_context
 # pylint: enable=g-import-not-at-top,import-error,unused-import,broad-except
 
 # A set of hyper-parameters.
@@ -84,11 +81,13 @@ class DistributionConfiguration(NamedTuple):
 
   Attributes:
     num_workers: Number of workers i.e. tf worker server with the task "worker".
-    workers_addresses: Network address of the workers e.g. grpc://127.0.0.1:1234
+    workers: Network addresses of the workers.
+    rpc_layer: RPC protocol.
   """
 
   num_workers: int
-  workers_addresses: Optional[List[str]]
+  workers: List[str]
+  rpc_layer: str
 
 
 def get_distribution_configuration(
@@ -112,19 +111,15 @@ def get_distribution_configuration(
 
     cluster_spec = strategy._cluster_resolver.cluster_spec().as_dict()
     rpc_layer = strategy._cluster_resolver.rpc_layer or "grpc"
-    workers_addresses = []
-    for worker_address in cluster_spec["worker"]:
-      workers_addresses.append(f"{rpc_layer}://{worker_address}")
 
-    if not workers_addresses:
-      logging.warning(
-          "Empty worker network addresses in the distribution strategy. "
-          "Using TF_CONFIG instead. Cluster spec: %s", cluster_spec)
-      workers_addresses = None
+    if not cluster_spec["worker"]:
+      raise ValueError(f"No workers configured in the distribution strategy. "
+                       f"Cluster spec: {cluster_spec}")
 
     return DistributionConfiguration(
         num_workers=strategy._extended._num_workers,
-        workers_addresses=workers_addresses)
+        workers=cluster_spec["worker"],
+        rpc_layer=rpc_layer)
   elif isinstance(strategy, distribute_lib._DefaultDistributionStrategy):
     return None
   # pylint:enable=protected-access
@@ -509,8 +504,6 @@ def train(
     feature_ids.append(
         _input_key_to_id(model_id, uplift_treatment, training_column=True))
 
-  use_file_prefix = True
-
   process_id = training_op.SimpleMLModelTrainer(
       feature_ids=",".join(feature_ids),
       label_id=_input_key_to_id(model_id, label_id, training_column=True),
@@ -525,7 +518,7 @@ def train(
       deployment_config=deployment_config.SerializeToString(),
       guide=guide.SerializeToString(),
       has_validation_dataset=has_validation_dataset,
-      use_file_prefix=use_file_prefix,
+      use_file_prefix=True,
       create_model_resource=keep_model_in_resource)
 
   if process_id != -1:
@@ -555,7 +548,9 @@ def train_on_file_dataset(
     keep_model_in_resource: Optional[bool] = True,
     working_cache_path: Optional[str] = None,
     distribution_config: Optional[DistributionConfiguration] = None,
-    try_resume_training: Optional[bool] = False):
+    try_resume_training: Optional[bool] = False,
+    cluster_coordinator: Optional[Any] = None,
+):
   """Trains a model on dataset stored on file.
 
   The input arguments and overall logic of this OP is similar to the ":train"
@@ -597,6 +592,7 @@ def train_on_file_dataset(
     try_resume_training: Try to resume the training from the
       "working_cache_path" directory. The the "working_cache_path" does not
       contains any checkpoint, start the training from the start.
+    cluster_coordinator: Cluster coordinator of the distributed training.
 
   Returns:
     The OP that trigger the training.
@@ -646,23 +642,84 @@ def train_on_file_dataset(
                        "without a working cache directory.")
     deployment_config.try_resume_training = True
 
+  # Thread in charge with checking the status of workers.
+  check_workers_thread = None
+
+  # Indicates when to stop the "check_workers_thread" thread.
+  check_worker_stop = False
+
+  # Key to identify the GRPC session in the chief and worker processes.
+  grpc_session_key = None
+
   if distribution_config is not None:
+    logging.info("Start GRPC workers")
+
+    # Configure the GRPC YDF workers inside of TF workers.
+    assert cluster_coordinator is not None
+    if distribution_config.workers is None:
+      raise ValueError("No workers configured")
+
+    # The key is stored as a int32.
+    grpc_session_key = uuid.uuid4().int & 0x7FFFFFFF
+
+    # Start the GRPC workers.
+    #
+    # Note: The GRPC addresses (used by the GRPC worker) are different from the
+    # TF addresses used by the TF workers.
+    tf_workers_addresses = distribution_config.workers
+    grpc_workers_addresses = ensure_grpc_workers_are_running(
+        cluster_coordinator, grpc_session_key, tf_workers_addresses)
+
     deployment_config.try_resume_training = True
-    deployment_config.distribute.implementation_key = "TF_DIST"
+    deployment_config.distribute.implementation_key = "GRPC"
+    grpc_dist_config = deployment_config.distribute.Extensions[grpc_pb2.grpc]
+    grpc_dist_config.key = grpc_session_key
+    grpc_dist_config.grpc_addresses.addresses[:] = grpc_workers_addresses
 
-    if distribution_config.workers_addresses is not None:
-      dst_addresses = deployment_config.distribute.Extensions[
-          tf_distribution_pb2.tf_distribution].addresses
-      dst_addresses.addresses[:] = distribution_config.workers_addresses
+    def check_workers(grpc_workers_addresses: List[str],
+                      tf_workers_addresses: List[str]) -> None:
+      """Continuously checks the status of GRPC workers.
 
-    else:
-      # Assume the worker paths are provided through the env.
-      deployment_config.distribute.Extensions[
-          tf_distribution_pb2.tf_distribution].environment_variable.SetInParent(
-          )
+      This function is responsible for restarting GRPC workers and retrieving
+      the new port in case of worker preemption.
 
-  use_file_prefix = True
+      Args:
+        grpc_workers_addresses: Initial list of addresses of the workers.
+        tf_workers_addresses: Address of the TF workers.
+      """
 
+      while not check_worker_stop:
+
+        # Run the check every 30 seconds.
+        time.sleep(30)
+
+        new_grpc_workers_addresses = ensure_grpc_workers_are_running(
+            cluster_coordinator, grpc_session_key, tf_workers_addresses)
+
+        assert len(new_grpc_workers_addresses) == len(grpc_workers_addresses)
+        for worker_idx, grpc_workers_address in enumerate(
+            grpc_workers_addresses):
+          if new_grpc_workers_addresses[worker_idx] != grpc_workers_address:
+            logging.info("Update worker #%d port from %d to %d", worker_idx,
+                         grpc_workers_address,
+                         new_grpc_workers_addresses[worker_idx])
+            training_op.SimpleMLUpdateGRPCWorkerAddress(
+                key=grpc_session_key,
+                worker_idx=worker_idx,
+                new_address=new_grpc_workers_addresses[worker_idx])
+
+        grpc_workers_addresses = new_grpc_workers_addresses
+
+    check_workers_thread = threading.Thread(
+        target=check_workers,
+        args=(
+            grpc_workers_addresses,
+            tf_workers_addresses,
+        ),
+        daemon=True)
+    check_workers_thread.start()
+
+  # Start the chief training logic.
   process_id = training_op.SimpleMLModelTrainerOnFile(
       train_dataset_path=train_dataset_path,
       valid_dataset_path=valid_dataset_path if valid_dataset_path else "",
@@ -672,15 +729,29 @@ def train_on_file_dataset(
       training_config=training_config.SerializeToString(),
       deployment_config=deployment_config.SerializeToString(),
       guide=guide.SerializeToString(),
-      use_file_prefix=use_file_prefix,
+      use_file_prefix=True,
       create_model_resource=keep_model_in_resource)
 
   if process_id != -1:
-    # Wait for the training to be done.
+    # Wait for the chief training logic to be done.
+    #
+    # Note: The chief is responsible to stop the GRPC workers. However, in case of
+    # preemption of the worker during the shut-down phase, it is possible for a
+    # GRPC worker to remain active.
     while True:
       if training_op.SimpleMLCheckStatus(
           process_id=process_id) == 1:  # kSuccess
         break
+
+  if distribution_config is not None:
+
+    # Stop the grpc worker checker
+    check_worker_stop = True
+    if check_workers_thread is not None:
+      check_workers_thread.join()
+
+    # Stop the grpc workers / make sure they are stopped.
+    stop_grpc_workers(cluster_coordinator, grpc_session_key)
 
 
 def finalize_distributed_dataset_collection(cluster_coordinator,
@@ -713,23 +784,29 @@ def finalize_distributed_dataset_collection(cluster_coordinator,
       dataset_path=dataset_path)
 
 
-def execute_function_on_each_worker(coordinator, call_fn, args=None):
+def execute_function_on_each_worker(
+    coordinator: Any,
+    call_fn: Any,
+    args: Any = None,
+    reduce_results: bool = True) -> Union[Any, List[Any]]:
   """Blocking execution of `call_fn` once on each of the workers in parallel.
 
   Unlike "execute_function_on_each_worker" that use directly the "device" API,
   this function uses the closure API of the coordinator: The call_fn is
   automatically with coordinator data, and args can be a PerWorker iterator.
 
-  Returns the sum (+) of all the individual call_fn calls.
-
   Args:
     coordinator: PSStrategy coordinate.
     call_fn: Function to run remotely.
     args: Arguments of call_fn. If args contains PerWorkers arguments, each
       worker will only receive the arguments for them.
+    reduce_results: If true, reduces the results with the sum (+) operator. If
+      false, returns the individual results sorted by worker index.
 
   Returns:
-    The numpy sum (+) of the call_fn return values.
+    The sum (+) of the call_fn return values (if reduce_results=True), or
+    individual results (if
+    reduce_results=False).
   """
   # pylint: disable=protected-access
 
@@ -739,17 +816,27 @@ def execute_function_on_each_worker(coordinator, call_fn, args=None):
     """Mutable structure containing the accumulated data."""
 
     def __init__(self):
-      self.value = None
+      self.worker_idxs = []
+      if reduce_results:
+        self.value = None
+      else:
+        self.value = []
       self.lock = threading.Lock()
 
-    def add(self, value):
+    def add(self, value, worker_idx):
+      """Add a value."""
+
       if value is None:
         return
       self.lock.acquire()
-      if self.value is None:
-        self.value = value
+      self.worker_idxs.append(worker_idx)
+      if reduce_results:
+        if self.value is None:
+          self.value = value
+        else:
+          self.value += value
       else:
-        self.value += value
+        self.value.append(value)
       self.lock.release()
 
   result = Result()
@@ -772,7 +859,7 @@ def execute_function_on_each_worker(coordinator, call_fn, args=None):
 
     ret_value = ret.get()
     if ret_value is not None:
-      result.add(ret_value.numpy())
+      result.add(ret_value.numpy(), worker_idx)
 
   threads = []
   for worker_idx in range(coordinator._strategy._extended._num_workers):
@@ -787,8 +874,82 @@ def execute_function_on_each_worker(coordinator, call_fn, args=None):
   for thread in threads:
     thread.join()
 
-  return result.value
+  if reduce_results:
+    return result.value
+  else:
+    values = list(zip(result.worker_idxs, result.value))
+    values.sort()
+    return [x[1] for x in values]
   # pylint: enable=protected-access
+
+
+def ensure_grpc_workers_are_running(
+    cluster_coordinator, grpc_session_key: int,
+    tf_workers_addresses: List[str]) -> List[str]:
+  """Ensures that a GRPC YDF worker is running on each of the TF Workers.
+
+  If a TF Worker is not running a GRPC YDF worker, create the missing GRPC YDF
+  worker.
+
+  Args:
+    cluster_coordinator: A TF cluster coordinate.
+    grpc_session_key: Identifier of the GRPC session.
+    tf_workers_addresses: Address of the TF workers.
+
+  Returns:
+    The addresses of the workers.
+  """
+
+  def worker_fn():
+    return training_op.SimpleMLCreateYDFGRPCWorker(key=grpc_session_key)
+
+  grpc_ports = execute_function_on_each_worker(
+      cluster_coordinator, worker_fn, reduce_results=False)
+
+  assert len(tf_workers_addresses) == len(grpc_ports)
+
+  addresses = []
+  for worker_idx in range(len(tf_workers_addresses)):
+    tf_workers_address = tf_workers_addresses[worker_idx]
+    addresses.append(
+        replace_port_in_address(tf_workers_address, grpc_ports[worker_idx]))
+  return addresses
+
+
+def stop_grpc_workers(cluster_coordinator, grpc_session_key: int) -> None:
+  """Stops all GRPC YDF workers.
+
+  Args:
+    cluster_coordinator: A TF cluster coordinate.
+    grpc_session_key: Identifier of the GRPC session.
+  """
+
+  def worker_fn():
+    return training_op.SimpleMLStopYDFGRPCWorker(key=grpc_session_key)
+
+  execute_function_on_each_worker(
+      cluster_coordinator, worker_fn, reduce_results=False)
+
+
+def replace_port_in_address(address: str, new_port: int) -> str:
+  """Replaces the socket port in an address.
+
+  Args:
+    address: Source address e.g., "127.0.0.1:1234"
+    new_port: New port.
+
+  Returns:
+    The address with the changed port.
+  """
+
+  address_parts = address.rsplit(":", maxsplit=1)
+
+  if len(address_parts) == 2:
+    # The address is in a [address]:[port] format.
+    return f"{address_parts[0]}:{new_port}"
+
+  else:
+    raise ValueError(f"Cannot parse worker address: {address}")
 
 
 def _input_key_to_id(model_id: str, key: str, training_column: bool) -> str:

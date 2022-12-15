@@ -184,8 +184,9 @@ absl::Status CategoricalStringResourceOnFile::AddValueImp(
     } else {
       auto value_it = items_.find(value);
       if (value_it == items_.end()) {
-        int_values.push_back(items_.size());
-        items_[value] = {/*index=*/static_cast<int>(items_.size()),
+        const int index = static_cast<int>(items_.size());
+        int_values.push_back(index);
+        items_[value] = {/*index=*/index,
                          /*count=*/1};
       } else {
         value_it->second.count++;

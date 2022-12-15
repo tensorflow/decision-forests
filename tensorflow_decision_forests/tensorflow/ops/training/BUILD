@@ -58,7 +58,10 @@ cc_library(
 # Declaration of the ops.
 cc_library(
     name = "op",
-    srcs = ["op.cc"],
+    srcs = [
+        "op.cc",
+        "op_grpc_worker.cc",
+    ],
     linkstatic = 1,
     deps = [] + select({
         "@ydf//yggdrasil_decision_forests:tensorflow_with_header_lib": [
@@ -76,8 +79,9 @@ cc_library(
     srcs = [
         "feature_on_file.cc",
         "kernel.cc",
+        "kernel_grpc_worker.cc",
+        "kernel_long_process.cc",
         "kernel_on_file.cc",
-        "long_process.cc",
     ],
     hdrs = [
         "feature_on_file.h",
@@ -89,6 +93,8 @@ cc_library(
         "//conditions:default": [],
     }),
     deps = [
+        "@com_google_absl//absl/status",
+        "@ydf//yggdrasil_decision_forests/utils/distribute/implementations/grpc:grpc_worker",
         "@com_google_absl//absl/random",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -108,6 +114,7 @@ cc_library(
         "@ydf//yggdrasil_decision_forests/utils:distribution_cc_proto",
         "@ydf//yggdrasil_decision_forests/utils:synchronization_primitives",
         "@ydf//yggdrasil_decision_forests/utils:tensorflow",
+        "@ydf//yggdrasil_decision_forests/utils/distribute/implementations/grpc:grpc_manager",
     ] + select({
         "@ydf//yggdrasil_decision_forests:tensorflow_with_header_lib": [
             "@tensorflow_pypi//:libtensorflow_framework",
@@ -119,4 +126,18 @@ cc_library(
         ],
     }),
     alwayslink = 1,
+)
+
+# Tests
+# =====
+
+py_test(
+    name = "op_test",
+    srcs = ["op_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":op_py",
+        # absl/logging dep,
+        # TensorFlow Python,
+    ],
 )

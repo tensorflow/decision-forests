@@ -12,20 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-r"""Minimal usage example of TensorFlow Decision Forests.
+r"""Example of automated hyper-parameter tuning with TensorFlow Decision Forests.
 
-This example trains, displays, evaluates and exports a Gradient Boosted Tree
+This example trains, displays, evaluates and export a Gradient Boosted Tree
 model.
 
 Usage example:
 
   pip3 install tensorflow_decision_forests -U
-  python3 minimal.py
+  python3 hyperparameter_optimization.py
 
 Or
 
   bazel run -c opt \
-  //tensorflow_decision_forests/examples:minimal \
+  //tensorflow_decision_forests/examples:hyperparameter_optimization
+  \
   -- --alsologtostderr
 """
 
@@ -68,8 +69,14 @@ def main(argv):
   train_ds = tfdf.keras.pd_dataframe_to_tf_dataset(train_ds_pd, label="income")
   test_ds = tfdf.keras.pd_dataframe_to_tf_dataset(test_ds_pd, label="income")
 
-  # Trains the model.
-  model = tfdf.keras.GradientBoostedTreesModel(verbose=2)
+  # Tune the model.
+  #
+  # The hyper-parameters to optimize are automatically set with
+  # "use_predefined_hps=True". See
+  # https://www.tensorflow.org/decision_forests/tutorials/automatic_tuning_colab
+  # for an example where the hyper-parameter space is configured manually.
+  tuner = tfdf.tuner.RandomSearch(num_trials=30, use_predefined_hps=True)
+  model = tfdf.keras.GradientBoostedTreesModel(verbose=2, tuner=tuner)
   model.fit(train_ds)
 
   # Some information about the model.

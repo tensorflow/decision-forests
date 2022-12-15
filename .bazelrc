@@ -57,13 +57,6 @@ build --spawn_strategy=standalone
 build --strategy=Genrule=standalone
 build --action_env TF_NEED_CUDA="0"
 
-# Disable distributed training with TF Parameter Server
-#
-# Note: Currently, distributed training with parameter server is only supported
-# in the monolithic build. Distributed training is available with the Yggdrasil
-# Distribution through.
-build --define=tf_ps_distribution_strategy=0
-
 # Host specifics options.
 build:macos --config=release_cpu_macos
 build:macos --features=-supports_dynamic_linker

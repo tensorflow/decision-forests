@@ -179,7 +179,7 @@ class FeatureUsage(object):
   """
 
   def __init__(self,
-               name: Text,
+               name: str,
                semantic: Optional[FeatureSemantic] = None,
                num_discretized_numerical_bins: Optional[int] = None,
                max_vocab_count: Optional[int] = None,
@@ -249,7 +249,7 @@ class FeatureUsage(object):
     return self._semantic
 
   @property
-  def name(self) -> Text:
+  def name(self) -> str:
     return self._name
 
 
@@ -803,7 +803,7 @@ class CoreModel(InferenceCoreModel):
 
       distribution_config = tf_core.get_distribution_configuration(
           self.distribute_strategy)
-      if distribution_config is None:
+      if distribution_config is None or not self.support_distributed_training():
         # No distribution strategy. Collecting examples in memory.
         tf_core.collect_training_examples(
             normalized_semantic_inputs,
@@ -844,6 +844,10 @@ class CoreModel(InferenceCoreModel):
     """Directory accessible from all workers containing the partial cache."""
 
     return os.path.join(self._temp_directory, "partial_dataset_cache")
+
+  def support_distributed_training(self):
+    return self._tuner is None or self.capabilities(
+    ).support_partial_cache_dataset_format
 
   def fit(self,
           x=None,
@@ -1174,7 +1178,7 @@ class CoreModel(InferenceCoreModel):
       val_x, val_y, val_sample_weight = (
           tf.keras.utils.unpack_x_y_sample_weight(validation_data))
 
-      if distribution_config is None:
+      if distribution_config is None or not self.support_distributed_training():
         # TODO: The validation_data is currently not used for distributed
         # training (except for the model validation evaluation). Creating
         # and not using the validation_data_handler for distributed training
@@ -1194,7 +1198,7 @@ class CoreModel(InferenceCoreModel):
       tf_logging.info("Reading training dataset...")
 
     coordinator = None
-    if distribution_config is None:
+    if distribution_config is None or not self.support_distributed_training():
       # Local training.
 
       # Wraps the input training dataset into a tf.data.Dataset like object.
@@ -1325,7 +1329,7 @@ class CoreModel(InferenceCoreModel):
     if validation_data is not None:
 
       # Collect the validation dataset in Yggdrasil.
-      if coordinator is not None:
+      if coordinator is not None and self.support_distributed_training():
 
         # TODO: Collect the validation dataset in yggdrasil when using
         # distributed training.
@@ -1538,6 +1542,9 @@ class CoreModel(InferenceCoreModel):
     if not self._is_compiled:
       self.compile()
 
+    train_path = _improve_dataset_path(train_path)
+    valid_path = _improve_dataset_path(valid_path)
+
     train_model_path = self._temp_directory
     model_path = os.path.join(train_model_path, "model")
 
@@ -1598,17 +1605,22 @@ class CoreModel(InferenceCoreModel):
     distribution_config = tf_core.get_distribution_configuration(
         self.distribute_strategy)
 
-    if distribution_config is not None and not self.capabilities(
-    ).support_partial_cache_dataset_format:
-      raise ValueError(
-          f"The model {type(self)} does not support training with a TF "
-          "Distribution strategy (i.e. model.capabilities()."
-          "support_partial_cache_dataset_format == False). If the dataset "
-          "is small, simply remove the distribution strategy scope (i.e. `with "
-          "strategy.scope():` around the model construction). If the dataset "
-          "is large, use a distributed version of the model. For Example, use "
-          "DistributedGradientBoostedTreesModel instead of "
-          "GradientBoostedTreesModel.")
+    cluster_coordinator = None
+    if distribution_config is not None:
+      if not self.capabilities(
+      ).support_partial_cache_dataset_format and self._tuner is None:
+        raise ValueError(
+            f"The model {type(self)} does not support training with a TF "
+            "Distribution strategy (i.e. model.capabilities()."
+            "support_partial_cache_dataset_format == False). If the dataset "
+            "is small, simply remove the distribution strategy scope (i.e. `with "
+            "strategy.scope():` around the model construction). If the dataset "
+            "is large, use a distributed version of the model. For Example, use "
+            "DistributedGradientBoostedTreesModel instead of "
+            "GradientBoostedTreesModel.")
+
+      cluster_coordinator = tf.distribute.experimental.coordinator.ClusterCoordinator(
+          self.distribute_strategy)
 
     with tf_logging.capture_cpp_log_context(verbose=self._verbose >= 2):
       # Train the model.
@@ -1633,7 +1645,9 @@ class CoreModel(InferenceCoreModel):
           working_cache_path=os.path.join(self._temp_directory,
                                           "working_cache"),
           distribution_config=distribution_config,
-          try_resume_training=try_resume_training)
+          try_resume_training=try_resume_training,
+          cluster_coordinator=cluster_coordinator,
+      )
 
       # Request and store a description of the model.
       self._description = training_op.SimpleMLShowModel(
@@ -1769,7 +1783,7 @@ class CoreModel(InferenceCoreModel):
 
     with tf_logging.capture_cpp_log_context(verbose=self._verbose >= 2):
 
-      if distribution_config is None:
+      if distribution_config is None or not self.support_distributed_training():
         # Train the model.
         # The model will be exported to "train_model_path".
         #
@@ -1826,7 +1840,9 @@ class CoreModel(InferenceCoreModel):
             working_cache_path=os.path.join(self._temp_directory,
                                             "working_cache"),
             distribution_config=distribution_config,
-            try_resume_training=self._try_resume_training)
+            try_resume_training=self._try_resume_training,
+            cluster_coordinator=cluster_coordinator,
+        )
 
       # Request and store a description of the model.
       self._description = training_op.SimpleMLShowModel(
@@ -2118,3 +2134,12 @@ def _get_batch_size(dataset) -> Optional[int]:
   if operation is not None and hasattr(operation, "_batch_size"):
     return operation._batch_size  # pylint: disable=protected-access
   return None
+
+
+def _improve_dataset_path(path) -> Optional[str]:
+  """Make some improvements to a dataset."""
+
+  if path is None:
+    return None
+
+  return path
