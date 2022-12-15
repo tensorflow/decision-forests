@@ -5,15 +5,6 @@ is a tool to run TensorFlow models online in large production settings using a
 RPC or REST API. TensorFlow Decision Forests (TF-DF) is supported natively by TF
 Serving >=2.11.
 
-**Warning:** TensorFlow Serving only support natively TensorFlow Decision
-Forests since version 2.11. Until TF Serving 2.11 is release, use the Until the
-version In the *TensorFlow Serving 2.11 Nightly* or
-[own pre-compiled version](https://github.com/tensorflow/decision-forests/releases/tag/serving-1.0.1)
-of TensorFlow Serving. Prior versions of TF Serving (e.g. TF Serving 2.8-2.10)
-are compatible with TF-DF. However, they requires to be *re-compiled* with TF-DF
-support
-([instructions](https://github.com/tensorflow/decision-forests/blob/main/documentation/tensorflow_serving.md#compile-tf-seringtf-decision-forests-from-source)).
-
 TF-DF models are directly compatible with TF Serving. Yggdrasil models can be
 used with TF Serving after being
 [converted](https://ydf.readthedocs.io/en/latest/convert_model.html#convert-a-yggdrasil-model-to-a-tensorflow-decision-forests-model)
@@ -21,10 +12,10 @@ first.
 
 ## Limitations
 
-TensorFlow adds a significant amount of computation overhead. For small latency
-sensitive models (e.g., models running is less than 1µs), this overhead can be
-an order of magnitude larger the cost of the model itself. In this case, it is
-recommended to run the TF-DF models with
+TensorFlow adds a significant amount of computation overhead. For small, latency
+sensitive models (e.g., model inference time ~1µs), this overhead can be
+an order of magnitude larger than time needed by the model itself.
+In this case, it is recommended to run the TF-DF models with
 [Yggdrasil Decision Forests](https://ydf.readthedocs.io).
 
 ## Usage example
@@ -43,7 +34,7 @@ unzip tensorflow_model_server_linux.zip
 ./tensorflow_model_server --version
 ```
 
-In this example, we use an already trained TF-DF model trained.
+In this example, we use an already trained TF-DF model.
 
 ```shell
 # Get a TF-DF model
