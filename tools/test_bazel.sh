@@ -29,7 +29,7 @@
 set -vex
 
 # Version of Python
-# Needs to be >=python3.7
+# Needs to be >=python3.7 (3.8 on MacOS systems)
 PYTHON=python${PY_VERSION}
 
 # Install Pip dependencies
@@ -94,17 +94,19 @@ else
 fi
 
 if [ ${TF_VERSION} == "mac-arm64" ]; then
-  mkdir "tf_dep"
+  TFDF_TMPDIR="${TMPDIR}tf_dep"
+  rm -rf ${TFDF_TMPDIR}
+  mkdir -p ${TFDF_TMPDIR}
   # Download the arm64 Tensorflow package
-  pip download --no-deps --platform=macosx_12_0_arm64 --dest=tf_dep tensorflow-macos
-  unzip tf_dep/tensorflow_macos* -d tf_dep
+  pip download --no-deps --platform=macosx_12_0_arm64 --dest=$TFDF_TMPDIR tensorflow-macos
+  unzip $TFDF_TMPDIR/tensorflow_macos* -d $TFDF_TMPDIR
 
   # Find the path to the pre-compiled version of TensorFlow installed in the
   # "tensorflow" pip package.
-  SHARED_LIBRARY_DIR=$(readlink -f tf_dep/tensorflow)
+  SHARED_LIBRARY_DIR=$(readlink -f $TFDF_TMPDIR/tensorflow)
   SHARED_LIBRARY_NAME="libtensorflow_framework.dylib"
 
-  HEADER_DIR=$(readlink -f tf_dep/tensorflow/include)
+  HEADER_DIR=$(readlink -f $TFDF_TMPDIR/tensorflow/include)
 else
 # Find the path to the pre-compiled version of TensorFlow installed in the
 # "tensorflow" pip package.

@@ -143,23 +143,65 @@ of python using pyenv by running the following command. See the header of
 
 **Requirements**
 
--   Coreutils (tested with `brew install coreutils`)
--   Bazel >= 3.7.2
--   Python >= 3 (tested with `brew install python`)
+-   XCode command line tools
+-   Bazel (recommended [Bazelisk](https://github.com/bazelbuild/bazelisk))
+-   Python >= 3.8
 -   Git
--   JDK 11
--   Python packages: numpy tensorflow pandas
+-   Pyenv (for building the Pip packages with multiple Python versions)
 
-#### Compilation
+#### Building  / Packaging (Apple CPU)
 
-Follow the same steps as for the linux compilation without Docker.
+If you have a MacOS machine with Apple CPU, you can build with the following
+instructions.
 
-Note: Currently, multi-threading support is broken on MacOS.
+1.  Clone the three repositories and adjust paths.
+
+    ```
+    git clone https://github.com/tensorflow/decision-forests.git
+    git clone https://github.com/google/yggdrasil-decision-forests.git
+    git clone --branch boost-1.75.0 https://github.com/boostorg/boost.git
+    (cd boost && git submodule update --init --checkout --force)
+    # Adjust path TF-DF --> YDF
+    perl -0777 -i.original -pe 's/    http_archive\(\n        name = "ydf",\n        urls = \["https:\/\/github.com\/google\/yggdrasil-decision-forests\/archive\/refs\/heads\/main.zip"\],\n        strip_prefix = "yggdrasil-decision-forests-main",\n    \)/    native.local_repository\(\n        name = "ydf",\n        path = "..\/yggdrasil-decision-forests",\n    \)/igs' decision-forests/third_party/yggdrasil_decision_forests/workspace.bzl
+    # Adjust path YDF --> Boost
+    perl -0777 -i.original -pe 's/    new_git_repository\(\n        name = "org_boost",\n        branch = branch,\n        build_file_content = build_file_content,\n        init_submodules = True,\n        recursive_init_submodules = True,\n        remote = "https:\/\/github.com\/boostorg\/boost",\n    \)/    native.new_local_repository\(\n        name = "org_boost",\n        path = "..\/boost",\n        build_file_content = build_file_content,\n    \)/igs' yggdrasil-decision-forests/third_party/boost/workspace.bzl
+    ```
+
+1.  (Optional) Create a fresh virtual environment and activate it
+
+    ```
+    python3 -m venv venv
+    source venv/source/activate
+    ```
+
+1.  Adjust the TensorFlow dependency for Apple CPUs
+
+    ```
+    perl -0777 -i.original -pe 's/tensorflow~=/tensorflow-macos~=/igs' decision-forests/configure/setup.py
+    ```
+
+1.  Decide which Python version you want to use and run
+
+    ```
+    cd decision-forests
+    # This will compile with the latest Tensorflow version in the tensorflow-macos repository.
+    RUN_TESTS=1 PY_VERSION=3.9 TF_VERSION=mac-arm64 ./tools/test_bazel.sh
+    ```
+
+1.  Build the Pip Packages
+
+    ```
+    # First, we deactivate our virtualenv, since the Pip script uses a different one.
+    deactivate
+    ./tools/build_pip_package.sh ALL_VERSIONS_MAC_ARM64
+    ```
+
+1.  The packages can be found in `decision-forests/dist/`.
 
 ## Final note
 
-Compiling TF-DF relies (since 17th Dec. 2021) on the TensorFlow Pip package and
-the TensorFlow Bazel dependency. A small part of TensorFlow will be compiled.
+Compiling TF-DF relies on the TensorFlow Pip package *and* the TensorFlow Bazel
+dependency. Only a small part of TensorFlow will be compiled.
 Compiling TF-DF on a single powerful workstation takes ~10 minutes.
 
 ## Troubleshooting

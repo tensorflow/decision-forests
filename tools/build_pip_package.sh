@@ -26,8 +26,8 @@
 #   # Make sure the package are compatible with manylinux2014.
 #   ./tools/build_pip_package.sh ALL_VERSIONS
 #
-#   # Generate the pip package cross-compiled for Apple ARM64 machines
-#   ./tools/build_pip_package.sh MAC_ARM64_CROSS_COMPILED
+#   # Generate the pip package for Apple ARM64 machines
+#   ./tools/build_pip_package.sh ALL_VERSIONS_MAC_ARM64
 #
 # Requirements:
 #
@@ -36,6 +36,7 @@
 #     Will be installed by this script if INSTALL_PYENV is set to INSTALL_PYENV.
 #
 #   Auditwheel
+#     Auditwheel is required for Linux builds.
 #     Auditwheel needs to be version 5.2.0. The script will attempt to
 #     update Auditwheel to this version.
 #
@@ -137,10 +138,6 @@ function build_package() {
 
 # Tests a pip package.
 function test_package() {
-  if [ ${ARG} == "MAC_ARM64_CROSS_COMPILED" ]; then
-    echo "Cross-compiled packages cannot be tested automatically."
-    return
-  fi
   PYTHON="$1"
   shift
   PACKAGE="$1"
@@ -189,17 +186,17 @@ function e2e_native() {
   PACKAGE=$(python_to_package_version ${PYTHON})
 
   install_dependencies ${PYTHON}
-  check_auditwheel ${PYTHON}
   build_package ${PYTHON}
 
   # Fix package.
   if is_macos; then
     PACKAGEPATH="dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-*.whl"
   else
+    check_auditwheel ${PYTHON}
     PACKAGEPATH="dist/tensorflow_decision_forests-*-cp${PACKAGE}-cp${PACKAGE}*-linux_x86_64.whl"
+    TF_DYNAMIC_FILENAME="libtensorflow_framework.so.2"
+    ${PYTHON} -m auditwheel repair --plat manylinux2014_x86_64 -w dist --exclude ${TF_DYNAMIC_FILENAME} ${PACKAGEPATH}
   fi
-  TF_DYNAMIC_FILENAME="libtensorflow_framework.so.2"
-  ${PYTHON} -m auditwheel repair --plat manylinux2014_x86_64 -w dist --exclude ${TF_DYNAMIC_FILENAME} ${PACKAGEPATH}
 
   test_package ${PYTHON} ${PACKAGE}
 }
@@ -215,7 +212,7 @@ function e2e_pyenv() {
   ENVNAME=env_${VERSION}
   pyenv install ${VERSION} -s
 
-  # Enable pyenv
+  # Enable pyenv virtual environment.
   set +e
   pyenv virtualenv ${VERSION} ${ENVNAME}
   set -e
@@ -223,7 +220,7 @@ function e2e_pyenv() {
 
   e2e_native python3
 
-  # Disable pyenv
+  # Disable virtual environment.
   pyenv deactivate
 }
 
@@ -266,17 +263,17 @@ elif [ ${ARG} == "ALL_VERSIONS" ]; then
   # Compile with all the version of python using pyenv.
   assemble_files
   eval "$(pyenv init -)"
+  e2e_pyenv 3.7.13
   e2e_pyenv 3.9.12
   e2e_pyenv 3.8.13
-  e2e_pyenv 3.7.13
   e2e_pyenv 3.10.4
 elif [ ${ARG} == "ALL_VERSIONS_ALREADY_ASSEMBLED" ]; then
   eval "$(pyenv init -)"
+  e2e_pyenv 3.7.13
   e2e_pyenv 3.9.12
   e2e_pyenv 3.8.13
-  e2e_pyenv 3.7.13
   e2e_pyenv 3.10.4
-elif [ ${ARG} == "MAC_ARM64_CROSS_COMPILED" ]; then
+elif [ ${ARG} == "ALL_VERSIONS_MAC_ARM64" ]; then
   eval "$(pyenv init -)"
   assemble_files
   # Python 3.7 not supported for Mac ARM64

@@ -16,4 +16,5 @@
 
 
 python3 -m twine upload -u __token__ dist/*manylinux2014_x86_64.whl
+python3 -m twine upload -u __token__ dist/*macosx*.whl
 echo "The results is available at https://pypi.org/project/tensorflow-decision-forests"

@@ -57,7 +57,7 @@ class ScikitLearnModelConverterTest(tf.test.TestCase, parameterized.TestCase):
       tf_tree = scikit_learn_model_converter.convert(sklearn_tree)
       tf_labels = tf_tree(tf_features).numpy().ravel()
       sklearn_labels = sklearn_tree.predict(features).astype(np.float32)
-      self.assertAllClose(sklearn_labels, tf_labels, rtol=1e-5)
+      self.assertAllClose(sklearn_labels, tf_labels, rtol=1e-4)
 
     with self.subTest(msg="inference_is_reproduced_after_save"):
       path = pathlib.Path(self.get_temp_dir())
