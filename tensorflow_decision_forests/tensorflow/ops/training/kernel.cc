@@ -78,7 +78,10 @@ class SimpleMLFileModelLoader : public tf::OpKernel {
   void Compute(tf::OpKernelContext* ctx) override {
     const tf::Tensor& model_path_tensor = ctx->input(0);
     const auto model_paths = model_path_tensor.flat<tf::tstring>();
-    CHECK_EQ(model_paths.size(), 1);
+    if (model_paths.size() != 1) {
+      OP_REQUIRES_OK(ctx, tf::Status(tf::error::INVALID_ARGUMENT,
+                                     "Wrong number of models"));
+    }
     const std::string model_path = model_paths(0);
 
     auto* model_container = new YggdrasilModelContainer();

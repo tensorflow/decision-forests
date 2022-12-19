@@ -126,7 +126,8 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
 
     // TODO: Cache the dataspec.
     dataset::proto::DataSpecification data_spec;
-    dataset::CreateDataSpec(train_dataset_path_, false, guide_, &data_spec);
+    OP_REQUIRES_OK(ctx, utils::FromUtilStatus(dataset::CreateDataSpecWithStatus(
+                            train_dataset_path_, false, guide_, &data_spec)));
     LOG(INFO) << "Dataset:\n" << dataset::PrintHumanReadable(data_spec, false);
 
     std::unique_ptr<model::AbstractLearner> learner;
