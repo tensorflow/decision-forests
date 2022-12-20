@@ -18,4 +18,4 @@ from absl import logging
 
 
 def does_nothing() -> None:
-  logging.info("Hello world")
+    logging.info("Hello world")
