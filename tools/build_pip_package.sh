@@ -29,6 +29,9 @@
 #   # Generate the pip package for Apple ARM64 machines
 #   ./tools/build_pip_package.sh ALL_VERSIONS_MAC_ARM64
 #
+#   # Generate the pip package for Apple Intel machines from Apple CPU machines
+#   ./tools/build_pip_package.sh ALL_VERSIONS_MAC_INTEL_CROSSCOMPILE
+#
 # Requirements:
 #
 #   pyenv (if using ALL_VERSIONS_ALREADY_ASSEMBLED or ALL_VERSIONS)
@@ -97,6 +100,11 @@ function assemble_files() {
   mkdir -p ${SRCPK}
   cp -R tensorflow_decision_forests LICENSE configure/setup.py configure/MANIFEST.in README.md ${SRCPK}
 
+  # When cross-compiling, adapt the platform string.
+  if [ ${ARG} == "ALL_VERSIONS_MAC_INTEL_CROSSCOMPILE" ]; then
+    sed -i'.bak' -e "s/# plat = \"macosx_10_14_x86_64\"/plat = \"macosx_10_14_x86_64\"/" ${SRCPK}/setup.py
+  fi
+
   # TFDF's wrappers and .so.
   SRCBIN="bazel-bin/tensorflow_decision_forests"
   cp ${SRCBIN}/tensorflow/ops/inference/inference.so ${SRCPK}/tensorflow_decision_forests/tensorflow/ops/inference/
@@ -138,6 +146,10 @@ function build_package() {
 
 # Tests a pip package.
 function test_package() {
+  if [ ${ARG} == "ALL_VERSIONS_MAC_INTEL_CROSSCOMPILE" ]; then
+    echo "Cross-compiled packages cannot be tested on the machine they're built with."
+    return
+  fi
   PYTHON="$1"
   shift
   PACKAGE="$1"
@@ -274,6 +286,13 @@ elif [ ${ARG} == "ALL_VERSIONS_ALREADY_ASSEMBLED" ]; then
   e2e_pyenv 3.8.13
   e2e_pyenv 3.10.4
 elif [ ${ARG} == "ALL_VERSIONS_MAC_ARM64" ]; then
+  eval "$(pyenv init -)"
+  assemble_files
+  # Python 3.7 not supported for Mac ARM64
+  e2e_pyenv 3.9.12
+  e2e_pyenv 3.8.13
+  e2e_pyenv 3.10.4
+elif [ ${ARG} == "ALL_VERSIONS_MAC_INTEL_CROSSCOMPILE" ]; then
   eval "$(pyenv init -)"
   assemble_files
   # Python 3.7 not supported for Mac ARM64

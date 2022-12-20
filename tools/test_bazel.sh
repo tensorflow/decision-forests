@@ -20,7 +20,10 @@
 #  RUN_TESTS: Run the unit tests e.g. 0 or 1.
 #  PY_VERSION: Version of Python to be used, must be at least 3.7
 #  STARTUP_FLAGS: Any flags given to bazel on startup
-#  TF_VERSION: Tensorflow version to use or "nightly"
+#  TF_VERSION: Tensorflow version to use or "nightly".
+#              For MacOS builds, use "mac-arm64" to build for Apple Silicon on an Apple Silicon machine
+#              and use "mac-intel-crosscompile" to build for Intel CPUs on an Apple Silicon machine.
+#              Tests will not work when cross-compiling (obviously).
 #
 # Usage example
 #
@@ -41,6 +44,8 @@ ${PYTHON} -m pip install numpy pandas scikit-learn --upgrade
 if [ ${TF_VERSION} == "nightly" ]; then
   ${PYTHON} -m pip install tf-nightly --force-reinstall
 elif [ ${TF_VERSION} == "mac-arm64" ]; then
+  ${PYTHON} -m pip install tensorflow-macos --force-reinstall
+elif [ ${TF_VERSION} == "mac-intel-crosscompile" ]; then
   ${PYTHON} -m pip install tensorflow-macos --force-reinstall
 else
   ${PYTHON} -m pip install tensorflow==${TF_VERSION} --force-reinstall
@@ -99,7 +104,21 @@ if [ ${TF_VERSION} == "mac-arm64" ]; then
   mkdir -p ${TFDF_TMPDIR}
   # Download the arm64 Tensorflow package
   pip download --no-deps --platform=macosx_12_0_arm64 --dest=$TFDF_TMPDIR tensorflow-macos
-  unzip $TFDF_TMPDIR/tensorflow_macos* -d $TFDF_TMPDIR
+  unzip -q $TFDF_TMPDIR/tensorflow_macos* -d $TFDF_TMPDIR
+
+  # Find the path to the pre-compiled version of TensorFlow installed in the
+  # "tensorflow" pip package.
+  SHARED_LIBRARY_DIR=$(readlink -f $TFDF_TMPDIR/tensorflow)
+  SHARED_LIBRARY_NAME="libtensorflow_framework.dylib"
+
+  HEADER_DIR=$(readlink -f $TFDF_TMPDIR/tensorflow/include)
+elif [ ${TF_VERSION} == "mac-intel-crosscompile" ]; then
+  TFDF_TMPDIR="${TMPDIR}tf_dep"
+  rm -rf ${TFDF_TMPDIR}
+  mkdir -p ${TFDF_TMPDIR}
+  # Download the Intel CPU Tensorflow package
+  pip download --no-deps --platform=macosx_10_14_x86_64 --dest=$TFDF_TMPDIR tensorflow
+  unzip -q $TFDF_TMPDIR/tensorflow* -d $TFDF_TMPDIR
 
   # Find the path to the pre-compiled version of TensorFlow installed in the
   # "tensorflow" pip package.
@@ -147,6 +166,11 @@ STARTUP_FLAGS="${STARTUP_FLAGS} --bazelrc=${TENSORFLOW_BAZELRC}"
 # Distributed compilation using Remote Build Execution (RBE)
 #
 # FLAGS="$FLAGS --config=rbe_cpu_linux --config=tensorflow_testing_rbe_linux --config=rbe_linux_py3"
+
+if [ ${TF_VERSION} == "mac-intel-crosscompile" ]; then
+  # Using darwin_x86_64 fails here, tensorflow expects "darwin".
+  FLAGS="${FLAGS} --cpu=darwin --apple_platform_type=macos"
+fi
 
 # All the build rules.
 BUILD_RULES="//tensorflow_decision_forests/...:all"

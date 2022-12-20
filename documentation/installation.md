@@ -193,7 +193,34 @@ instructions.
     ```
     # First, we deactivate our virtualenv, since the Pip script uses a different one.
     deactivate
+    # Build the packages.
     ./tools/build_pip_package.sh ALL_VERSIONS_MAC_ARM64
+    ```
+
+1.  The packages can be found in `decision-forests/dist/`.
+
+#### Cross-compiling for Intel CPUs
+
+If you have a MacOS machine with Apple CPU, cross-compile TF-DF for MacOS
+machines with Intel CPUs as follows.
+
+1.  Follow Steps 1-3 and 5 of the guide for Apple CPUs, **skip Step 4**.
+
+1.  Decide which Python version you want to use and run
+
+    ```
+    cd decision-forests
+    # This will compile with the latest Tensorflow version in the tensorflow-macos repository.
+    RUN_TESTS=0 PY_VERSION=3.9 TF_VERSION=mac-intel-crosscompile ./tools/test_bazel.sh
+    ```
+
+1.  Build the Pip Packages
+
+    ```
+    # First, we deactivate our virtualenv, since the Pip script uses a different one.
+    deactivate
+    # Build the packages.
+    ./tools/build_pip_package.sh ALL_VERSIONS_MAC_INTEL_CROSSCOMPILE
     ```
 
 1.  The packages can be found in `decision-forests/dist/`.

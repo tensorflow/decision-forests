@@ -62,16 +62,15 @@ try:
       _bdist_wheel.finalize_options(self)
       self.root_is_pure = False
 
-    # def get_tag(self):
-    #   python, abi, plat = _bdist_wheel.get_tag(self)
-    #   if platform.system() == "Darwin":
-    #     # TODO Remove this hard-coded value and automate arm64
-    #     # switch.
-    #     #
-    #     # Uncomment for cross-compiled arm64 switches and comment the next line.
-    #     # plat = "macosx_12_0_arm64"
-    #     plat = "macosx_10_14_x86_64"
-    #   return python, abi, plat
+    def get_tag(self):
+      python, abi, plat = _bdist_wheel.get_tag(self)
+      if platform.system() == "Darwin":
+        # Uncomment on of the lines below to adapt the platform string when 
+        # cross-compiling.
+        # plat = "macosx_12_0_arm64"
+        # plat = "macosx_10_14_x86_64"
+        pass
+      return python, abi, plat
 
 except ImportError:
   bdist_wheel = None

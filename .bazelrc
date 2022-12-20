@@ -8,7 +8,11 @@
 #
 # Windows
 #
-#   windows: Windows build.
+#   windows: Windows build (unsupported).
+#
+# MacOS
+#
+#   macos: MacOS build.
 #
 
 # Common flags.
@@ -48,12 +52,6 @@ build --define=dynamic_loaded_kernels=true
 build --copt=-DAUTOLOAD_DYNAMIC_KERNELS
 build --spawn_strategy=standalone
 
-# For <= TensorFlow 2.8
-# build --copt=-D_GLIBCXX_USE_CXX11_ABI=0
-# build --cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0
-# build --host_copt=-D_GLIBCXX_USE_CXX11_ABI=0
-# build --host_cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0
-
 build --strategy=Genrule=standalone
 build --action_env TF_NEED_CUDA="0"
 
@@ -61,10 +59,10 @@ build --action_env TF_NEED_CUDA="0"
 build:macos --config=release_cpu_macos
 build:macos --features=-supports_dynamic_linker
 # Absl synchronization primitives currently do not work on MacOS.
-# b/214189609 # copybara:strip
+# TODO
 build:macos --define std_synchronization_primitives=1
-# Enable cross-compilation for ARM64 MacOS
-build:macos_arm64 --distinct_host_configuration=true
+# Enable cross-compilation between Apple CPUs and Intel CPUs.
+build:macos --distinct_host_configuration=true
 
 build:windows --config=release_cpu_windows
 
