@@ -94,7 +94,7 @@ def infer_semantic_from_dataframe(dataset: pd.DataFrame) -> Dict[str, Semantic]:
   semantics = {}
   for col in dataset.columns:
     dtype = dataset[col].dtype
-    if dtype in [float, np.float, np.int16, np.int32, np.int64, int]:
+    if dtype in [float, np.int16, np.int32, np.int64, int]:
       semantics[col] = Semantic.NUMERICAL
     elif dtype in [str, object]:
       semantics[col] = Semantic.CATEGORICAL
