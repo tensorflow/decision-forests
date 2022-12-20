@@ -17,6 +17,10 @@
 -   The Tuner argument "use_predefined_hps" automatically configures the set of
     hyper-parameters to explore during automatic hyper-parameter tuning.
 
+### Fix
+
+-   Automatic documentation generation for RandomForestModel and other classes.
+
 ## 1.1.0 - 2022-11-18
 
 ### Features

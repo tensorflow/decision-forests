@@ -46,6 +46,7 @@ from __future__ import print_function
 
 import copy
 from datetime import datetime  # pylint: disable=g-importing-member
+import functools
 import inspect
 import os
 import tempfile
@@ -1870,6 +1871,7 @@ def _list_explicit_arguments(func):
 
   arguments = inspect.getfullargspec(func)[0]
 
+  @functools.wraps(func)
   def wrapper(*args, **kargs):
     kargs["explicit_args"] = set(
         list(arguments[:len(args)]) + list(kargs.keys()))
