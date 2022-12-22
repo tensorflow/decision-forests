@@ -64,6 +64,7 @@ normalize_inputs = core_inference.normalize_inputs
 decombine_tensors_and_semantics = core_inference.decombine_tensors_and_semantics
 column_type_to_semantic = core_inference.column_type_to_semantic
 CATEGORICAL_INTEGER_OFFSET = core_inference.CATEGORICAL_INTEGER_OFFSET
+NodeFormat = core_inference.NodeFormat
 
 # pylint: disable=g-import-not-at-top,import-error,unused-import,broad-except
 from tensorflow.python.distribute.coordinator import coordinator_context
@@ -440,7 +441,8 @@ def train(
     model_dir: Optional[str] = None,
     keep_model_in_resource: Optional[bool] = True,
     try_resume_training: Optional[bool] = False,
-    has_validation_dataset: Optional[bool] = False):
+    has_validation_dataset: Optional[bool] = False,
+    node_format: Optional[NodeFormat] = None):
   """Trains a model on the dataset accumulated by collect_training_examples.
 
   Args:
@@ -464,6 +466,8 @@ def train(
       contains any checkpoint, start the training from the start.
     has_validation_dataset: True if a validation dataset is available (in
       addition to the training dataset).
+    node_format: Format for storing a model's nodes used by Yggdrasil Decision 
+      Forests.
 
   Returns:
     The OP that trigger the training.
@@ -519,7 +523,8 @@ def train(
       guide=guide.SerializeToString(),
       has_validation_dataset=has_validation_dataset,
       use_file_prefix=True,
-      create_model_resource=keep_model_in_resource)
+      create_model_resource=keep_model_in_resource,
+      node_format="" if node_format is None else node_format)
 
   if process_id != -1:
     # Wait for the training to be done.
@@ -550,6 +555,7 @@ def train_on_file_dataset(
     distribution_config: Optional[DistributionConfiguration] = None,
     try_resume_training: Optional[bool] = False,
     cluster_coordinator: Optional[Any] = None,
+    node_format: Optional[NodeFormat] = None
 ):
   """Trains a model on dataset stored on file.
 
@@ -593,6 +599,8 @@ def train_on_file_dataset(
       "working_cache_path" directory. The the "working_cache_path" does not
       contains any checkpoint, start the training from the start.
     cluster_coordinator: Cluster coordinator of the distributed training.
+    node_format: Format for storing a model's nodes used by Yggdrasil Decision 
+      Forests.
 
   Returns:
     The OP that trigger the training.
@@ -730,7 +738,8 @@ def train_on_file_dataset(
       deployment_config=deployment_config.SerializeToString(),
       guide=guide.SerializeToString(),
       use_file_prefix=True,
-      create_model_resource=keep_model_in_resource)
+      create_model_resource=keep_model_in_resource,
+      node_format="" if node_format is None else node_format)
 
   if process_id != -1:
     # Wait for the chief training logic to be done.

@@ -94,6 +94,9 @@ cc_library(
     }),
     deps = [
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/types:optional",
+        "@ydf//yggdrasil_decision_forests/model/gradient_boosted_trees",
+        "@ydf//yggdrasil_decision_forests/model/random_forest",
         "@ydf//yggdrasil_decision_forests/utils/distribute/implementations/grpc:grpc_worker",
         "@com_google_absl//absl/random",
         "@com_google_absl//absl/status:statusor",

@@ -50,6 +50,9 @@ MODEL_IDENTIFIER_LENGTH = 16
 Task = tf_core.Task
 TaskType = "abstract_model_pb2.Task"  # pylint: disable=invalid-name
 
+# Format for storing model nodes used by Yggdrasil Decision Forests.
+NodeFormat = tf_core.NodeFormat
+
 # A tensorflow feature column.
 FeatureColumn = Any
 
@@ -127,6 +130,11 @@ class AdvancedArguments(object):
       normal value and this parameter will be removed. If
       `disable_categorical_integer_offset_correction` is false, this +1 offset
       is never applied.
+    node_format: Yggdrasil Decision Forests node format for the saved model.
+      If not specified, uses the recommended format. The node format is visible
+      in the node summary. For models to be compatible with the open-source
+      version of TensorFlow Decision Forests and TensorFlow Serving, the node
+      format should be BLOB_SEQUENCE.
   """
 
   def __init__(
@@ -140,7 +148,8 @@ class AdvancedArguments(object):
       metadata_framework: Optional[str] = "TF Keras",
       metadata_owner: Optional[str] = None,
       populate_history_with_yggdrasil_logs: bool = False,
-      disable_categorical_integer_offset_correction: bool = False):
+      disable_categorical_integer_offset_correction: bool = False,
+      node_format: Optional[NodeFormat] = None):
     self.infer_prediction_signature = infer_prediction_signature
     self.yggdrasil_training_config = yggdrasil_training_config or abstract_learner_pb2.TrainingConfig(
     )
@@ -152,6 +161,7 @@ class AdvancedArguments(object):
     self.metadata_owner = metadata_owner
     self.populate_history_with_yggdrasil_logs = populate_history_with_yggdrasil_logs
     self.disable_categorical_integer_offset_correction = disable_categorical_integer_offset_correction
+    self.node_format = node_format
 
 
 class InferenceCoreModel(models.Model):

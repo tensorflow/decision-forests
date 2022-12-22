@@ -2283,6 +2283,18 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     self.assertEqual(
         inspector.dataspec.columns[0].categorical.most_frequent_value, 2)
 
+  def test_node_format_blob_sequence(self):
+    """Test that the node format is BLOB_SEQUENCE if required."""
+    dataset = adult_dataset()
+    model = keras.RandomForestModel(
+        advanced_arguments=keras.AdvancedArguments(
+            node_format="BLOB_SEQUENCE"))
+    ds = keras.pd_dataframe_to_tf_dataset(
+        dataset.train, dataset.label)
+    model.fit(ds)
+    self.assertEqual(model.make_inspector().specialized_header().node_format,
+                     "BLOB_SEQUENCE")
+
 
 if __name__ == "__main__":
   tf.test.main()

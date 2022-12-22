@@ -225,6 +225,7 @@ REGISTER_OP("SimpleMLChiefFinalizeFeatureOnFile")
 // blocking: If true, waits for the training to finish before finishing the op
 //   execution. If false, returns immediately. In this case, use
 //   "SimpleMLCheckStatus" to follow the training progress.
+// node_format: Format for storing the model's nodes.
 //
 // Output:
 //   process_id: Id of the process running the training. Use
@@ -247,6 +248,7 @@ REGISTER_OP("SimpleMLModelTrainer")
     .Attr("use_file_prefix: bool = false")
     .Attr("create_model_resource: bool = true")
     .Attr("blocking: bool = false")
+    .Attr("node_format: string = ''")
     .Output("process_id: int32")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
       c->set_output(0, c->Scalar());
@@ -304,6 +306,7 @@ REGISTER_OP("SimpleMLModelTrainerOnFile")
     .Attr("guide: string = ''")
     .Attr("use_file_prefix: bool = false")
     .Attr("create_model_resource: bool = true")
+    .Attr("node_format: string = ''")
     .Output("process_id: int32")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
       c->set_output(0, c->Scalar());

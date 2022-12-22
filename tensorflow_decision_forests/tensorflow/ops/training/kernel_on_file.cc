@@ -31,7 +31,9 @@
 #include "yggdrasil_decision_forests/learner/abstract_learner.pb.h"
 #include "yggdrasil_decision_forests/learner/learner_library.h"
 #include "yggdrasil_decision_forests/model/abstract_model.h"
+#include "yggdrasil_decision_forests/model/gradient_boosted_trees/gradient_boosted_trees.h"
 #include "yggdrasil_decision_forests/model/model_library.h"
+#include "yggdrasil_decision_forests/model/random_forest/random_forest.h"
 #include "yggdrasil_decision_forests/utils/tensorflow.h"
 
 namespace tensorflow_decision_forests {
@@ -76,6 +78,7 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("use_file_prefix", &use_file_prefix_));
     OP_REQUIRES_OK(
         ctx, ctx->GetAttr("create_model_resource", &create_model_resource_));
+    OP_REQUIRES_OK(ctx, ctx->GetAttr("node_format", &node_format_));
 
     if (model_id_.empty()) {
       OP_REQUIRES_OK(
@@ -170,6 +173,7 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
       std::string model_id;
       YggdrasilModelContainer* model_container;
       std::unique_ptr<model::AbstractLearner> learner;
+      std::string node_format;
     };
 
     auto training_state = std::make_shared<TrainingState>();
@@ -183,6 +187,7 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
     training_state->train_dataset_path = std::move(train_dataset_path_);
     training_state->data_spec = std::move(data_spec);
     training_state->learner = std::move(learner);
+    training_state->node_format = this->node_format_;
 
     auto async_train = [training_state]() -> absl::Status {
       auto model = training_state->learner->TrainWithStatus(
@@ -195,6 +200,23 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
 #endif
 
       RETURN_IF_ERROR(model.status());
+
+      // If the model is GBT or RF, set the node format.
+      if (!training_state->node_format.empty()) {
+        // Set the model format.
+        auto* gbt_model = dynamic_cast<
+            model::gradient_boosted_trees::GradientBoostedTreesModel*>(
+            model.value().get());
+        if (gbt_model) {
+          gbt_model->set_node_format(training_state->node_format);
+        }
+
+        auto* rf_model = dynamic_cast<model::random_forest::RandomForestModel*>(
+            model.value().get());
+        if (rf_model) {
+          rf_model->set_node_format(training_state->node_format);
+        }
+      }
 
       // Export model to disk.
       if (!training_state->model_dir.empty()) {
@@ -243,6 +265,7 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
   std::string valid_dataset_path_;
   bool use_file_prefix_;
   bool create_model_resource_;
+  std::string node_format_;
 
   model::proto::GenericHyperParameters hparams_;
   model::proto::TrainingConfig training_config_;

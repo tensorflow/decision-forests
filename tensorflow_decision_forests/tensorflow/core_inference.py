@@ -50,6 +50,17 @@ NormalizedHashType = tf.string
 NormalizedBooleanType = NormalizedNumericalType
 
 
+class NodeFormat(enum.Enum):
+  """Node format of  a model.
+
+  Determines the storage format for nodes used by Yggdrasil Decision Forests.
+
+  Attributes:
+    BLOB_SEQUENCE: Sequence of blobs (list of bytes) stored in a byte stream.
+  """
+  BLOB_SEQUENCE = "BLOB_SEQUENCE"
+
+
 class Semantic(enum.Enum):
   """Semantic (e.g.
 

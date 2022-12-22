@@ -115,6 +115,7 @@ _RANK_GROUP = core_inference._RANK_GROUP
 _UPLIFT_TREATMENT = core_inference._UPLIFT_TREATMENT
 _WEIGHTS = core_inference._WEIGHTS
 _FORBIDDEN_FEATURE_CHARACTERS = core_inference._FORBIDDEN_FEATURE_CHARACTERS
+NodeFormat = core_inference.NodeFormat
 # pylint: enable=protected-access
 
 
@@ -1808,7 +1809,8 @@ class CoreModel(InferenceCoreModel):
             training_config=self._advanced_arguments.yggdrasil_training_config,
             deployment_config=deployment_config,
             try_resume_training=self._try_resume_training,
-            has_validation_dataset=self._has_validation_dataset)
+            has_validation_dataset=self._has_validation_dataset,
+            node_format=self._advanced_arguments.node_format)
 
       else:
         tf_core.finalize_distributed_dataset_collection(
@@ -1843,7 +1845,7 @@ class CoreModel(InferenceCoreModel):
             distribution_config=distribution_config,
             try_resume_training=self._try_resume_training,
             cluster_coordinator=cluster_coordinator,
-        )
+            node_format=self._advanced_arguments.node_format)
 
       # Request and store a description of the model.
       self._description = training_op.SimpleMLShowModel(
