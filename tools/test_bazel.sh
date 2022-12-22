@@ -154,10 +154,6 @@ FLAGS="${FLAGS} --action_env TF_HEADER_DIR=${HEADER_DIR}"
 FLAGS="${FLAGS} --action_env TF_SHARED_LIBRARY_DIR=${SHARED_LIBRARY_DIR}"
 FLAGS="${FLAGS} --action_env TF_SHARED_LIBRARY_NAME=${SHARED_LIBRARY_NAME}"
 
-# Do not run the temporal feature proessor tests at the same time as the tf-df
-# tests.
-FLAGS="${FLAGS} --build_tag_filters=-temporal_feature_processor"
-
 # Bazel
 BAZEL=bazel
 
@@ -176,12 +172,14 @@ fi
 BUILD_RULES="//tensorflow_decision_forests/...:all"
 TEST_RULES="//tensorflow_decision_forests/...:all"
 
+ls -l -a
+
 # Build library
 time ${BAZEL} ${STARTUP_FLAGS} build ${BUILD_RULES} ${FLAGS}
 
 # Unit test library
 if [ "${RUN_TESTS}" = 1 ]; then
-  time ${BAZEL} ${STARTUP_FLAGS} test ${TEST_RULES} ${FLAGS} --test_tag_filters=-temporal_feature_processor --flaky_test_attempts=1 --test_size_filters=small,medium,large
+  time ${BAZEL} ${STARTUP_FLAGS} test ${TEST_RULES} ${FLAGS} --flaky_test_attempts=1 --test_size_filters=small,medium,large
 fi
 
 # Temporal Feature Processor
