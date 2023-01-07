@@ -94,3 +94,8 @@ example, if a `float64` feature is fed to a model expecting a `float32` feature,
 this conversion is performed implicitly. However, such a conversion is not
 possible for models loaded from disk. It is therefore important that the
 training data and the inference data always have the exact same type.
+
+## Tensorflow feature name sanitization
+
+Tensorflow sanitizes feature names and might, for instance, convert them to
+lowercase.
