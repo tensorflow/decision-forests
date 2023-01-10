@@ -550,7 +550,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     self.assertIn("NUM_NODES", inspector.variable_importances())
     self.assertIn("SUM_SCORE", inspector.variable_importances())
     self.assertIn("NUM_AS_ROOT", inspector.variable_importances())
-    self.assertIn("MEAN_MIN_DEPTH", inspector.variable_importances())
+    self.assertIn("INV_MEAN_MIN_DEPTH", inspector.variable_importances())
 
   def test_model_adult_with_hyperparameter_template_v1(self):
     """Test on the Adult dataset.
@@ -641,7 +641,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     self.assertIn("NUM_NODES", inspector.variable_importances())
     self.assertIn("SUM_SCORE", inspector.variable_importances())
     self.assertIn("NUM_AS_ROOT", inspector.variable_importances())
-    self.assertIn("MEAN_MIN_DEPTH", inspector.variable_importances())
+    self.assertIn("INV_MEAN_MIN_DEPTH", inspector.variable_importances())
     self.assertIn("MEAN_DECREASE_IN_ACCURACY", inspector.variable_importances())
 
     self.assertGreater(inspector.evaluation().accuracy, 0.86)

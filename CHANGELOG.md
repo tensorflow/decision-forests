@@ -16,6 +16,7 @@
     global-imputation algorithm.
 -   The Tuner argument "use_predefined_hps" automatically configures the set of
     hyper-parameters to explore during automatic hyper-parameter tuning.
+-   Replaces the MEAN_MIN_DEPTH variable importance with INV_MEAN_MIN_DEPTH.
 
 ### Fix
 
