@@ -51,7 +51,7 @@ model.save("project/model")
 ## Google IO Presentation
 
 <div align="center">
-    <a href="https://youtu.be/5qgk9QJ4rdQ" target="Youtube Video">
+    <a href="https://youtu.be/5qgk9QJ4rdQ" target="Video">
         <img src="https://img.youtube.com/vi/5qgk9QJ4rdQ/0.jpg"></img>
     </a>
 </div>
