@@ -22,23 +22,31 @@ though environement variable. See examples/distributed_training.py
 When possible, use the c++ worker instead.
 """
 
-from collections.abc import Sequence
-
 from absl import app
+from absl import flags
 from absl import logging
 
 import tensorflow as tf
 import tensorflow_decision_forests as tfdf  # pylint: disable=unused-import
 
+FLAGS = flags.FLAGS
 
-def main(argv: Sequence[str]) -> None:
+flags.DEFINE_string("job_name", "worker", "")
+flags.DEFINE_string("protocol", "grpc", "")
+flags.DEFINE_integer("task_index", 0, "")
+
+
+def main(argv):
   if len(argv) > 1:
     raise app.UsageError("Too many command-line arguments.")
 
   logging.info("Starting worker")
   cluster_resolver = tf.distribute.cluster_resolver.TFConfigClusterResolver()
   server = tf.distribute.Server(
-      cluster_resolver.cluster_spec(), protocol="grpc")
+      cluster_resolver.cluster_spec(),
+      protocol=FLAGS.protocol,
+      job_name=FLAGS.job_name,
+      task_index=FLAGS.task_index)
 
   logging.info("Worker is running")
   server.join()

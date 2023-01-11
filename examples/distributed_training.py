@@ -62,9 +62,9 @@ Synthetic dataset for usage example:
         --ratio_test=0.2
 """
 
+import os
 from absl import app
 from absl import logging
-import os
 
 import tensorflow as tf
 import tensorflow_decision_forests as tfdf
@@ -74,9 +74,32 @@ def main(argv):
   if len(argv) > 1:
     raise app.UsageError("Too many command-line arguments.")
 
+  # "work_directory" is used to store the temporary checkpoints as well as the
+  # final model. "work_directory" should be accessible to both the chief and the
+  # workers.
+
+  work_directory = "/some/remote/directory"
+
+  # Alternatively, You can use a local directory when testing distributed
+  # training locally i.e. when running the workers in the same machine at the
+  # chief. See "fake_distributed_training.sh".
+  # work_directory = "/tmp/tfdf_model"
+
+  # The dataset is provided as a set of sharded files.
+  train_dataset_path = "/path/to/dataset/train@60"
+  valid_dataset_path = "/path/to/dataset/valid@60"
+  dataset_format = "recordio+tfe"
+
+  # Alternatively, when testing distributed training locally, you can use a
+  # non-sharded dataset.
+  # train_dataset_path = "external/ydf/yggdrasil_decision_forests/test_data/dataset/adult_train.csv"
+  # valid_dataset_path = "external/ydf/yggdrasil_decision_forests/test_data/dataset/adult_test.csv"
+  # dataset_format = "csv"
+
   # Configure training
   logging.info("Configure training")
-  cluster_resolver = tf.distribute.cluster_resolver.TFConfigClusterResolver()
+  cluster_resolver = tf.distribute.cluster_resolver.TFConfigClusterResolver(
+      rpc_layer="grpc")
   strategy = tf.distribute.experimental.ParameterServerStrategy(
       cluster_resolver)
   with strategy.scope():
@@ -84,22 +107,19 @@ def main(argv):
         # Speed-up training by discretizing numerical features.
         force_numerical_discretization=True,
         # Cache directory used to store checkpoints.
-        temp_directory="/cns/bh-d/home/gbm/tmp/ttl=15d/tfdf_cache",
+        temp_directory=os.path.join(work_directory, "work_dir"),
         # Number of threads on each worker.
         num_threads=30,
     )
     model.compile(metrics=["accuracy"])
 
   # Trains the model.
-
-  dataset_path = "/tmp/synthetic_dataset"
-
   logging.info("Start training")
   model.fit_on_dataset_path(
-      train_path=os.path.join(dataset_path, "train@60"),
-      valid_path=os.path.join(dataset_path, "valid@20"),
-      label_key="LABEL",
-      dataset_format="recordio+tfe")
+      train_path=train_dataset_path,
+      valid_path=valid_dataset_path,
+      label_key="income",
+      dataset_format=dataset_format)
 
   logging.info("Trained model:")
   model.summary()
@@ -108,14 +128,13 @@ def main(argv):
   inspector = model.make_inspector()
   logging.info("Model self evaluation: %s", inspector.evaluation().to_dict())
   logging.info("Model training logs: %s", inspector.training_logs())
-  inspector.export_to_tensorboard(
-      "/cns/bh-d/home/gbm/tmp/ttl=15d/tfdf_tensorboard")
+  inspector.export_to_tensorboard(os.path.join(work_directory, "tensorboard"))
 
   # Exports the model to disk in the SavedModel format for later re-use. This
   # model can be used with TensorFlow Serving and Yggdrasil Decision Forests
   # (https://ydf.readthedocs.io/en/latest/serving_apis.html).
   logging.info("Export model")
-  model.save("/cns/bh-d/home/gbm/tmp/ttl=15d/tfdf_model")
+  model.save(os.path.join(work_directory, "model"))
 
 
 if __name__ == "__main__":

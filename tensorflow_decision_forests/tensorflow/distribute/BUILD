@@ -16,6 +16,7 @@ py_binary(
     srcs_version = "PY3",
     deps = [
         # absl:app dep,
+        # absl/flags dep,
         # absl/logging dep,
         # TensorFlow Python,
         "//tensorflow_decision_forests",
