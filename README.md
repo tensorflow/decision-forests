@@ -50,9 +50,11 @@ model.save("project/model")
 
 ## Google IO Presentation
 
-<center>
-<iframe width="560" height="315" src="https://www.youtube.com/embed/5qgk9QJ4rdQ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-</center>
+<div align="center">
+    <a href="https://youtu.be/5qgk9QJ4rdQ">
+        <img src="https://img.youtube.com/vi/5qgk9QJ4rdQ/0.jpg"></img>
+    </a>
+</div>
 
 ## Documentation & Resources
 
