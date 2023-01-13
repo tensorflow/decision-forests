@@ -714,6 +714,9 @@ class AbstractDecisionForestBuilder(AbstractBuilder):
 
         if max_true_default < min_false_default:
           column.numerical.mean = (max_true_default + min_false_default) / 2
+        else:
+          # The model does not look like it was built with global imputation.
+          column.numerical.mean = 0
 
 
 class RandomForestBuilder(AbstractDecisionForestBuilder):
