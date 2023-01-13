@@ -46,7 +46,6 @@ model.save("/path/to/my/model")
 # Load a model: it loads as a generic keras model.
 loaded_model = tf.keras.models.load_model("/path/to/my/model")
 ```
-
 """
 
 from typing import Callable, List
@@ -60,6 +59,7 @@ FeatureSemantic = core.FeatureSemantic
 Task = core.Task
 FeatureUsage = core.FeatureUsage
 AdvancedArguments = core.AdvancedArguments
+MultiTaskItem = core.MultiTaskItem
 
 # Learning algorithm (called Models in Keras).
 

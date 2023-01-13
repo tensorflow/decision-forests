@@ -13,6 +13,7 @@ cc_library(
     name = "canonical_models",
     deps = [
         "@ydf//yggdrasil_decision_forests/model/gradient_boosted_trees",
+        "@ydf//yggdrasil_decision_forests/model/multitasker",
         "@ydf//yggdrasil_decision_forests/model/random_forest",
         "@ydf//yggdrasil_decision_forests/serving/decision_forest:register_engines",
     ],
@@ -27,6 +28,7 @@ cc_library(
         "@ydf//yggdrasil_decision_forests/learner/distributed_gradient_boosted_trees",
         "@ydf//yggdrasil_decision_forests/learner/gradient_boosted_trees",
         "@ydf//yggdrasil_decision_forests/learner/hyperparameters_optimizer",
+        "@ydf//yggdrasil_decision_forests/learner/multitasker",
         "@ydf//yggdrasil_decision_forests/learner/random_forest",
     ],
     alwayslink = 1,

@@ -22,7 +22,7 @@ import copy
 from functools import partial  # pylint: disable=g-importing-member
 import os
 import tempfile
-from typing import Optional, List, Dict, Any, Union, Text
+from typing import Optional, List, Dict, Any, Union, NamedTuple
 import uuid
 import zipfile
 
@@ -30,10 +30,12 @@ import tensorflow as tf
 
 from tensorflow.python.distribute import input_lib
 from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
+from tensorflow_decision_forests.component.tuner import tuner as tuner_lib
 from tensorflow_decision_forests.tensorflow import core_inference as tf_core
 from tensorflow_decision_forests.tensorflow import tf_logging
 from tensorflow_decision_forests.tensorflow.ops.inference import api as tf_op
 from yggdrasil_decision_forests.learner import abstract_learner_pb2
+from yggdrasil_decision_forests.learner.multitasker import multitasker_pb2
 from yggdrasil_decision_forests.model import abstract_model_pb2  # pylint: disable=unused-import
 from yggdrasil_decision_forests.utils.distribute.implementations.grpc import grpc_pb2  # pylint: disable=unused-import
 
@@ -71,10 +73,11 @@ FeatureColumn = Any
 FeatureSemantic = tf_core.Semantic
 
 # Feature name placeholder.
+WEIGHTS = "__WEIGHTS"
+
+# Label name when not using multi-task learning i.e. when the user does not
+# provide a label name.
 _LABEL = "__LABEL"
-_RANK_GROUP = "__RANK_GROUP"
-_UPLIFT_TREATMENT = "__UPLIFT_TREATMENT"
-_WEIGHTS = "__WEIGHTS"
 
 # This is the list of characters that should not be used as feature name as they
 # as not supported by SavedModel serving signatures.
@@ -130,11 +133,11 @@ class AdvancedArguments(object):
       normal value and this parameter will be removed. If
       `disable_categorical_integer_offset_correction` is false, this +1 offset
       is never applied.
-    node_format: Yggdrasil Decision Forests node format for the saved model.
-      If not specified, uses the recommended format. The node format is visible
-      in the node summary. For models to be compatible with the open-source
-      version of TensorFlow Decision Forests and TensorFlow Serving, the node
-      format should be BLOB_SEQUENCE.
+    node_format: Yggdrasil Decision Forests node format for the saved model. If
+      not specified, uses the recommended format. The node format is visible in
+      the node summary. For models to be compatible with the open-source version
+      of TensorFlow Decision Forests and TensorFlow Serving, the node format
+      should be BLOB_SEQUENCE.
   """
 
   def __init__(
@@ -144,24 +147,43 @@ class AdvancedArguments(object):
       yggdrasil_deployment_config: Optional[YggdrasilDeploymentConfig] = None,
       fail_on_non_keras_compatible_feature_name: Optional[bool] = True,
       predict_single_probability_for_binary_classification: Optional[
-          bool] = True,
+          bool
+      ] = True,
       metadata_framework: Optional[str] = "TF Keras",
       metadata_owner: Optional[str] = None,
       populate_history_with_yggdrasil_logs: bool = False,
       disable_categorical_integer_offset_correction: bool = False,
-      node_format: Optional[NodeFormat] = None):
+      node_format: Optional[NodeFormat] = None,
+  ):
     self.infer_prediction_signature = infer_prediction_signature
-    self.yggdrasil_training_config = yggdrasil_training_config or abstract_learner_pb2.TrainingConfig(
+    self.yggdrasil_training_config = (
+        yggdrasil_training_config or abstract_learner_pb2.TrainingConfig()
     )
-    self.yggdrasil_deployment_config = yggdrasil_deployment_config or abstract_learner_pb2.DeploymentConfig(
+    self.yggdrasil_deployment_config = (
+        yggdrasil_deployment_config or abstract_learner_pb2.DeploymentConfig()
     )
-    self.fail_on_non_keras_compatible_feature_name = fail_on_non_keras_compatible_feature_name
-    self.predict_single_probability_for_binary_classification = predict_single_probability_for_binary_classification
+    self.fail_on_non_keras_compatible_feature_name = (
+        fail_on_non_keras_compatible_feature_name
+    )
+    self.predict_single_probability_for_binary_classification = (
+        predict_single_probability_for_binary_classification
+    )
     self.metadata_framework = metadata_framework
     self.metadata_owner = metadata_owner
-    self.populate_history_with_yggdrasil_logs = populate_history_with_yggdrasil_logs
-    self.disable_categorical_integer_offset_correction = disable_categorical_integer_offset_correction
+    self.populate_history_with_yggdrasil_logs = (
+        populate_history_with_yggdrasil_logs
+    )
+    self.disable_categorical_integer_offset_correction = (
+        disable_categorical_integer_offset_correction
+    )
     self.node_format = node_format
+
+
+class MultiTaskItem(NamedTuple):
+  """A single task in a multi-task configuration."""
+
+  label: str
+  task: TaskType = Task.CLASSIFICATION
 
 
 class InferenceCoreModel(models.Model):
@@ -181,15 +203,15 @@ class InferenceCoreModel(models.Model):
       postprocessing: Optional["models.Functional"] = None,
       uplift_treatment: Optional[str] = None,
       temp_directory: Optional[str] = None,
+      multitask: Optional[List[MultiTaskItem]] = None,
+      tuner: Optional[tuner_lib.Tuner] = None,
+      learner: Optional[str] = "RANDOM_FOREST",
   ):
     super(InferenceCoreModel, self).__init__(name=name)
 
-    self._task = task
-    self._ranking_group = ranking_group
     self._verbose = verbose
     self._preprocessing = preprocessing
     self._postprocessing = postprocessing
-    self._uplift_treatment = uplift_treatment
     self._temp_directory = temp_directory
 
     if advanced_arguments is None:
@@ -197,19 +219,73 @@ class InferenceCoreModel(models.Model):
     else:
       self._advanced_arguments = copy.deepcopy(advanced_arguments)
 
+    # Training configuration
+    training_config = self._advanced_arguments.yggdrasil_training_config
+
+    # Label
+    if multitask is None:
+      self._multitask = [MultiTaskItem(label=_LABEL, task=task)]
+      self._is_multitask = False
+      training_config.label = tf_core.normalize_inputs_regexp(_LABEL, False)
+      training_config.task = task
+    else:
+      self._multitask = multitask
+      self._is_multitask = True
+      training_config.label = tf_core.normalize_inputs_regexp(
+          multitask[0].label, False
+      )
+      training_config.task = multitask[0].task
+
+    # Learner
+    if tuner is not None:
+      if self._is_multitask:
+        raise ValueError("Multi-task learning is not compatible with the tuner")
+      tuner.set_base_learner(learner)
+      training_config.MergeFrom(tuner.train_config())
+    elif self._is_multitask:
+      training_config.learner = "MULTITASKER"
+      multitasker_config = training_config.Extensions[
+          multitasker_pb2.multitasker_config
+      ]
+      multitasker_config.base_learner.learner = learner
+      for sub_task in self._multitask:
+        multitasker_task = multitasker_config.subtasks.add()
+        multitasker_task.train_config.label = tf_core.normalize_inputs_regexp(
+            sub_task.label, False
+        )
+        multitasker_task.train_config.task = sub_task.task
+    else:
+      training_config.learner = learner
+
+    # Ranking group
+    if ranking_group:
+      training_config.ranking_group = ranking_group
+
+    # Uplift treatment
+    if uplift_treatment:
+      training_config.uplift_treatment = uplift_treatment
+
     # Copy the metadata
-    if (not self._advanced_arguments.yggdrasil_training_config.metadata
-        .HasField("framework") and self._advanced_arguments.metadata_framework):
-      self._advanced_arguments.yggdrasil_training_config.metadata.framework = self._advanced_arguments.metadata_framework
+    if (
+        not training_config.metadata.HasField("framework")
+        and self._advanced_arguments.metadata_framework
+    ):
+      training_config.metadata.framework = (
+          self._advanced_arguments.metadata_framework
+      )
 
-    if (not self._advanced_arguments.yggdrasil_training_config.metadata
-        .HasField("owner") and self._advanced_arguments.metadata_owner):
-      self._advanced_arguments.yggdrasil_training_config.metadata.owner = self._advanced_arguments.metadata_owner
+    if (
+        not training_config.metadata.HasField("owner")
+        and self._advanced_arguments.metadata_owner
+    ):
+      training_config.metadata.owner = self._advanced_arguments.metadata_owner
 
-    if (self._task == Task.RANKING) != (ranking_group is not None):
-      raise ValueError(
-          "ranking_key is used iif. the task is RANKING or the loss is a "
-          "ranking loss")
+    for sub_task in self._multitask:
+      if (sub_task.task == Task.RANKING) != (ranking_group is not None):
+        raise ValueError(
+            "ranking_key is used iif. the task is RANKING or the loss is a "
+            "ranking loss"
+        )
 
       # True iif. the model is trained.
     self._is_trained = tf.Variable(False, trainable=False, name="is_trained")
@@ -220,32 +296,61 @@ class InferenceCoreModel(models.Model):
     # The following fields contain the trained model. They are set during the
     # graph construction and training process.
 
-    # The compiled Yggdrasil model.
-    self._model: Optional[tf_op.ModelV2] = None
+    # The compiled Yggdrasil models. Indexed the same way as "_multitask".
+    self._models: Optional[List[tf_op.ModelV2]] = None
 
     # Compiled Yggdrasil model specialized for returning the active leaves.
     # This model is initialized at the first call to "call_get_leaves" or
-    # "predict_get_leaves".
-    self._model_get_leaves: Optional[tf_op.ModelV2] = None
+    # "predict_get_leaves". Indexed the same way as "_multitask".
+    self._models_get_leaves: Optional[List[tf_op.ModelV2]] = None
 
     # Semantic of the input features.
     # Also defines what are the input features of the model.
-    self._semantics: Optional[Dict[Text, FeatureSemantic]] = None
+    self._semantics: Optional[Dict[str, FeatureSemantic]] = None
 
     # List of Yggdrasil feature identifiers i.e. feature seen by the Yggdrasil
     # learner. Those are computed after the preprocessing, unfolding and
     # casting.
-    self._normalized_input_keys: Optional[List[Text]] = None
+    self._normalized_input_keys: Optional[List[str]] = None
 
     # Textual description of the model.
-    self._description: Optional[Text] = None
+    self._description: Optional[str] = None
+
+  def ranking_group(self) -> Optional[str]:
+    training_config = self._advanced_arguments.yggdrasil_training_config
+    if not training_config.HasField("ranking_group"):
+      return None
+    return training_config.ranking_group
+
+  def uplift_treatment(self) -> Optional[str]:
+    training_config = self._advanced_arguments.yggdrasil_training_config
+    if not training_config.HasField("uplift_treatment"):
+      return None
+    return training_config.uplift_treatment
 
   @property
   def task(self) -> Optional[TaskType]:
     """Task to solve (e.g. CLASSIFICATION, REGRESSION, RANKING)."""
-    return self._task
 
-  def make_inspector(self) -> inspector_lib.AbstractInspector:
+    if self._is_multitask:
+      raise ValueError(
+          "Cannot call .task() on a multitask model. Use .multitask() instead."
+      )
+    assert len(self._multitask) == 1
+    return self._multitask[0].task
+
+  @property
+  def multitask(self) -> List[MultiTaskItem]:
+    """Tasks to solve."""
+
+    if not self._is_multitask:
+      raise ValueError(
+          "Cannot call .multitask() on a non-multitask model. Use .task()"
+          " instead."
+      )
+    return self._multitask
+
+  def make_inspector(self, index: int = 0) -> inspector_lib.AbstractInspector:
     """Creates an inspector to access the internal model structure.
 
     Usage example:
@@ -256,16 +361,22 @@ class InferenceCoreModel(models.Model):
     print(inspector.variable_importances())
     ```
 
+    Args:
+      index: Index of the sub-model. Only used for multitask models.
+
     Returns:
       A model inspector.
     """
 
     path = self.yggdrasil_model_path_tensor().numpy().decode("utf-8")
     return inspector_lib.make_inspector(
-        path, file_prefix=self.yggdrasil_model_prefix())
+        path, file_prefix=self.yggdrasil_model_prefix(index)
+    )
 
   @tf.function(input_signature=[])
-  def yggdrasil_model_path_tensor(self) -> Optional[tf.Tensor]:
+  def yggdrasil_model_path_tensor(
+      self, multitask_model_index: int = 0
+  ) -> Optional[tf.Tensor]:
     """Gets the path to yggdrasil model, if available.
 
     The effective path can be obtained with:
@@ -274,16 +385,34 @@ class InferenceCoreModel(models.Model):
     yggdrasil_model_path_tensor().numpy().decode("utf-8")
     ```
 
+    Args:
+      multitask_model_index: Index of the sub-model. Only used for multitask
+        models.
+
     Returns:
       Path to the Yggdrasil model.
     """
 
-    return self._model._compiled_model._model_loader.get_model_path()  # pylint: disable=protected-access
+    if multitask_model_index >= len(self._models):
+      raise ValueError(
+          f"Requesting sub-model {multitask_model_index} but only"
+          f" {len(self._models)} sub-models are available"
+      )
 
-  def yggdrasil_model_prefix(self) -> str:
+    return self._models[
+        multitask_model_index
+    ]._compiled_model._model_loader.get_model_path()  # pylint: disable=protected-access
+
+  def yggdrasil_model_prefix(self, index: int = 0) -> str:
     """Gets the prefix of the internal yggdrasil model."""
 
-    return self._model._compiled_model._model_loader.get_model_prefix()  # pylint: disable=protected-access
+    if index >= len(self._models):
+      raise ValueError(
+          f"Requesting sub-model {index} but only {len(self._models)} "
+          "sub-models are available"
+      )
+
+    return self._models[index]._compiled_model._model_loader.get_model_prefix()  # pylint: disable=protected-access
 
   def make_predict_function(self):
     """Prediction of the model (!= evaluation)."""
@@ -361,14 +490,16 @@ class InferenceCoreModel(models.Model):
       data = next(iterator)
       outputs = model.distribute_strategy.run(run_step, args=(data,))
       outputs = _reduce_per_replica(
-          outputs, self.distribute_strategy, reduction="first")
+          outputs, self.distribute_strategy, reduction="first"
+      )
       return outputs
 
     if self._is_trained.value():
       # Special case if steps_per_execution is one.
-      if (self._steps_per_execution is None or
-          self._steps_per_execution.numpy().item() == 1):
-
+      if (
+          self._steps_per_execution is None
+          or self._steps_per_execution.numpy().item() == 1
+      ):
         def test_function(iterator):
           """Runs a test execution with a single step."""
           return step_function_trained(self, iterator)
@@ -378,7 +509,8 @@ class InferenceCoreModel(models.Model):
 
         if self._cluster_coordinator:
           return lambda it: self._cluster_coordinator.schedule(  # pylint: disable=g-long-lambda
-              test_function, args=(it,))
+              test_function, args=(it,)
+          )
         else:
           return test_function
 
@@ -397,8 +529,8 @@ class InferenceCoreModel(models.Model):
           test_function = tf.function(test_function, reduce_retracing=True)
 
         return lambda it: self._cluster_coordinator.schedule(  # pylint: disable=g-long-lambda
-            test_function,
-            args=(it, self._steps_per_execution.value()))
+            test_function, args=(it, self._steps_per_execution.value())
+        )
       else:
 
         def test_function(iterator):
@@ -428,7 +560,7 @@ class InferenceCoreModel(models.Model):
     """
 
     assert self._semantics is not None
-    assert self._model is not None
+    assert self._models is not None
 
     if self._preprocessing is not None:
       inputs = self._preprocessing(inputs)
@@ -441,7 +573,8 @@ class InferenceCoreModel(models.Model):
         raise ValueError(
             "Calling model with input shape different from the "
             "input shape provided during training: Feeding a single array "
-            f"{inputs} while the model was trained on {self._semantics}.")
+            f"{inputs} while the model was trained on {self._semantics}."
+        )
       inputs = {next(iter(self._semantics.keys())): inputs}
     elif isinstance(inputs, list) or isinstance(inputs, tuple):
       # Note: The name of a tensor (value.name) can change between the training
@@ -449,18 +582,21 @@ class InferenceCoreModel(models.Model):
       inputs = {str(idx): value for idx, value in enumerate(inputs)}
     else:
       raise ValueError(
-          f"The inference input tensor is expected to be a tensor, list of "
-          f"tensors or a dictionary of tensors. Got {inputs} instead")
+          "The inference input tensor is expected to be a tensor, list of "
+          f"tensors or a dictionary of tensors. Got {inputs} instead"
+      )
 
     # Normalize the input tensor to match Yggdrasil requirements.
     semantic_inputs = tf_core.combine_tensors_and_semantics(
-        inputs, self._semantics)
+        inputs, self._semantics
+    )
     normalized_semantic_inputs = tf_core.normalize_inputs(
         semantic_inputs,
-        categorical_integer_offset_correction=not self._advanced_arguments
-        .disable_categorical_integer_offset_correction)
+        categorical_integer_offset_correction=not self._advanced_arguments.disable_categorical_integer_offset_correction,
+    )
     normalized_inputs, _ = tf_core.decombine_tensors_and_semantics(
-        normalized_semantic_inputs)
+        normalized_semantic_inputs
+    )
 
     return normalized_inputs
 
@@ -482,32 +618,47 @@ class InferenceCoreModel(models.Model):
 
     if self._semantics is None:
       tf_logging.warning(
-          "The model was called directly (i.e. using `model(data)` instead of "
-          "using `model.predict(data)`) before being trained. The model will "
-          "only return zeros until trained. The output shape might change "
-          "after training %s", inputs)
+          (
+              "The model was called directly (i.e. using `model(data)` instead"
+              " of using `model.predict(data)`) before being trained. The model"
+              " will only return zeros until trained. The output shape might"
+              " change after training %s"
+          ),
+          inputs,
+      )
       return tf.zeros([_batch_size(inputs), 1])
 
     normalized_inputs = self._build_normalized_inputs(inputs)
 
-    # Apply the model.
-    predictions = self._model.apply(normalized_inputs)
+    predictions = {}
+    for item_idx, multitask_item in enumerate(self._multitask):
+      sub_pred = self._models[item_idx].apply(normalized_inputs)
+      sub_pred = self._finalize_predictions(multitask_item.task, sub_pred)
+      predictions[multitask_item.label] = sub_pred
 
-    if (self._advanced_arguments
-        .predict_single_probability_for_binary_classification and
-        self._task == Task.CLASSIFICATION and
-        predictions.dense_predictions.shape[1] == 2):
-      # Yggdrasil returns the probably of both classes in binary classification.
-      # Keras expects only the value (logit or probability) of the "positive"
-      # class (value=1).
-      predictions = predictions.dense_predictions[:, 1:2]
-    else:
-      predictions = predictions.dense_predictions
+    if not self._is_multitask:
+      predictions = predictions[self._multitask[0].label]
 
     if self._postprocessing is not None:
       predictions = self._postprocessing(predictions)
 
     return predictions
+
+  @tf.function(reduce_retracing=True)
+  def _finalize_predictions(self, task: TaskType, predictions):
+    """Finalizes the predictions before beeing send back to the user."""
+
+    if (
+        self._advanced_arguments.predict_single_probability_for_binary_classification
+        and task == Task.CLASSIFICATION
+        and predictions.dense_predictions.shape[1] == 2
+    ):
+      # Yggdrasil returns the probably of both classes in binary classification.
+      # Keras expects only the value (logit or probability) of the "positive"
+      # class (value=1).
+      return predictions.dense_predictions[:, 1:2]
+    else:
+      return predictions.dense_predictions
 
   @tf.function(reduce_retracing=True)
   def call_get_leaves(self, inputs):
@@ -528,17 +679,27 @@ class InferenceCoreModel(models.Model):
       Index of the active leaf for each tree in the model.
     """
 
+    if self._is_multitask:
+      raise ValueError(
+          "call_get_leaves is not compatible with multi-task models"
+      )
+    assert len(self._models_get_leaves) == 1
+
     if self._semantics is None:
       tf_logging.warning(
-          "The model was called directly using `call_get_leaves` before "
-          "being trained. This method will "
-          "only return zeros until trained. The output shape might change "
-          "after training %s", inputs)
+          (
+              "The model was called directly using `call_get_leaves` before "
+              "being trained. This method will "
+              "only return zeros until trained. The output shape might change "
+              "after training %s"
+          ),
+          inputs,
+      )
       return tf.zeros([_batch_size(inputs), 1])
 
     self._ensure_model_get_leaves_ready()
     normalized_inputs = self._build_normalized_inputs(inputs)
-    return self._model_get_leaves.apply_get_leaves(normalized_inputs)
+    return self._models_get_leaves[0].apply_get_leaves(normalized_inputs)
 
   def predict_get_leaves(self, x):
     """Gets the index of the active leaf of each tree.
@@ -573,14 +734,21 @@ class InferenceCoreModel(models.Model):
   def _ensure_model_get_leaves_ready(self):
     """Ensures that the model that generates the leaves is available."""
 
-    # TODO: Re-use "_model" if it supports the get-leaves inference.
+    # TODO: Re-use "_models" if it supports the get-leaves inference.
 
-    if self._model_get_leaves is None:
-      self._model_get_leaves = tf_op.ModelV2(
-          model_path=self.yggdrasil_model_path_tensor().numpy().decode("utf-8"),
-          file_prefix=self.yggdrasil_model_prefix(),
-          verbose=False,
-          output_types=["LEAVES"])
+    assert not self._is_multitask
+
+    if self._models_get_leaves is None:
+      self._models_get_leaves = [
+          tf_op.ModelV2(
+              model_path=self.yggdrasil_model_path_tensor()
+              .numpy()
+              .decode("utf-8"),
+              file_prefix=self.yggdrasil_model_prefix(0),
+              verbose=False,
+              output_types=["LEAVES"],
+          )
+      ]
 
   def compile(self, metrics=None, weighted_metrics=None):
     """Configure the model for training.
@@ -599,18 +767,20 @@ class InferenceCoreModel(models.Model):
     """
 
     super(InferenceCoreModel, self).compile(
-        metrics=metrics, weighted_metrics=weighted_metrics)
+        metrics=metrics, weighted_metrics=weighted_metrics
+    )
 
   def summary(self, line_length=None, positions=None, print_fn=None):
     """Shows information about the model."""
 
     super(InferenceCoreModel, self).summary(
-        line_length=line_length, positions=positions, print_fn=print_fn)
+        line_length=line_length, positions=positions, print_fn=print_fn
+    )
 
     if print_fn is None:
       print_fn = print
 
-    if self._model is not None:
+    if self._models is not None:
       print_fn(self._description)
 
   # TODO: Use Trace Protocol For TF DF custom types to avoid
@@ -668,8 +838,9 @@ class InferenceCoreModel(models.Model):
 
     try:
       # Works for list of primitives.
-      if isinstance(x, list) and isinstance(x[0],
-                                            (int, float, str, bytes, bool)):
+      if isinstance(x, list) and isinstance(
+          x[0], (int, float, str, bytes, bool)
+      ):
         return x[0:1]
     except Exception:  # pylint: disable=broad-except
       pass
@@ -703,14 +874,15 @@ class InferenceCoreModel(models.Model):
     if self._verbose >= 1:
       tf_logging.info("Model compiled.")
 
-  def _set_from_yggdrasil_model(self,
-                                inspector: inspector_lib.AbstractInspector,
-                                path: str,
-                                file_prefix: Optional[str] = None,
-                                input_model_signature_fn: Optional[
-                                    tf_core.InputModelSignatureFn] = tf_core
-                                .build_default_input_model_signature):
-
+  def _set_from_yggdrasil_model(
+      self,
+      inspector: inspector_lib.AbstractInspector,
+      path: str,
+      file_prefix: Optional[str] = None,
+      input_model_signature_fn: Optional[
+          tf_core.InputModelSignatureFn
+      ] = tf_core.build_default_input_model_signature,
+  ):
     if not self._is_compiled:
       self.compile()
 
@@ -724,8 +896,27 @@ class InferenceCoreModel(models.Model):
     self._semantics = semantics
     self._normalized_input_keys = sorted(list(semantics.keys()))
     self._is_trained.assign(True)
-    self._model = tf_op.ModelV2(
-        model_path=path, verbose=False, file_prefix=file_prefix)
+
+    if isinstance(inspector, inspector_lib._MultitaskerInspector):  # pylint: disable=protected-access
+      assert inspector.model_type() == "MULTITASKER"
+      assert self._is_multitask
+      self._models = []
+      for task_idx in range(len(self._multitask)):
+        self._models.append(
+            tf_op.ModelV2(
+                model_path=path,
+                verbose=False,
+                file_prefix=inspector.submodel_prefix(task_idx),
+            )
+        )
+
+    else:
+      assert not self._is_multitask
+      assert len(self._multitask) == 1
+
+      self._models = [
+          tf_op.ModelV2(model_path=path, verbose=False, file_prefix=file_prefix)
+      ]
 
     # Instantiate the model's graph
     input_model_signature = input_model_signature_fn(inspector)
@@ -773,7 +964,8 @@ def pd_dataframe_to_tf_dataset(
     in_place: Optional[bool] = False,
     fix_feature_names: Optional[bool] = True,
     weight: Optional[str] = None,
-    batch_size: Optional[int] = 1000) -> tf.data.Dataset:
+    batch_size: Optional[int] = 1000,
+) -> tf.data.Dataset:
   """Converts a Panda Dataframe into a TF Dataset compatible with Keras.
 
   Details:
@@ -824,13 +1016,10 @@ def pd_dataframe_to_tf_dataset(
     dataframe = dataframe.copy(deep=True)
 
   if label is not None:
-
     if label not in dataframe.columns:
-      raise ValueError(
-          f"The label \"{label}\" is not a column of the dataframe.")
+      raise ValueError(f'The label "{label}" is not a column of the dataframe.')
 
     if task == Task.CLASSIFICATION:
-
       classification_classes = list(dataframe[label].unique())
       if len(classification_classes) > max_num_classes:
         raise ValueError(
@@ -839,7 +1028,8 @@ def pd_dataframe_to_tf_dataset(
             "unique value / classes might indicate that the problem is a "
             "regression or a ranking instead of a classification. If this "
             "problem is effectively a classification problem, increase "
-            "`max_num_classes`.")
+            "`max_num_classes`."
+        )
 
       if dataframe[label].dtypes in [str, object]:
         classification_classes.sort()
@@ -849,12 +1039,14 @@ def pd_dataframe_to_tf_dataset(
         if (dataframe[label] < 0).any():
           raise ValueError(
               "Negative integer classification label found. Make sure "
-              "you label values are positive or stored as string.")
+              "you label values are positive or stored as string."
+          )
 
   if weight is not None:
     if weight not in dataframe.columns:
       raise ValueError(
-          f"The weight \"{weight}\" is not a column of the dataframe.")
+          f'The weight "{weight}" is not a column of the dataframe.'
+      )
 
   if fix_feature_names:
     # Rename the features so they are compatible with SaveModel serving
@@ -885,7 +1077,8 @@ def pd_dataframe_to_tf_dataset(
     if change_any_feature_name:
       tf_logging.warning(
           "Some of the feature names have been changed automatically to be "
-          "compatible with SavedModels because fix_feature_names=True.")
+          "compatible with SavedModels because fix_feature_names=True."
+      )
 
   # Make sure that missing values for string columns are not represented as
   # float(NaN).
@@ -898,8 +1091,11 @@ def pd_dataframe_to_tf_dataset(
 
     if weight is not None:
       features_dataframe = features_dataframe.drop(weight, axis=1)
-      output = (dict(features_dataframe), dataframe[label].values,
-                dataframe[weight].values)
+      output = (
+          dict(features_dataframe),
+          dataframe[label].values,
+          dataframe[weight].values,
+      )
     else:
       output = (dict(features_dataframe), dataframe[label].values)
 
@@ -908,7 +1104,8 @@ def pd_dataframe_to_tf_dataset(
   else:
     if weight is not None:
       raise ValueError(
-          "\"weight\" is only supported if the \"label\" is also provided")
+          '"weight" is only supported if the "label" is also provided'
+      )
     tf_dataset = tf.data.Dataset.from_tensor_slices(dict(dataframe))
 
   # The batch size does not impact the training of TF-DF.
@@ -925,11 +1122,13 @@ def pd_dataframe_to_tf_dataset(
 def yggdrasil_model_to_keras_model(
     src_path: str,
     dst_path: str,
-    input_model_signature_fn: Optional[tf_core.InputModelSignatureFn] = tf_core
-    .build_default_input_model_signature,
+    input_model_signature_fn: Optional[
+        tf_core.InputModelSignatureFn
+    ] = tf_core.build_default_input_model_signature,
     file_prefix: Optional[str] = None,
     verbose: int = 1,
-    disable_categorical_integer_offset_correction: bool = False) -> None:
+    disable_categorical_integer_offset_correction: bool = False,
+) -> None:
   """Converts an Yggdrasil model into a TensorFlow SavedModel / Keras model.
 
   Args:
@@ -961,7 +1160,8 @@ def yggdrasil_model_to_keras_model(
     raise ValueError(
         f"The path {src_path} does not look like a yggdrasil-decision-forests "
         "model. An yggdrasil-decision-forests is either a directory or a zip "
-        "file containing among other things, a data_spec.pb file.")
+        "file containing among other things, a data_spec.pb file."
+    )
 
   temp_directory = None
   if src_container == "zip":
@@ -977,17 +1177,20 @@ def yggdrasil_model_to_keras_model(
   model = InferenceCoreModel(
       task=objective.task,
       ranking_group=objective.group
-      if objective.task == inspector_lib.Task.RANKING else None,
+      if objective.task == inspector_lib.Task.RANKING
+      else None,
       verbose=verbose,
       advanced_arguments=AdvancedArguments(
           disable_categorical_integer_offset_correction=disable_categorical_integer_offset_correction
-      ))
+      ),
+  )
 
   model._set_from_yggdrasil_model(  # pylint: disable=protected-access
       inspector,
       src_path,
       file_prefix=file_prefix,
-      input_model_signature_fn=input_model_signature_fn)
+      input_model_signature_fn=input_model_signature_fn,
+  )
 
   model.save(dst_path)
   return
@@ -1030,8 +1233,11 @@ def _expand_1d(data):
 
   def _expand_single_1d_tensor(t):
     # Leaves `CompositeTensor`s as-is.
-    if (isinstance(t, tf.Tensor) and isinstance(t.shape, tf.TensorShape) and
-        t.shape.rank == 1):
+    if (
+        isinstance(t, tf.Tensor)
+        and isinstance(t.shape, tf.TensorShape)
+        and t.shape.rank == 1
+    ):
       return tf.expand_dims(t, axis=-1)
     return t
 
@@ -1049,8 +1255,9 @@ def _is_scalar(x):
 
 
 def _is_per_replica_instance(obj):
-  return (isinstance(obj, tf.distribute.DistributedValues) and
-          isinstance(obj, tf.__internal__.CompositeTensor))
+  return isinstance(obj, tf.distribute.DistributedValues) and isinstance(
+      obj, tf.__internal__.CompositeTensor
+  )
 
 
 def _reduce_per_replica(values, strategy, reduction="first"):
@@ -1073,8 +1280,10 @@ def _reduce_per_replica(values, strategy, reduction="first"):
     elif reduction == "first":
       return strategy.unwrap(v)[0]
     else:
-      raise ValueError('`reduction` must be "first" or "concat". Received: '
-                       f"reduction={reduction}.")
+      raise ValueError(
+          '`reduction` must be "first" or "concat". Received: '
+          f"reduction={reduction}."
+      )
 
   return tf.nest.map_structure(_reduce, values)
 

@@ -23,6 +23,7 @@ py_library(
         "@ydf//yggdrasil_decision_forests/model:hyperparameter_py_proto",
         "@ydf//yggdrasil_decision_forests/model/decision_tree:decision_tree_py_proto",
         "@ydf//yggdrasil_decision_forests/model/gradient_boosted_trees:gradient_boosted_trees_py_proto",
+        "@ydf//yggdrasil_decision_forests/model/multitasker:multitasker_py_proto",
         "@ydf//yggdrasil_decision_forests/model/random_forest:random_forest_py_proto",
     ],
 )

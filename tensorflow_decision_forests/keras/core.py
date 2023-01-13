@@ -50,7 +50,7 @@ import functools
 import inspect
 import os
 import tempfile
-from typing import Optional, List, Dict, Any, Text, Tuple, NamedTuple, Set, Union
+from typing import Optional, List, Dict, Any, Tuple, NamedTuple, Set, Union
 
 import tensorflow as tf
 
@@ -100,6 +100,7 @@ ONLY_WARN_ON_DATASET_CONFIGURATION_ISSUES = False
 # Imports from the inference only code.
 # pylint: disable=protected-access
 Task = core_inference.Task
+MultiTaskItem = core_inference.MultiTaskItem
 TaskType = core_inference.TaskType
 FeatureColumn = core_inference.FeatureColumn
 FeatureSemantic = core_inference.FeatureSemantic
@@ -110,10 +111,7 @@ yggdrasil_model_to_keras_model = core_inference.yggdrasil_model_to_keras_model
 YggdrasilTrainingConfig = core_inference.YggdrasilTrainingConfig
 YggdrasilDeploymentConfig = core_inference.YggdrasilDeploymentConfig
 yggdrasil_model_to_keras_model = core_inference.yggdrasil_model_to_keras_model
-_LABEL = core_inference._LABEL
-_RANK_GROUP = core_inference._RANK_GROUP
-_UPLIFT_TREATMENT = core_inference._UPLIFT_TREATMENT
-_WEIGHTS = core_inference._WEIGHTS
+WEIGHTS = core_inference.WEIGHTS
 _FORBIDDEN_FEATURE_CHARACTERS = core_inference._FORBIDDEN_FEATURE_CHARACTERS
 NodeFormat = core_inference.NodeFormat
 # pylint: enable=protected-access
@@ -406,6 +404,10 @@ class CoreModel(InferenceCoreModel):
     num_discretize_numerical_bins: Number of bins used when disretizing
       numerical features. The value `num_discretized_numerical_bins` defined in
       a `FeatureUsage` (if any) takes precedence.
+    multitask: If set, train a multi-task model, that is a model with multiple
+      outputs trained to predict different labels. If set, the tf.dataset label
+      (i.e. the second selement of the dataset) should be a dictionary of
+      label_key:label_values. Only one of `multitask` and `task` can be set.
   """
 
   def __init__(
@@ -430,6 +432,7 @@ class CoreModel(InferenceCoreModel):
       tuner: Optional[tuner_lib.Tuner] = None,
       discretize_numerical_features: bool = False,
       num_discretized_numerical_bins: int = 255,
+      multitask: Optional[List[MultiTaskItem]] = None,
   ) -> None:
     super(CoreModel, self).__init__(
         name=name,
@@ -441,6 +444,9 @@ class CoreModel(InferenceCoreModel):
         postprocessing=postprocessing,
         uplift_treatment=uplift_treatment,
         temp_directory=temp_directory,
+        multitask=multitask,
+        learner=learner,
+        tuner=tuner,
     )
 
     self._learner = learner  # Only used for user inspection
@@ -479,14 +485,6 @@ class CoreModel(InferenceCoreModel):
         else:
           if self._verbose >= 2:
             tf_logging.info("Use %d thread(s) for training", self._num_threads)
-
-    # Configure the training config.
-    if tuner is not None:
-      tuner.set_base_learner(learner)
-      self._advanced_arguments.yggdrasil_training_config.MergeFrom(
-          tuner.train_config())
-    else:
-      self._advanced_arguments.yggdrasil_training_config.learner = learner
 
     if not self._features and exclude_non_specified_features:
       raise ValueError(
@@ -647,23 +645,6 @@ class CoreModel(InferenceCoreModel):
           f"The training input tensor is expected to be a tensor, list of "
           f"tensors or a dictionary of tensors. Got {train_x} instead")
 
-    # Check the labels
-    if not isinstance(train_y, tf.Tensor):
-      raise ValueError(
-          f"The training label tensor is expected to be a tensor. Got {train_y}"
-          " instead.")
-
-    if len(train_y.shape) != 1:
-      if self._verbose >= 2:
-        tf_logging.info(
-            "Squeeze label' shape from [batch_size, 1] to [batch_size]")
-      train_y = tf.squeeze(train_y, axis=1)
-
-    if len(train_y.shape) != 1:
-      raise ValueError(
-          "Labels can either be passed in as [batch_size, 1] or [batch_size]. "
-          "Invalid shape %s." % train_y.shape)
-
     # Check the training
     self._weighted_training = train_weights is not None
     if self._weighted_training:
@@ -690,20 +671,27 @@ class CoreModel(InferenceCoreModel):
 
     # The ranking group and treatment are not part of the features unless
     # specified explicitly.
-    if (self._ranking_group is not None and
-        self._ranking_group not in self._features and
-        self._ranking_group in semantics):
-      del semantics[self._ranking_group]
+    ranking_group = self.ranking_group()
+    if (ranking_group is not None and ranking_group not in self._features and
+        ranking_group in semantics):
+      del semantics[ranking_group]
 
-    if (self._uplift_treatment is not None and
-        self._uplift_treatment not in self._features and
-        self._uplift_treatment in semantics):
-      del semantics[self._uplift_treatment]
+    uplift_treatment = self.uplift_treatment()
+    if (uplift_treatment is not None and
+        uplift_treatment not in self._features and
+        uplift_treatment in semantics):
+      del semantics[uplift_treatment]
+
+    # Note: At this point, "semantics" contains the non-normalized input featues
+    # of the models.
 
     if is_training_example:
       if self._semantics is not None:
         raise ValueError("The model is already trained")
+
+      # Save the semantic for later re-use.
       self._semantics = semantics
+
     else:
       self._has_validation_dataset = True
       if self._semantics is None:
@@ -728,77 +716,119 @@ class CoreModel(InferenceCoreModel):
                       normalized_semantic_inputs)
 
     if is_training_example:
-      self._normalized_input_keys = sorted(
+      self._normalized_input_feature_keys = sorted(
           list(normalized_semantic_inputs.keys()))
 
     # Add the weights
     if self._weighted_training:
-      normalized_semantic_inputs[_WEIGHTS] = tf_core.SemanticTensor(
+      normalized_semantic_inputs[WEIGHTS] = tf_core.SemanticTensor(
           tensor=tf.cast(train_weights, tf_core.NormalizedNumericalType),
           semantic=tf_core.Semantic.NUMERICAL)
 
-    # Add the semantic of the label.
-    if self._task == Task.CLASSIFICATION:
-      normalized_semantic_inputs[_LABEL] = tf_core.SemanticTensor(
-          tensor=tf.cast(train_y, tf_core.NormalizedCategoricalIntType) +
-          tf_core.CATEGORICAL_INTEGER_OFFSET,
-          semantic=tf_core.Semantic.CATEGORICAL)
+    # Add label(s)
+    last_train_y = None
+    for multitask_item in self._multitask:
+      unit_train_y = self._label_tensor(train_y, multitask_item.label)
+      last_train_y = unit_train_y
 
-    elif self._task == Task.REGRESSION:
-      normalized_semantic_inputs[_LABEL] = tf_core.SemanticTensor(
-          tensor=tf.cast(train_y, tf_core.NormalizedNumericalType),
-          semantic=tf_core.Semantic.NUMERICAL)
+      if multitask_item.label in normalized_semantic_inputs:
+        raise ValueError(
+            f"The label key \"{multitask_item.label}\" is already present as a "
+            "label or as a feature.")
 
-    elif self._task == Task.RANKING:
-      normalized_semantic_inputs[_LABEL] = tf_core.SemanticTensor(
-          tensor=tf.cast(train_y, tf_core.NormalizedNumericalType),
-          semantic=tf_core.Semantic.NUMERICAL)
+      if multitask_item.task == Task.CLASSIFICATION:
+        normalized_semantic_inputs[
+            multitask_item.label] = tf_core.SemanticTensor(
+                tensor=tf.cast(unit_train_y,
+                               tf_core.NormalizedCategoricalIntType) +
+                tf_core.CATEGORICAL_INTEGER_OFFSET,
+                semantic=tf_core.Semantic.CATEGORICAL)
 
-      assert self._ranking_group is not None
-      if self._ranking_group not in train_x:
-        raise Exception(
-            "The ranking key feature \"{}\" is not available as an input "
-            "feature.".format(self._ranking_group))
-      normalized_semantic_inputs[_RANK_GROUP] = tf_core.SemanticTensor(
-          tensor=tf.cast(train_x[self._ranking_group],
-                         tf_core.NormalizedHashType),
-          semantic=tf_core.Semantic.HASH)
+      elif multitask_item.task == Task.REGRESSION:
+        normalized_semantic_inputs[
+            multitask_item.label] = tf_core.SemanticTensor(
+                tensor=tf.cast(unit_train_y, tf_core.NormalizedNumericalType),
+                semantic=tf_core.Semantic.NUMERICAL)
 
-    elif self._task == Task.CATEGORICAL_UPLIFT:
-      normalized_semantic_inputs[_LABEL] = tf_core.SemanticTensor(
-          tensor=tf.cast(train_y, tf_core.NormalizedCategoricalIntType) +
-          tf_core.CATEGORICAL_INTEGER_OFFSET,
-          semantic=tf_core.Semantic.CATEGORICAL)
+      elif multitask_item.task == Task.RANKING:
+        normalized_semantic_inputs[
+            multitask_item.label] = tf_core.SemanticTensor(
+                tensor=tf.cast(unit_train_y, tf_core.NormalizedNumericalType),
+                semantic=tf_core.Semantic.NUMERICAL)
 
-      assert self._uplift_treatment is not None
-      if self._uplift_treatment not in train_x:
-        raise Exception(
-            "The uplift treatment key feature \"{}\" is not available as an input "
-            "feature.".format(self._uplift_treatment))
-      normalized_semantic_inputs[_UPLIFT_TREATMENT] = tf_core.SemanticTensor(
-          tensor=tf.cast(train_x[self._uplift_treatment],
-                         tf_core.NormalizedCategoricalIntType) +
-          tf_core.CATEGORICAL_INTEGER_OFFSET,
-          semantic=tf_core.Semantic.CATEGORICAL)
+        assert self.ranking_group() is not None
+        if self.ranking_group() not in train_x:
+          raise Exception(
+              "The ranking key feature \"{}\" is not available as an input "
+              "feature.".format(self.ranking_group()))
 
-    elif self._task == Task.NUMERICAL_UPLIFT:
-      normalized_semantic_inputs[_LABEL] = tf_core.SemanticTensor(
-          tensor=tf.cast(train_y, tf_core.NormalizedNumericalType),
-          semantic=tf_core.Semantic.NUMERICAL)
+        if self.ranking_group() in normalized_semantic_inputs:
+          raise ValueError(
+              f"The ranking group key \"{self.ranking_group()}\" is already present as a "
+              "label or as a feature.")
 
-      assert self._uplift_treatment is not None
-      if self._uplift_treatment not in train_x:
-        raise Exception(
-            "The uplift treatment key feature \"{}\" is not available as an input "
-            "feature.".format(self._uplift_treatment))
-      normalized_semantic_inputs[_UPLIFT_TREATMENT] = tf_core.SemanticTensor(
-          tensor=tf.cast(train_x[self._uplift_treatment],
-                         tf_core.NormalizedCategoricalIntType) +
-          tf_core.CATEGORICAL_INTEGER_OFFSET,
-          semantic=tf_core.Semantic.CATEGORICAL)
+        normalized_semantic_inputs[
+            self.ranking_group()] = tf_core.SemanticTensor(
+                tensor=tf.cast(train_x[self.ranking_group()],
+                               tf_core.NormalizedHashType),
+                semantic=tf_core.Semantic.HASH)
 
-    else:
-      raise Exception("Non supported task {}".format(self._task))
+      elif multitask_item.task == Task.CATEGORICAL_UPLIFT:
+        normalized_semantic_inputs[
+            multitask_item.label] = tf_core.SemanticTensor(
+                tensor=tf.cast(unit_train_y,
+                               tf_core.NormalizedCategoricalIntType) +
+                tf_core.CATEGORICAL_INTEGER_OFFSET,
+                semantic=tf_core.Semantic.CATEGORICAL)
+
+        assert self.uplift_treatment() is not None
+        if self.uplift_treatment() not in train_x:
+          raise Exception(
+              "The uplift treatment key feature \"{}\" is not available as an "
+              "input feature.".format(self.uplift_treatment()))
+
+        if self.uplift_treatment() in normalized_semantic_inputs:
+          raise ValueError(
+              f"The uplift treatment group key \"{self.uplift_treatment()}\" is "
+              "already present as a label or as a feature.")
+
+        normalized_semantic_inputs[
+            self.uplift_treatment()] = tf_core.SemanticTensor(
+                tensor=tf.cast(train_x[self.uplift_treatment()],
+                               tf_core.NormalizedCategoricalIntType) +
+                tf_core.CATEGORICAL_INTEGER_OFFSET,
+                semantic=tf_core.Semantic.CATEGORICAL)
+
+      elif multitask_item.task == Task.NUMERICAL_UPLIFT:
+        normalized_semantic_inputs[
+            multitask_item.label] = tf_core.SemanticTensor(
+                tensor=tf.cast(unit_train_y, tf_core.NormalizedNumericalType),
+                semantic=tf_core.Semantic.NUMERICAL)
+
+        assert self.uplift_treatment() is not None
+        if self.uplift_treatment() not in train_x:
+          raise Exception(
+              "The uplift treatment key feature \"{}\" is not available as an input "
+              "feature.".format(self.uplift_treatment()))
+
+        if self.uplift_treatment() in normalized_semantic_inputs:
+          raise ValueError(
+              f"The uplift treatment group key \"{self.uplift_treatment()}\" is "
+              "already present as a label or as a feature.")
+
+        normalized_semantic_inputs[
+            self.uplift_treatment()] = tf_core.SemanticTensor(
+                tensor=tf.cast(train_x[self.uplift_treatment()],
+                               tf_core.NormalizedCategoricalIntType) +
+                tf_core.CATEGORICAL_INTEGER_OFFSET,
+                semantic=tf_core.Semantic.CATEGORICAL)
+
+      else:
+        raise Exception(f"Non supported task {multitask_item.task}")
+
+    if is_training_example:
+      self._normalized_column_keys = sorted(
+          list(normalized_semantic_inputs.keys()))
 
     if not self._is_trained:
       # Collects the training examples.
@@ -840,7 +870,48 @@ class CoreModel(InferenceCoreModel):
             dataset_path=self._distributed_partial_dataset_cache_path())
 
     # Number of scanned examples.
-    return tf.shape(train_y)[0]
+    return tf.shape(last_train_y)[0]
+
+  def _label_tensor(self, label: Union[tf.Tensor, Dict[str, tf.Tensor]],
+                    label_key: Optional[str]) -> tf.Tensor:
+    """Extracts and normalize the label tensor from the tf dataset label."""
+
+    def normalize_unit_label(unit_label: tf.Tensor) -> tf.Tensor:
+      if not isinstance(unit_label, tf.Tensor):
+        raise ValueError(
+            f"The training label tensor is expected to be a tensor. Got {unit_label}"
+            " instead.")
+
+      if len(unit_label.shape) != 1:
+        if self._verbose >= 2:
+          tf_logging.info(
+              "Squeeze label' shape from [batch_size, 1] to [batch_size]")
+        unit_label = tf.squeeze(unit_label, axis=1)
+
+      if len(unit_label.shape) != 1:
+        raise ValueError(
+            "Labels can either be passed in as [batch_size, 1] or [batch_size]. "
+            "Invalid shape %s." % unit_label.shape)
+
+      return unit_label
+
+    if self._is_multitask:
+      if not isinstance(label, dict):
+        raise ValueError(
+            f"This is a multi-task model, therefore the label should be a "
+            f"dictionary of tensors with keys {self._multitask.key}. Instead, "
+            f"got {label}")
+      assert label_key is not None
+      if label_key not in label:
+        raise ValueError(
+            f"Label \"{label_key}\" not found in the label dictionary {label.keys()}"
+        )
+      return normalize_unit_label(label[label_key])
+    else:
+      if not isinstance(label, tf.Tensor):
+        raise ValueError(
+            f"The label is expected to be a tensor. Instead, got {label}")
+      return normalize_unit_label(label)
 
   def _distributed_partial_dataset_cache_path(self):
     """Directory accessible from all workers containing the partial cache."""
@@ -1041,9 +1112,9 @@ class CoreModel(InferenceCoreModel):
     # the task is correctly set.
     if hasattr(x, "_tfdf_task"):
       dataset_task = getattr(x, "_tfdf_task")
-      if dataset_task != self._task:
+      if not self._is_multitask and dataset_task != self.task:
         raise ValueError(
-            f"The model's `task` attribute ({Task.Name(self._task)}) does "
+            f"The model's `task` attribute ({Task.Name(self.task)}) does "
             "not match the `task` attribute passed to "
             f"`pd_dataframe_to_tf_dataset` ({Task.Name(dataset_task)}).")
 
@@ -1447,9 +1518,8 @@ class CoreModel(InferenceCoreModel):
   def fit_on_dataset_path(
       self,
       train_path: str,
-      label_key: str,
+      label_key: Optional[str] = None,
       weight_key: Optional[str] = None,
-      ranking_key: Optional[str] = None,
       valid_path: Optional[str] = None,
       dataset_format: Optional[str] = "csv",
       max_num_scanned_rows_to_accumulate_statistics: Optional[int] = 100_000,
@@ -1490,7 +1560,6 @@ class CoreModel(InferenceCoreModel):
         shard and glob notation.
       label_key: Name of the label column.
       weight_key: Name of the weighing column.
-      ranking_key: Name of the ranking column.
       valid_path: Path to the validation dataset. If not provided, or if the
         learning algorithm does not supports/needs a validation dataset,
         `valid_path` is ignored.
@@ -1550,51 +1619,45 @@ class CoreModel(InferenceCoreModel):
     train_model_path = self._temp_directory
     model_path = os.path.join(train_model_path, "model")
 
-    # Create the dataspec guide.
-    guide = data_spec_pb2.DataSpecificationGuide(
-        ignore_columns_without_guides=self._exclude_non_specified,
-        max_num_scanned_rows_to_accumulate_statistics=max_num_scanned_rows_to_accumulate_statistics,
-        detect_numerical_as_discretized_numerical=self
-        ._discretize_numerical_features)
-    guide.default_column_guide.categorial.max_vocab_count = self._max_vocab_count
-    guide.default_column_guide.discretized_numerical.maximum_num_bins = self._num_discretized_numerical_bins
+    training_config = self._advanced_arguments.yggdrasil_training_config
 
-    self._normalized_input_keys = []
-    for feature in self._features:
-      col_guide = copy.deepcopy(feature.guide)
-      col_guide.column_name_pattern = tf_core.normalize_inputs_regexp(
-          feature.name)
-      guide.column_guides.append(col_guide)
-      self._normalized_input_keys.append(feature.name)
-
-    label_guide = data_spec_pb2.ColumnGuide(
-        column_name_pattern=tf_core.normalize_inputs_regexp(label_key))
-
-    if self._task == Task.CLASSIFICATION:
-      label_guide.type = data_spec_pb2.CATEGORICAL
-      label_guide.categorial.min_vocab_frequency = 0
-      label_guide.categorial.max_vocab_count = -1
-    elif self._task == Task.REGRESSION:
-      label_guide.type = data_spec_pb2.NUMERICAL
-    elif self._task == Task.RANKING:
-      label_guide.type = data_spec_pb2.NUMERICAL
+    if self._is_multitask:
+      if label_key is not None:
+        raise ValueError(
+            "label_key cannot be specified for multitask models. Use the "
+            "\"multitask\" model constructor argument instead.")
     else:
-      raise ValueError(
-          f"Non implemented task {self._task} with \"fit_on_dataset_path\"."
-          " Use a different task or train with \"fit\".")
-    guide.column_guides.append(label_guide)
+      if label_key is None:
+        raise ValueError("label_key argument not set")
+      training_config.label = tf_core.normalize_inputs_regexp(label_key, False)
+      self._multitask[0] = self._multitask[0]._replace(label=label_key)
 
-    if ranking_key:
+    # Create the dataspec guide.
+    guide = self._build_guide(max_num_scanned_rows_to_accumulate_statistics)
+
+    if training_config.HasField("ranking_group"):
       ranking_guide = data_spec_pb2.ColumnGuide(
-          column_name_pattern=tf_core.normalize_inputs_regexp(ranking_key),
+          column_name_pattern=tf_core.normalize_inputs_regexp(
+              training_config.ranking_group, False),
           type=data_spec_pb2.HASH)
+      guide.column_guides.append(ranking_guide)
+
+    if training_config.HasField("uplift_treatment"):
+      ranking_guide = data_spec_pb2.ColumnGuide(
+          column_name_pattern=tf_core.normalize_inputs_regexp(
+              training_config.uplift_treatment, False),
+          type=data_spec_pb2.CATEGORICAL if training_config.task
+          == Task.CATEGORICAL_UPLIFT else data_spec_pb2.NUMERICAL)
       guide.column_guides.append(ranking_guide)
 
     if weight_key:
       weight_guide = data_spec_pb2.ColumnGuide(
-          column_name_pattern=tf_core.normalize_inputs_regexp(weight_key),
+          column_name_pattern=tf_core.normalize_inputs_regexp(
+              weight_key, False),
           type=data_spec_pb2.NUMERICAL)
       guide.column_guides.append(weight_guide)
+      training_config.weight_definition.attribute = weight_key
+      training_config.weight_definition.numerical.SetInParent()
 
     # Deployment configuration
     deployment_config = copy.deepcopy(
@@ -1630,19 +1693,13 @@ class CoreModel(InferenceCoreModel):
           train_dataset_path=dataset_format + ":" + train_path,
           valid_dataset_path=(dataset_format + ":" +
                               valid_path) if valid_path else None,
-          feature_ids=self._normalized_input_keys,
-          label_id=label_key,
-          weight_id=weight_key,
           model_id=self._training_model_id,
           model_dir=train_model_path,
-          learner="",
-          task=self._task,
           generic_hparms=tf_core.hparams_dict_to_generic_proto(
               self._learner_params),
-          ranking_group=ranking_key,
           keep_model_in_resource=True,
           guide=guide,
-          training_config=self._advanced_arguments.yggdrasil_training_config,
+          training_config=training_config,
           deployment_config=deployment_config,
           working_cache_path=os.path.join(self._temp_directory,
                                           "working_cache"),
@@ -1655,6 +1712,7 @@ class CoreModel(InferenceCoreModel):
       self._description = training_op.SimpleMLShowModel(
           model_identifier=self._training_model_id).numpy().decode("utf-8")
       training_op.SimpleMLUnloadModel(model_identifier=self._training_model_id)
+
 
     # Build the model's graph.
     inspector = inspector_lib.make_inspector(
@@ -1752,27 +1810,77 @@ class CoreModel(InferenceCoreModel):
 
     return []
 
+  def _build_guide(
+      self,
+      max_num_scanned_rows_to_accumulate_statistics: Optional[int] = None):
+
+    guide = data_spec_pb2.DataSpecificationGuide(
+        ignore_columns_without_guides=self._exclude_non_specified,
+        detect_numerical_as_discretized_numerical=self
+        ._discretize_numerical_features)
+
+    if max_num_scanned_rows_to_accumulate_statistics is not None:
+      guide.max_num_scanned_rows_to_accumulate_statistics = max_num_scanned_rows_to_accumulate_statistics
+
+    guide.default_column_guide.categorial.max_vocab_count = self._max_vocab_count
+    guide.default_column_guide.discretized_numerical.maximum_num_bins = self._num_discretized_numerical_bins
+
+    # Labels
+    for sub_task in self._multitask:
+      label_guide = data_spec_pb2.ColumnGuide(
+          column_name_pattern=tf_core.normalize_inputs_regexp(
+              sub_task.label, False))
+
+      if sub_task.task == Task.CLASSIFICATION:
+        label_guide.type = data_spec_pb2.CATEGORICAL
+        label_guide.categorial.min_vocab_frequency = 0
+        label_guide.categorial.max_vocab_count = -1
+      elif sub_task.task == Task.REGRESSION:
+        label_guide.type = data_spec_pb2.NUMERICAL
+      elif sub_task.task == Task.RANKING:
+        label_guide.type = data_spec_pb2.NUMERICAL
+      elif sub_task.task == Task.CATEGORICAL_UPLIFT:
+        label_guide.type = data_spec_pb2.CATEGORICAL
+      elif sub_task.task == Task.NUMERICAL_UPLIFT:
+        label_guide.type = data_spec_pb2.NUMERICAL
+      else:
+        raise ValueError(
+            f"Non implemented task {sub_task.task} with \"fit_on_dataset_path\"."
+            " Use a different task or train with \"fit\".")
+      guide.column_guides.append(label_guide)
+
+    # Features
+    for feature in self._features:
+      col_guide = copy.deepcopy(feature.guide)
+      col_guide.column_name_pattern = tf_core.normalize_inputs_regexp(
+          feature.name, False)
+      guide.column_guides.append(col_guide)
+
+    return guide
+
   def _train_model(self, cluster_coordinator=None):
     """Effectively train the model."""
 
-    if self._normalized_input_keys is None:
+    if self._normalized_input_feature_keys is None:
       raise Exception("The training graph was not built.")
 
     train_model_path = self._temp_directory
     model_path = os.path.join(train_model_path, "model")
 
     # Create the dataspec guide.
-    guide = data_spec_pb2.DataSpecificationGuide(
-        detect_numerical_as_discretized_numerical=self
-        ._discretize_numerical_features)
-    guide.default_column_guide.categorial.max_vocab_count = self._max_vocab_count
-    guide.default_column_guide.discretized_numerical.maximum_num_bins = self._num_discretized_numerical_bins
+    guide = self._build_guide()
 
-    for feature in self._features:
-      col_guide = copy.deepcopy(feature.guide)
-      col_guide.column_name_pattern = tf_core.normalize_inputs_regexp(
-          feature.name)
-      guide.column_guides.append(col_guide)
+    training_config = copy.deepcopy(
+        self._advanced_arguments.yggdrasil_training_config)
+
+    if self._weighted_training:
+      training_config.weight_definition.attribute = WEIGHTS
+      training_config.weight_definition.numerical.SetInParent()
+
+    # Features
+    for feature_key in self._normalized_input_feature_keys:
+      feature_regex = tf_core.normalize_inputs_regexp(feature_key, False)
+      training_config.features.append(feature_regex)
 
     # Deployment configuration
     deployment_config = copy.deepcopy(
@@ -1783,6 +1891,9 @@ class CoreModel(InferenceCoreModel):
     distribution_config = tf_core.get_distribution_configuration(
         self.distribute_strategy)
 
+    resource_ids, feature_names = tf_core.column_keys_to_resource_ids(
+        self._normalized_column_keys, self._training_model_id, True)
+
     with tf_logging.capture_cpp_log_context(verbose=self._verbose >= 2):
 
       if distribution_config is None or not self.support_distributed_training():
@@ -1792,21 +1903,14 @@ class CoreModel(InferenceCoreModel):
         # Note: It would be possible to train and load the model without saving
         # the model to file.
         tf_core.train(
-            input_ids=self._normalized_input_keys,
-            label_id=_LABEL,
-            weight_id=_WEIGHTS if self._weighted_training else None,
+            resource_ids=resource_ids,
             model_id=self._training_model_id,
             model_dir=train_model_path,
-            learner="",
-            task=self._task,
             generic_hparms=tf_core.hparams_dict_to_generic_proto(
                 self._learner_params),
-            ranking_group=_RANK_GROUP if self._task == Task.RANKING else None,
-            uplift_treatment=_UPLIFT_TREATMENT if self._task
-            in [Task.CATEGORICAL_UPLIFT, Task.NUMERICAL_UPLIFT] else None,
             keep_model_in_resource=True,
             guide=guide,
-            training_config=self._advanced_arguments.yggdrasil_training_config,
+            training_config=training_config,
             deployment_config=deployment_config,
             try_resume_training=self._try_resume_training,
             has_validation_dataset=self._has_validation_dataset,
@@ -1815,30 +1919,21 @@ class CoreModel(InferenceCoreModel):
       else:
         tf_core.finalize_distributed_dataset_collection(
             cluster_coordinator=cluster_coordinator,
-            input_ids=self._normalized_input_keys + [_LABEL] +
-            ([_WEIGHTS] if self._weighted_training else []),
-            model_id=self._training_model_id,
+            resource_ids=resource_ids,
+            feature_names=feature_names,
             dataset_path=self._distributed_partial_dataset_cache_path())
 
         tf_core.train_on_file_dataset(
             train_dataset_path="partial_dataset_cache:" +
             self._distributed_partial_dataset_cache_path(),
             valid_dataset_path=None,
-            feature_ids=self._normalized_input_keys,
-            label_id=_LABEL,
-            weight_id=_WEIGHTS if self._weighted_training else None,
             model_id=self._training_model_id,
             model_dir=train_model_path,
-            learner="",
-            task=self._task,
             generic_hparms=tf_core.hparams_dict_to_generic_proto(
                 self._learner_params),
-            ranking_group=_RANK_GROUP if self._task == Task.RANKING else None,
-            uplift_treatment=_UPLIFT_TREATMENT if self._task
-            in [Task.CATEGORICAL_UPLIFT, Task.NUMERICAL_UPLIFT] else None,
             keep_model_in_resource=True,
             guide=guide,
-            training_config=self._advanced_arguments.yggdrasil_training_config,
+            training_config=training_config,
             deployment_config=deployment_config,
             working_cache_path=os.path.join(self._temp_directory,
                                             "working_cache"),
@@ -1856,10 +1951,21 @@ class CoreModel(InferenceCoreModel):
 
       # Load and optimize the model in memory.
       # Register the model as a SavedModel asset.
-      additional_args = {}
-      additional_args["file_prefix"] = self._training_model_id
-      self._model = tf_op.ModelV2(
-          model_path=model_path, verbose=False, **additional_args)
+      if self._is_multitask:
+        self._models = []
+        for task_idx in range(len(self._multitask)):
+          self._models.append(
+              tf_op.ModelV2(
+                  model_path=model_path,
+                  verbose=False,
+                  file_prefix=f"{self._training_model_id}_{task_idx}"))
+      else:
+        self._models = [
+            tf_op.ModelV2(
+                model_path=model_path,
+                verbose=False,
+                file_prefix=self._training_model_id)
+        ]
 
   @staticmethod
   def capabilities() -> abstract_learner_pb2.LearnerCapabilities:

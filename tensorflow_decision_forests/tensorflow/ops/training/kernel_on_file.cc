@@ -148,6 +148,8 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
 
     LOG(INFO) << "Deployment config:\n" << learner->deployment().DebugString();
 
+    LOG(INFO) << "Guide:\n" << guide_.DebugString();
+
 #ifdef TFDF_STOP_TRAINING_ON_INTERRUPT
     OP_REQUIRES_OK(ctx, interruption::EnableUserInterruption());
     learner->set_stop_training_trigger(&interruption::stop_training);

@@ -257,6 +257,7 @@ import tensorflow as tf
 $0
 TaskType = "abstract_model_pb2.Task"  # pylint: disable=invalid-name
 AdvancedArguments = core.AdvancedArguments
+MultiTaskItem = core.MultiTaskItem
 
 )",
                        imports);
@@ -535,6 +536,10 @@ $7
     num_discretize_numerical_bins: Number of bins used when disretizing
       numerical features. The value `num_discretized_numerical_bins` defined in
       a `FeatureUsage` (if any) takes precedence.
+    multitask: If set, train a multi-task model, that is a model with multiple
+      outputs trained to predict different labels. If set, the tf.dataset label
+      (i.e. the second selement of the dataset) should be a dictionary of
+      label_key:label_values. Only one of `multitask` and `task` can be set.
 $2
   """
 
@@ -559,6 +564,7 @@ $2
       tuner: Optional[tuner_lib.Tuner] = None,
       discretize_numerical_features: bool = False,
       num_discretized_numerical_bins: int = 255,
+      multitask: Optional[List[MultiTaskItem]] = None,
 $3,
       explicit_args: Optional[Set[str]] = None):
 
@@ -590,7 +596,8 @@ $4
       check_dataset=check_dataset,
       tuner=tuner,
       discretize_numerical_features=discretize_numerical_features,
-      num_discretized_numerical_bins=num_discretized_numerical_bins)
+      num_discretized_numerical_bins=num_discretized_numerical_bins,
+      multitask=multitask)
 
   @staticmethod
   def predefined_hyperparameters() -> List[core.HyperParameterTemplate]:

@@ -361,8 +361,8 @@ class FeatureSet {
   //    dataspec feature idx.
   //  dataset_type: The function of the dataset.
   tensorflow::Status Link(
-      tensorflow::OpKernelContext* ctx, const std::string& concat_feature_ids,
-      const std::string& label_id, const std::string& weight_id,
+      tensorflow::OpKernelContext* ctx,
+      const std::vector<std::string>& column_ids,
       const ::yggdrasil_decision_forests::dataset::proto::
           DataSpecification* const existing_dataspec,
       const DatasetType dataset_type = DatasetType::kTraining);
@@ -412,11 +412,6 @@ class FeatureSet {
       categorical_set_string_features_;
   std::vector<std::pair<int, SimpleMLCategoricalSetIntFeature::Resource*>>
       categorical_set_int_features_;
-
-  int label_feature_idx_ = -1;
-  std::string label_feature_;
-  std::string weight_feature_;
-  std::vector<std::string> input_features_;
 };
 
 }  // namespace ops

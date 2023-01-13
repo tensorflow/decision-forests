@@ -128,7 +128,8 @@ class SimpleMlTfTest(tf.test.TestCase):
     self.assertEqual(e_1.tensor.dtype, tf.float32)
 
   def test_normalize_inputs_regexp(self):
-    self.assertEqual(core.normalize_inputs_regexp("e"), r"^e(\.[0-9]+)?$")
+    self.assertEqual(core.normalize_inputs_regexp("e", True), r"^e(\.[0-9]+)?$")
+    self.assertEqual(core.normalize_inputs_regexp("e", False), r"^e$")
 
   def test_infer_semantic(self):
     semantics = core.infer_semantic({

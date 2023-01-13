@@ -2256,6 +2256,120 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     self.assertEqual(model.learner_params["sampling_method"], "RANDOM")
     self.assertEqual(model.learner_params["subsample"], 0.1)
 
+  def test_multi_task(self):
+
+    num_features = 5
+
+    def make_dataset(num_examples):
+      features = np.random.uniform(size=(num_examples, num_features))
+      hidden = 0.05 * np.random.uniform(size=num_examples)
+
+      # Binary classification.
+      label_1 = (hidden >= features[:, 1]).astype(int) + (
+          hidden >= features[:, 2]).astype(int)
+
+      # Regression
+      label_2 = hidden + features[:, 2] + 2 * features[:, 3]
+
+      # Multi-class classification.
+      label_3 = ((np.random.uniform(size=num_examples) + features[:, 3]) * 4 /
+                 2).astype(int)
+
+      labels = {
+          "label_1": label_1,
+          "label_2": label_2,
+          "label_3": label_3,
+      }
+      return tf.data.Dataset.from_tensor_slices((features, labels)).batch(3)
+
+    train_dataset = make_dataset(1000)
+    test_dataset = make_dataset(10)
+
+    model = keras.GradientBoostedTreesModel(
+        multitask=[
+            keras.MultiTaskItem(
+                label="label_1", task=keras.Task.CLASSIFICATION),
+            keras.MultiTaskItem(label="label_2", task=keras.Task.REGRESSION),
+            keras.MultiTaskItem(
+                label="label_3", task=keras.Task.CLASSIFICATION)
+        ],
+        verbose=2)
+    model.fit(train_dataset)
+
+    logging.info("model:")
+    model.summary()
+
+    # Check model
+    inspector_0 = model.make_inspector(0)
+    inspector_1 = model.make_inspector(1)
+    inspector_2 = model.make_inspector(2)
+
+    self.assertEqual(inspector_0.model_type(), "GRADIENT_BOOSTED_TREES")
+    self.assertEqual(inspector_0.label().name, "label_1")
+
+    self.assertEqual(inspector_1.model_type(), "GRADIENT_BOOSTED_TREES")
+    self.assertEqual(inspector_1.label().name, "label_2")
+
+    self.assertEqual(inspector_2.model_type(), "GRADIENT_BOOSTED_TREES")
+    self.assertEqual(inspector_2.label().name, "label_3")
+
+    # Check predictions
+    predictions = model.predict(test_dataset)
+    logging.info("predictions: %s", predictions)
+    self.assertSetEqual(
+        set(predictions.keys()), set(["label_1", "label_2", "label_3"]))
+    self.assertTupleEqual(predictions["label_1"].shape, (10, 1))
+    self.assertTupleEqual(predictions["label_2"].shape, (10, 1))
+    self.assertTupleEqual(predictions["label_3"].shape, (10, 4))
+
+    # Export / import model
+    saved_model_path = os.path.join(self.get_temp_dir(), "saved_model")
+    logging.info("Saving model to %s", saved_model_path)
+    model.save(saved_model_path)
+
+    logging.info("Loading model from %s", saved_model_path)
+    loaded_model = models.load_model(saved_model_path)
+    loaded_model.summary()
+
+    # Check exported / imported model predictions
+    loaded_predictions = loaded_model.predict(test_dataset)
+    logging.info("loaded predictions: %s", loaded_predictions)
+
+    self.assertAllClose(predictions, loaded_predictions)
+
+  def test_multitask_adult_from_file(self):
+    # Path to dataset.
+    dataset_directory = os.path.join(ydf_test_data_path(), "dataset")
+    train_path = os.path.join(dataset_directory, "adult_train.csv")
+    test_path = os.path.join(dataset_directory, "adult_test.csv")
+
+    model = keras.GradientBoostedTreesModel(multitask=[
+        keras.MultiTaskItem(label="age", task=keras.Task.REGRESSION),
+        keras.MultiTaskItem(label="income", task=keras.Task.CLASSIFICATION),
+        keras.MultiTaskItem(label="sex", task=keras.Task.CLASSIFICATION)
+    ])
+    model.compile(metrics=["accuracy"])
+
+    model.fit_on_dataset_path(
+        train_path=train_path, dataset_format="csv", valid_path=test_path)
+
+    logging.info("Trained model:")
+    model.summary()
+
+    # Check model
+    inspector_0 = model.make_inspector(0)
+    inspector_1 = model.make_inspector(1)
+    inspector_2 = model.make_inspector(2)
+
+    self.assertEqual(inspector_0.model_type(), "GRADIENT_BOOSTED_TREES")
+    self.assertEqual(inspector_0.label().name, "age")
+
+    self.assertEqual(inspector_1.model_type(), "GRADIENT_BOOSTED_TREES")
+    self.assertEqual(inspector_1.label().name, "income")
+
+    self.assertEqual(inspector_2.model_type(), "GRADIENT_BOOSTED_TREES")
+    self.assertEqual(inspector_2.label().name, "sex")
+
   def test_gbt_fails_train_on_batch(self):
     model = keras.GradientBoostedTreesModel()
     with self.assertRaises(NotImplementedError):
@@ -2278,10 +2392,10 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     model.fit(dataset)
 
     inspector = model.make_inspector()
-    self.assertEqual(inspector.dataspec.columns[0].name, "x")
+    self.assertEqual(inspector.dataspec.columns[1].name, "x")
     # The values are ordered by frequency. 1 is A, 2 is B, 3 is C.
     self.assertEqual(
-        inspector.dataspec.columns[0].categorical.most_frequent_value, 2)
+        inspector.dataspec.columns[1].categorical.most_frequent_value, 2)
 
   def test_node_format_blob_sequence(self):
     """Test that the node format is BLOB_SEQUENCE if required."""

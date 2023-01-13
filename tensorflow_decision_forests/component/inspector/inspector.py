@@ -31,7 +31,6 @@ print(inspector.name())
 print(inspector.num_trees())
 # Note: "inspector"'s accessors depends on the model type (inspector.name()).
 ```
-
 """
 
 from __future__ import absolute_import
@@ -70,6 +69,7 @@ from yggdrasil_decision_forests.model import abstract_model_pb2
 from yggdrasil_decision_forests.model import hyperparameter_pb2
 from yggdrasil_decision_forests.model.decision_tree import decision_tree_pb2
 from yggdrasil_decision_forests.model.gradient_boosted_trees import gradient_boosted_trees_pb2
+from yggdrasil_decision_forests.model.multitasker import multitasker_pb2
 from yggdrasil_decision_forests.model.random_forest import random_forest_pb2
 
 # Filenames used in Yggdrasil models.
@@ -79,6 +79,7 @@ BASE_FILENAME_NODES_SHARD = "nodes"
 BASE_FILENAME_DONE = "done"
 BASE_FILENAME_RANDOM_FOREST_HEADER = "random_forest_header.pb"
 BASE_FILENAME_GBT_HEADER = "gradient_boosted_trees_header.pb"
+BASE_FILENAME_MULTITASKER_HEADER = "multitasker.pb"
 
 Task = abstract_model_pb2.Task
 ColumnType = data_spec_pb2.ColumnType
@@ -187,6 +188,18 @@ class AbstractInspector(object):
     self._dataspec = _read_binary_proto(
         data_spec_pb2.DataSpecification,
         os.path.join(directory, filename_dataspec))
+
+  @property
+  def file_prefix(self) -> str:
+    """Filename prefix of the model."""
+
+    return self._file_prefix
+
+  @property
+  def directory(self) -> str:
+    """Directory of the model."""
+
+    return self._directory
 
   @abc.abstractmethod
   def model_type(self) -> str:
@@ -446,9 +459,8 @@ class AbstractInspector(object):
     If the model was not trained with hyper-parameter tuning, return None.
 
     Args:
-      return_format: Output format.
-        - table: A pandas dataframe.
-        - proto: A abstract_model_pb2.HyperparametersOptimizerLogs proto.
+      return_format: Output format. - table: A pandas dataframe. - proto: A
+        abstract_model_pb2.HyperparametersOptimizerLogs proto.
 
     Returns:
       The hyperparameter tuning logs, or None (if the model was trained without
@@ -487,6 +499,48 @@ class AbstractInspector(object):
     """Creates a SimpleColumnSpec using the model's dataspec."""
 
     return py_tree.dataspec.make_simple_column_spec(self._dataspec, col_idx)
+
+
+@six.add_metaclass(abc.ABCMeta)
+class _MultitaskerInspector(AbstractInspector):
+  """Inspector for the MULTITASKER model."""
+
+  MODEL_NAME = "MULTITASKER"
+
+  def __init__(self, directory: str, file_prefix: str):
+    super(_MultitaskerInspector, self).__init__(directory, file_prefix)
+
+    filename_multitasker_header = self._file_prefix + BASE_FILENAME_MULTITASKER_HEADER
+    self._specialized_header = _read_binary_proto(
+        multitasker_pb2.Header,
+        os.path.join(directory, filename_multitasker_header))
+
+  def model_type(self) -> str:
+    return _MultitaskerInspector.MODEL_NAME
+
+  def specialized_header(self):
+    return self._specialized_header
+
+  def submodel_inspector(self, index: int):
+    """Create an inspector for one of the sub-models."""
+
+    if index >= self.specialized_header().num_models:
+      raise ValueError(
+          f"Cannot query sub-model {index}. The multitasker only has "
+          f"{self.specialized_header().num_models} sub-models.")
+
+    return make_inspector(self.directory, self.submodel_prefix(index))
+
+  def submodel_prefix(self, index: int):
+    """Filename prefix for one of the sub-models."""
+
+    if index >= self.specialized_header().num_models:
+      raise ValueError(
+          f"Cannot query sub-model {index}. The multitasker only has "
+          f"{self.specialized_header().num_models} sub-models.")
+
+    # See "yggdrasil_decision_forests/model/multitasker/multitasker.cc"
+    return f"{self.file_prefix}_{index}"
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -916,6 +970,8 @@ def detect_model_file_prefix(model_path: str) -> str:
 
 
 MODEL_INSPECTORS = {
-    cls.MODEL_NAME: cls
-    for cls in [_RandomForestInspector, _GradientBoostedTreeInspector]
+    cls.MODEL_NAME: cls for cls in [
+        _RandomForestInspector, _GradientBoostedTreeInspector,
+        _MultitaskerInspector
+    ]
 }
