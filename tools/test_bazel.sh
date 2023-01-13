@@ -24,6 +24,7 @@
 #              For MacOS builds, use "mac-arm64" to build for Apple Silicon on an Apple Silicon machine
 #              and use "mac-intel-crosscompile" to build for Intel CPUs on an Apple Silicon machine.
 #              Tests will not work when cross-compiling (obviously).
+# FULL_COMPILATION: If 1, compile all parts of TF-DF. This may take a long time.
 #
 # Usage example
 #
@@ -168,9 +169,13 @@ if [ ${TF_VERSION} == "mac-intel-crosscompile" ]; then
   FLAGS="${FLAGS} --cpu=darwin --apple_platform_type=macos"
 fi
 
-# All the build rules.
-BUILD_RULES="//tensorflow_decision_forests/...:all"
-TEST_RULES="//tensorflow_decision_forests/...:all"
+if [ "${FULL_COMPILATION}" = 1 ]; then
+  BUILD_RULES="//tensorflow_decision_forests/...:all"
+  TEST_RULES="//tensorflow_decision_forests/...:all"
+else
+  BUILD_RULES="//tensorflow_decision_forests/component/...:all //tensorflow_decision_forests/contrib/...:all //tensorflow_decision_forests/keras //tensorflow_decision_forests/keras:grpc_worker_main"
+  TEST_RULES="//tensorflow_decision_forests/component/...:all //tensorflow_decision_forests/contrib/...:all //tensorflow_decision_forests/keras/...:all"
+fi
 
 ls -l -a
 
