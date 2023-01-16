@@ -298,11 +298,14 @@ class ModelV2(AutoTrackable):
   For TensorFlow V2.
   """
 
-  def __init__(self,
-               model_path: Text,
-               verbose: Optional[bool] = True,
-               output_types: Optional[List[str]] = None,
-               file_prefix: Optional[str] = None):
+  def __init__(
+      self,
+      model_path: Text,
+      verbose: Optional[bool] = True,
+      output_types: Optional[List[str]] = None,
+      file_prefix: Optional[str] = None,
+      allow_slow_inference: bool = True,
+  ):
     """Initialize the model.
 
     The model content will be serialized as an asset if necessary.
@@ -312,6 +315,10 @@ class ModelV2(AutoTrackable):
       verbose: Should details about the calls be printed.
       output_types: List of special outputs of the model. Can be: LEAVES.
       file_prefix: Prefix of the model files on disk.
+      allow_slow_inference: If false, slow inference engines are not allowed. If
+        the model is only available with the slow engine, an error is raised. If
+        true, the fastest compatible inference engine (possibly the slow one)
+        will be used.
     """
 
     if output_types is None:
@@ -323,7 +330,10 @@ class ModelV2(AutoTrackable):
     self._input_builder = _InferenceArgsBuilder(verbose)
     self._input_builder.build_from_model_path(model_path, file_prefix)
     self._compiled_model = _CompiledSimpleMLModelResource(
-        _DiskModelLoader(model_path, output_types, file_prefix))
+        _DiskModelLoader(
+            model_path, output_types, file_prefix, allow_slow_inference
+        )
+    )
 
   def apply_get_leaves(self, features: Dict[Text, Tensor]) -> Any:
     """Applies the model and returns the active leaves.
@@ -899,8 +909,13 @@ class _DiskModelLoader(_AbstractModelLoader, AutoTrackable):
     google3/third_party/tensorflow/python/ops/lookup_ops.py
   """
 
-  def __init__(self, model_path, output_types: List[str], file_prefix: str):
-
+  def __init__(
+      self,
+      model_path,
+      output_types: List[str],
+      file_prefix: str,
+      allow_slow_inference: bool,
+  ):
     super().__init__()
     if not isinstance(model_path, tf.Tensor) and not model_path:
       raise ValueError("Filename required")
@@ -909,6 +924,7 @@ class _DiskModelLoader(_AbstractModelLoader, AutoTrackable):
     self._all_files = []
     self._done_file = None
     self._file_prefix = file_prefix
+    self._allow_slow_inference = allow_slow_inference
     for directory, _, filenames in tf.io.gfile.walk(model_path):
       for filename in filenames:
         path = os.path.join(directory, filename)
@@ -927,13 +943,13 @@ class _DiskModelLoader(_AbstractModelLoader, AutoTrackable):
     model_path = self.get_model_path()
     with ops.name_scope("simple_ml", "load_model_from_disk",
                         (model.resource_handle,)):
-      additional_args = {}
-      additional_args["file_prefix"] = self._file_prefix
       init_op = op.SimpleMLLoadModelFromPathWithHandle(
           model_handle=model.resource_handle,
           path=model_path,
           output_types=self._output_types,
-          **additional_args)
+          file_prefix=self._file_prefix,
+          allow_slow_inference=self._allow_slow_inference,
+      )
 
     ops.add_to_collection(ops.GraphKeys.TABLE_INITIALIZERS, init_op)
     return init_op

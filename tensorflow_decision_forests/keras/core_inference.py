@@ -138,6 +138,10 @@ class AdvancedArguments(object):
       the node summary. For models to be compatible with the open-source version
       of TensorFlow Decision Forests and TensorFlow Serving, the node format
       should be BLOB_SEQUENCE.
+    allow_slow_inference: If false, slow inference engines are not allowed. If
+      the model is only available with the slow engine, an error is raised. If
+      true, the fastest compatible inference engine (possibly the slow one) will
+      be used.
   """
 
   def __init__(
@@ -154,6 +158,7 @@ class AdvancedArguments(object):
       populate_history_with_yggdrasil_logs: bool = False,
       disable_categorical_integer_offset_correction: bool = False,
       node_format: Optional[NodeFormat] = None,
+      allow_slow_inference: bool = True,
   ):
     self.infer_prediction_signature = infer_prediction_signature
     self.yggdrasil_training_config = (
@@ -177,6 +182,7 @@ class AdvancedArguments(object):
         disable_categorical_integer_offset_correction
     )
     self.node_format = node_format
+    self.allow_slow_inference = allow_slow_inference
 
 
 class MultiTaskItem(NamedTuple):
@@ -907,6 +913,7 @@ class InferenceCoreModel(models.Model):
                 model_path=path,
                 verbose=False,
                 file_prefix=inspector.submodel_prefix(task_idx),
+                allow_slow_inference=self._advanced_arguments.allow_slow_inference,
             )
         )
 
@@ -915,7 +922,12 @@ class InferenceCoreModel(models.Model):
       assert len(self._multitask) == 1
 
       self._models = [
-          tf_op.ModelV2(model_path=path, verbose=False, file_prefix=file_prefix)
+          tf_op.ModelV2(
+              model_path=path,
+              verbose=False,
+              file_prefix=file_prefix,
+              allow_slow_inference=self._advanced_arguments.allow_slow_inference,
+          )
       ]
 
     # Instantiate the model's graph
@@ -1128,6 +1140,7 @@ def yggdrasil_model_to_keras_model(
     file_prefix: Optional[str] = None,
     verbose: int = 1,
     disable_categorical_integer_offset_correction: bool = False,
+    allow_slow_inference: bool = True,
 ) -> None:
   """Converts an Yggdrasil model into a TensorFlow SavedModel / Keras model.
 
@@ -1181,7 +1194,8 @@ def yggdrasil_model_to_keras_model(
       else None,
       verbose=verbose,
       advanced_arguments=AdvancedArguments(
-          disable_categorical_integer_offset_correction=disable_categorical_integer_offset_correction
+          disable_categorical_integer_offset_correction=disable_categorical_integer_offset_correction,
+          allow_slow_inference=allow_slow_inference,
       ),
   )
 

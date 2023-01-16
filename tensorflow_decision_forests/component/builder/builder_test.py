@@ -656,9 +656,38 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
     self.assertAllClose(predictions, [[5.0], [2.0], [4.0]])
 
     inspector = inspector_lib.make_inspector(os.path.join(model_path, "assets"))
-    self.assertEquals(inspector.dataspec.columns[1].numerical.mean, -1.0 - 0.5)
-    self.assertEquals(inspector.dataspec.columns[2].numerical.mean,
-                      (4.0 - 3.0) / 2.0)
+    self.assertEqual(inspector.dataspec.columns[1].numerical.mean, -1.0 - 0.5)
+    self.assertEqual(
+        inspector.dataspec.columns[2].numerical.mean, (4.0 - 3.0) / 2.0
+    )
+
+  def test_no_slow_inference(self):
+    model_path = os.path.join(tmp_path(), "no_slow_inference")
+    builder = builder_lib.CARTBuilder(
+        path=model_path,
+        model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
+        objective=py_tree.objective.RegressionObjective(label="color"),
+        advanced_arguments=builder_lib.AdvancedArguments(
+            allow_slow_inference=False
+        ),
+    )
+
+    builder.add_tree(
+        Tree(
+            NonLeafNode(
+                condition=py_tree.condition.IsMissingInCondition(
+                    feature=SimpleColumnSpec(
+                        name="f1", type=py_tree.dataspec.ColumnType.NUMERICAL
+                    ),
+                ),
+                pos_child=LeafNode(value=RegressionValue(value=1)),
+                neg_child=LeafNode(value=RegressionValue(value=2)),
+            )
+        )
+    )
+
+    with self.assertRaises(tf.errors.UnknownError):
+      builder.close()
 
 
 if __name__ == "__main__":

@@ -73,7 +73,9 @@ class IsMissingInCondition(AbstractCondition):
   def __init__(self,
                feature: SimpleColumnSpec,
                split_score: Optional[float] = None):
-    super(IsMissingInCondition, self).__init__(None, split_score)
+    super(IsMissingInCondition, self).__init__(
+        missing_evaluation=False, split_score=split_score
+    )
     self._feature = feature
 
   def features(self):

@@ -169,9 +169,14 @@ class AdvancedArguments:
       normal value and this parameter will be removed. If
       `disable_categorical_integer_offset_correction` is false, this +1 offset
       is never applied.
+    allow_slow_inference: If false, slow inference engines are not allowed. If
+      the model is only available with the slow engine, an error is raised. If
+      true, the fastest compatible inference engine (possibly the slow one) will
+      be used.
   """
 
   disable_categorical_integer_offset_correction: bool = False
+  allow_slow_inference: bool = True
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -266,8 +271,9 @@ class AbstractBuilder(object):
           self._path,
           input_model_signature_fn=self._input_model_signature_fn,
           verbose=self._verbose,
-          disable_categorical_integer_offset_correction=self._advanced_arguments
-          .disable_categorical_integer_offset_correction)
+          disable_categorical_integer_offset_correction=self._advanced_arguments.disable_categorical_integer_offset_correction,
+          allow_slow_inference=self._advanced_arguments.allow_slow_inference,
+      )
       tf.io.gfile.rmtree(self.yggdrasil_model_path())
 
   def yggdrasil_model_path(self):

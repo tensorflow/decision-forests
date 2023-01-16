@@ -116,6 +116,7 @@ constexpr char kInputCategoricalSetIntFeaturesRowSplitsDim2[] =
 constexpr char kInputModelHandle[] = "model_handle";
 constexpr char kInputOutputTypes[] = "output_types";
 constexpr char kInputFilePrefix[] = "file_prefix";
+constexpr char kInputAllowSlowInference[] = "allow_slow_inference";
 
 constexpr char kOutputDensePredictions[] = "dense_predictions";
 constexpr char kOutputDenseColRepresentation[] = "dense_col_representation";
@@ -986,7 +987,8 @@ class YggdrasilModelResource : public tf::ResourceBase {
   // Loads the model from disk.
   tf::Status LoadModelFromDisk(const absl::string_view model_path,
                                const std::string& file_prefix,
-                               const OutputTypesBitmap& output_types = {}) {
+                               const OutputTypesBitmap& output_types = {},
+                               const bool allow_slow_inference = true) {
     std::unique_ptr<model::AbstractModel> model;
     TF_RETURN_IF_ERROR(utils::FromUtilStatus(
         LoadModel(model_path, &model, {/*.file_prefix=*/file_prefix})));
@@ -1005,7 +1007,8 @@ class YggdrasilModelResource : public tf::ResourceBase {
     }
 
     // WARNING: After this function, the "model" might not be available anymore.
-    TF_RETURN_IF_ERROR(CreateInferenceEngine(output_types, std::move(model)));
+    TF_RETURN_IF_ERROR(CreateInferenceEngine(output_types, allow_slow_inference,
+                                             std::move(model)));
     return tf::OkStatus();
   }
 
@@ -1027,7 +1030,7 @@ class YggdrasilModelResource : public tf::ResourceBase {
   // Creates an inference engine compatible with the model. The inference engine
   // can take ownership of the abstract model data.
   tf::Status CreateInferenceEngine(
-      const OutputTypesBitmap& output_types,
+      const OutputTypesBitmap& output_types, const bool allow_slow_inference,
       std::unique_ptr<model::AbstractModel> model) {
     // Currently, none of the fast engines support leaves output.
     if (!output_types.leaves) {
@@ -1042,6 +1045,18 @@ class YggdrasilModelResource : public tf::ResourceBase {
         inference_engine_ = std::move(inference_engine_or_status.value());
         LOG(INFO) << "Use fast generic engine";
         return tf::OkStatus();
+      }
+
+      if (!allow_slow_inference) {
+        return ::tensorflow::Status(
+            tensorflow::error::Code::UNKNOWN,
+            "No compatible fast inference engine found for the model. Options: "
+            "1) Make sure this binary is compiled with support with compatible "
+            "fast inference engines. 2) Allow for the model to run with the "
+            "slow inference engine with allow_slow_inference=true, 3) Modify "
+            "the model to make sure it is compatible with inference engines. "
+            "Some rarely used hyper-parameters can cause incompatibility with "
+            "fast inference engines.");
       }
     }
 
@@ -1184,6 +1199,8 @@ class SimpleMLLoadModelFromPathWithHandle : public OpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr(kInputOutputTypes, &output_types));
     OP_REQUIRES_OK(ctx, GetOutputTypesBitmap(output_types, &output_types_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr(kInputFilePrefix, &file_prefix_));
+    OP_REQUIRES_OK(
+        ctx, ctx->GetAttr(kInputAllowSlowInference, &allow_slow_inference_));
   }
 
   void Compute(OpKernelContext* ctx) override {
@@ -1197,12 +1214,14 @@ class SimpleMLLoadModelFromPathWithHandle : public OpKernel {
     LOG(INFO) << "Loading model from path " << model_path << " with prefix "
               << file_prefix_;
     OP_REQUIRES_OK(ctx, model_container->LoadModelFromDisk(
-                            model_path, file_prefix_, output_types_));
+                            model_path, file_prefix_, output_types_,
+                            allow_slow_inference_));
   }
 
  private:
   OutputTypesBitmap output_types_;
   std::string file_prefix_;
+  bool allow_slow_inference_;
 };
 
 REGISTER_KERNEL_BUILDER(

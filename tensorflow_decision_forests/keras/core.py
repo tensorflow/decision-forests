@@ -1713,7 +1713,6 @@ class CoreModel(InferenceCoreModel):
           model_identifier=self._training_model_id).numpy().decode("utf-8")
       training_op.SimpleMLUnloadModel(model_identifier=self._training_model_id)
 
-
     # Build the model's graph.
     inspector = inspector_lib.make_inspector(
         model_path, file_prefix=self._training_model_id)
@@ -1721,7 +1720,8 @@ class CoreModel(InferenceCoreModel):
         inspector,
         model_path,
         file_prefix=self._training_model_id,
-        input_model_signature_fn=input_model_signature_fn)
+        input_model_signature_fn=input_model_signature_fn,
+    )
 
     # Build the model history.
     history = self._training_logs_to_history(inspector)
@@ -1958,13 +1958,18 @@ class CoreModel(InferenceCoreModel):
               tf_op.ModelV2(
                   model_path=model_path,
                   verbose=False,
-                  file_prefix=f"{self._training_model_id}_{task_idx}"))
+                  file_prefix=f"{self._training_model_id}_{task_idx}",
+                  allow_slow_inference=self._advanced_arguments.allow_slow_inference,
+              )
+          )
       else:
         self._models = [
             tf_op.ModelV2(
                 model_path=model_path,
                 verbose=False,
-                file_prefix=self._training_model_id)
+                file_prefix=self._training_model_id,
+                allow_slow_inference=self._advanced_arguments.allow_slow_inference,
+            )
         ]
 
   @staticmethod

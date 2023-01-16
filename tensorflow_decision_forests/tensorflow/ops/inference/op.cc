@@ -63,6 +63,7 @@ REGISTER_OP("SimpleMLLoadModelFromPathWithHandle")
     .Input("model_handle: resource")
     .Input("path: string")
     .Attr("file_prefix: string = ''")
+    .Attr("allow_slow_inference: bool = true")
     .Doc(R"(
 Applies a model and returns its predictions.
 
@@ -76,6 +77,13 @@ output_types: A list of keywords describing what the model can do. The possible
   the selection of a slower model inference logic.
 
 file_prefix: The prefix of the model files.
+
+allow_slow_inference: The model inference engine is selected automatically
+  according to the structure of the model. If allow_slow_inference=false, the
+  slow inference engine is not allowed, and loading a model that is only
+  compatible with the slow inference engine will raise an exception. Appart from
+  specific rarely used hyper-parameters and modeling options, all model should
+  run with a fast inference engine.
 )")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
       return OkStatus();
