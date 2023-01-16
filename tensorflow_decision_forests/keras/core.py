@@ -62,6 +62,7 @@ from tensorflow_decision_forests.keras import core_inference
 from tensorflow_decision_forests.tensorflow import core as tf_core
 from tensorflow_decision_forests.tensorflow import tf1_compatibility
 from tensorflow_decision_forests.tensorflow import tf_logging
+from tensorflow_decision_forests.tensorflow import cc_logging
 from tensorflow_decision_forests.tensorflow.ops.inference import api as tf_op
 from tensorflow_decision_forests.tensorflow.ops.training import op as training_op
 from yggdrasil_decision_forests.dataset import data_spec_pb2
@@ -1687,7 +1688,7 @@ class CoreModel(InferenceCoreModel):
       cluster_coordinator = tf.distribute.experimental.coordinator.ClusterCoordinator(
           self.distribute_strategy)
 
-    with tf_logging.capture_cpp_log_context(verbose=self._verbose >= 2):
+    with cc_logging.capture_cpp_log_context(verbose=self._verbose >= 2):
       # Train the model.
       tf_core.train_on_file_dataset(
           train_dataset_path=dataset_format + ":" + train_path,
@@ -1894,8 +1895,7 @@ class CoreModel(InferenceCoreModel):
     resource_ids, feature_names = tf_core.column_keys_to_resource_ids(
         self._normalized_column_keys, self._training_model_id, True)
 
-    with tf_logging.capture_cpp_log_context(verbose=self._verbose >= 2):
-
+    with cc_logging.capture_cpp_log_context(verbose=self._verbose >= 2):
       if distribution_config is None or not self.support_distributed_training():
         # Train the model.
         # The model will be exported to "train_model_path".

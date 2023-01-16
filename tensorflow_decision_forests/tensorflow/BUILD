@@ -123,6 +123,16 @@ py_library(
     deps = [
         # absl/logging dep,
         # TensorFlow Python,
+    ],
+)
+
+py_library(
+    name = "cc_logging",
+    srcs = ["cc_logging.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":tf_logging",
+        # TensorFlow Python,
         "//tensorflow_decision_forests/tensorflow/ops/training:op_py",
     ],
 )

@@ -92,6 +92,7 @@ py_library(
         # TensorFlow /data/ops:load_ops,
         "//tensorflow_decision_forests/component/inspector",
         "//tensorflow_decision_forests/component/tuner",
+        "//tensorflow_decision_forests/tensorflow:cc_logging",
         "//tensorflow_decision_forests/tensorflow:core",
         "//tensorflow_decision_forests/tensorflow:tf1_compatibility",
         "//tensorflow_decision_forests/tensorflow:tf_logging",
