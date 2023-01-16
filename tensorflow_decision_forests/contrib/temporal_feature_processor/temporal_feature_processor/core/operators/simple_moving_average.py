@@ -14,26 +14,30 @@
 
 """Simple moving average operator."""
 
-
 from typing import Optional
 
-from temporal_feature_processor import core_pb2 as pb
-from temporal_feature_processor import event as event_lib
-from temporal_feature_processor import feature as feature_lib
-from temporal_feature_processor import operator
-from temporal_feature_processor import operator_lib
+from temporal_feature_processor.core import operator_lib
+from temporal_feature_processor.core.data.event import Event
+from temporal_feature_processor.core.data.feature import Feature
+from temporal_feature_processor.core.operators.base import Operator
+from temporal_feature_processor.implementation.pandas.operators.base import PandasOperator
+from temporal_feature_processor.implementation.pandas.operators.window.simple_moving_average import PandasSimpleMovingAverageOperator
+from temporal_feature_processor.proto import core_pb2 as pb
 
 
-class SimpleMovingAverage(operator.Operator):
+class SimpleMovingAverage(Operator):
   """Simple moving average operator."""
 
   def __init__(
       self,
-      data: event_lib.Event,
+      data: Event,
       window_length: int,
-      sampling: Optional[event_lib.Event] = None,
+      sampling: Optional[Event] = None,
   ):
     super().__init__()
+
+    self.window_length = window_length
+
     if sampling is not None:
       self.add_input("sampling", sampling)
     else:
@@ -42,7 +46,7 @@ class SimpleMovingAverage(operator.Operator):
     self.add_input("data", data)
 
     features = [  # pylint: disable=g-complex-comprehension
-        feature_lib.Feature(
+        Feature(
             name=f.name(),
             dtype=f.dtype(),
             sampling=sampling,
@@ -52,7 +56,7 @@ class SimpleMovingAverage(operator.Operator):
 
     self.add_output(
         "output",
-        event_lib.Event(
+        Event(
             features=features,
             sampling=sampling,
         ),
@@ -71,15 +75,18 @@ class SimpleMovingAverage(operator.Operator):
         outputs=[pb.OperatorDef.Output(key="output")],
     )
 
+  def _get_pandas_implementation(self) -> PandasOperator:
+    return PandasSimpleMovingAverageOperator(window_length=self.window_length)
+
 
 operator_lib.register_operator(SimpleMovingAverage)
 
 
 def sma(
-    data: event_lib.Event,
+    data: Event,
     window_length: int,
-    sampling: Optional[event_lib.Event] = None,
-) -> event_lib.Event:
+    sampling: Optional[Event] = None,
+) -> Event:
   return SimpleMovingAverage(
       data=data,
       window_length=window_length,

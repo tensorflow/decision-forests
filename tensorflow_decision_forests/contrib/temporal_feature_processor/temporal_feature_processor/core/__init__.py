@@ -12,26 +12,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Event module."""
-
-from typing import List
-
-from temporal_feature_processor import feature as feature_lib
-from temporal_feature_processor import sampling as sampling_lib
-
-
-class Event(object):
-
-  def __init__(
-      self,
-      features: List[feature_lib.Feature],
-      sampling: sampling_lib.Sampling,
-  ):
-    self._features = features
-    self._sampling = sampling
-
-  def sampling(self):
-    return self._sampling
-
-  def features(self):
-    return self._features

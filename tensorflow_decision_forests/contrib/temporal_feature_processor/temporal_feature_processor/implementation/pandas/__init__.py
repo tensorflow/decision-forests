@@ -12,7 +12,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Operators."""
-
-from temporal_feature_processor.operators import place_holder
-from temporal_feature_processor.operators import simple_moving_average

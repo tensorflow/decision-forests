@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Dtype module."""
+# TODO: implement EventSequence class
 
-FLOAT = "FLOAT"
+import pandas as pd
+
+
+PandasEvent = pd.DataFrame

@@ -16,7 +16,7 @@
 
 from absl import logging
 
-from temporal_feature_processor import core_pb2 as pb
+from temporal_feature_processor.proto import core_pb2 as pb
 
 
 def does_nothing() -> None:

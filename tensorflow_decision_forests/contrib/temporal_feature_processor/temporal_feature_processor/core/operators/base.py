@@ -14,36 +14,40 @@
 
 """Operator module."""
 
-import abc
+from abc import ABC, abstractmethod
 from typing import Dict
 
-from temporal_feature_processor import event as event_lib
+from temporal_feature_processor.core.data.event import Event
+from temporal_feature_processor.implementation.pandas.operators.base import PandasOperator
 
 
-class Operator(abc.ABC):
+class Operator(ABC):
   """Operator interface."""
 
   def __init__(self):
     self._inputs = {}
     self._outputs = {}
 
-  def outputs(self) -> Dict[str, event_lib.Event]:
+  def outputs(self) -> Dict[str, Event]:
     return self._outputs
 
-  def inputs(self) -> Dict[str, event_lib.Event]:
+  def inputs(self) -> Dict[str, Event]:
     return self._inputs
 
   def check(self) -> None:
     """Ensures that the operator is valid."""
-
     pass
 
-  def add_input(self, key: str, event: event_lib.Event) -> None:
+  def add_input(self, key: str, event: Event) -> None:
     if key in self._inputs:
       raise ValueError(f"Input {key} already existing")
     self._inputs[key] = event
 
-  def add_output(self, key: str, event: event_lib.Event) -> None:
+  def add_output(self, key: str, event: Event) -> None:
     if key in self._outputs:
       raise ValueError(f"Output {key} already existing")
     self._outputs[key] = event
+
+  @abstractmethod
+  def _get_pandas_implementation(self) -> PandasOperator:
+    """Get pandas implementation for this operator."""
