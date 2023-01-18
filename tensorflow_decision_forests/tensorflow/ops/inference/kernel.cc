@@ -271,7 +271,7 @@ class FeatureIndex {
 // Extracts a categorical-set-int value (i.e. a set of ints) from the tensors
 // into a std::vector<int> representation.
 //
-// By convention, a meeting value is represented as [-1].
+// By convention, a missing value is represented as [-1].
 //
 // Args:
 //   - inputs: All the input tensors.
