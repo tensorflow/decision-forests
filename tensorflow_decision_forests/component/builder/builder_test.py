@@ -18,7 +18,6 @@ from __future__ import print_function
 
 import math
 import os
-import re
 
 from absl import flags
 from absl import logging
@@ -688,6 +687,46 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
 
     with self.assertRaises(tf.errors.UnknownError):
       builder.close()
+
+  def test_categorical_is_in_global_imputation(self):
+    model_path = os.path.join(tmp_path(), "categorical_is_in_global_imputation")
+    builder = builder_lib.CARTBuilder(
+        path=model_path,
+        model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
+        objective=py_tree.objective.RegressionObjective(label="color"),
+        advanced_arguments=builder_lib.AdvancedArguments(
+            disable_categorical_integer_offset_correction=True
+        ),
+    )
+
+    #  f1 in [1, 2]
+    #    ├─(pos)─ 1
+    #    └─(neg)─ 2
+    builder.add_tree(
+        Tree(
+            NonLeafNode(
+                condition=CategoricalIsInCondition(
+                    feature=SimpleColumnSpec(
+                        name="f1", type=py_tree.dataspec.ColumnType.CATEGORICAL
+                    ),
+                    mask=[1, 2],
+                    missing_evaluation=False,
+                ),
+                pos_child=LeafNode(value=RegressionValue(value=1)),
+                neg_child=LeafNode(value=RegressionValue(value=2)),
+            )
+        )
+    )
+
+    builder.close()
+
+    inspector = inspector_lib.make_inspector(os.path.join(model_path, "assets"))
+    self.assertEqual(
+        inspector.dataspec.columns[1].categorical.most_frequent_value, 3
+    )
+    self.assertEqual(
+        inspector.dataspec.columns[1].categorical.number_of_unique_values, 4
+    )
 
 
 if __name__ == "__main__":

@@ -35,7 +35,7 @@ class NodeTest(parameterized.TestCase, tf.test.TestCase):
     node = node_lib.LeafNode(5)
     self.assertEqual(node.value, 5)
     self.assertIsNone(node.leaf_idx)
-  
+
   def test_leaf_idx(self):
     node = node_lib.LeafNode(5, 2)
     self.assertEqual(node.value, 5)
@@ -44,41 +44,68 @@ class NodeTest(parameterized.TestCase, tf.test.TestCase):
   def test_leaf_regression_value(self):
     node = node_lib.LeafNode(
         value=value_lib.RegressionValue(
-            value=5.0, num_examples=10, standard_deviation=1.0))
+            value=5.0, num_examples=10, standard_deviation=1.0
+        )
+    )
     core_node = decision_tree_pb2.Node(
-        regressor=decision_tree_pb2.NodeRegressorOutput(top_value=5.0))
+        regressor=decision_tree_pb2.NodeRegressorOutput(top_value=5.0)
+    )
     dist = core_node.regressor.distribution
     dist.count = 10.0
     dist.sum = 0
     dist.sum_squares = 10.0
     self.assertEqual(
         node_lib.node_to_core_node(node, data_spec_pb2.DataSpecification()),
-        core_node)
+        core_node,
+    )
     logging.info("node:\n%s", node)
 
   def test_non_leaf_without_children(self):
     node = node_lib.NonLeafNode(
         condition=condition_lib.NumericalHigherThanCondition(
             feature=dataspec_lib.SimpleColumnSpec(
-                name="f1", type=dataspec_lib.ColumnType.NUMERICAL),
+                name="f1", type=dataspec_lib.ColumnType.NUMERICAL
+            ),
             threshold=1.5,
-            missing_evaluation=False))
+            missing_evaluation=False,
+        )
+    )
     logging.info("node:\n%s", node)
 
   def test_non_leaf_with_children(self):
     node = node_lib.NonLeafNode(
         condition=condition_lib.NumericalHigherThanCondition(
             feature=dataspec_lib.SimpleColumnSpec(
-                name="f1", type=dataspec_lib.ColumnType.NUMERICAL),
+                name="f1", type=dataspec_lib.ColumnType.NUMERICAL
+            ),
             threshold=1.5,
-            missing_evaluation=False),
+            missing_evaluation=False,
+        ),
         pos_child=node_lib.LeafNode(
             value=value_lib.RegressionValue(
-                value=5.0, num_examples=10, standard_deviation=1.0)),
+                value=5.0, num_examples=10, standard_deviation=1.0
+            )
+        ),
         neg_child=node_lib.LeafNode(
             value=value_lib.ProbabilityValue(
-                probability=[0.5, 0.4, 0.1], num_examples=10)))
+                probability=[0.5, 0.4, 0.1], num_examples=10
+            )
+        ),
+    )
     logging.info("node:\n%s", node)
+
+  def test_condition_value_and_default_categorical_contains(self):
+    a = node_lib.ScanStructureAccumulatorContainsInt()
+    self.assertEqual(a.get_global_imutation_and_num_unique_values(), (1, 2))
+
+    a.add_not_allowed([1, 3])
+    self.assertEqual(a.get_global_imutation_and_num_unique_values(), (2, 4))
+
+    a.add_not_allowed([2])
+    self.assertEqual(a.get_global_imutation_and_num_unique_values(), (4, 5))
+
+    a.add_allowed([1, 6])
+    self.assertEqual(a.get_global_imutation_and_num_unique_values(), (6, 7))
 
 
 if __name__ == "__main__":
