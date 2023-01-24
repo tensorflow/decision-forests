@@ -1,6 +1,6 @@
 # Changelog
 
-## HEAD
+## 1.2.0 - 2023-01-24
 
 ### Features
 

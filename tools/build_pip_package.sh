@@ -110,13 +110,7 @@ function assemble_files() {
   cp ${SRCBIN}/tensorflow/ops/inference/inference.so ${SRCPK}/tensorflow_decision_forests/tensorflow/ops/inference/
   cp ${SRCBIN}/tensorflow/ops/training/training.so ${SRCPK}/tensorflow_decision_forests/tensorflow/ops/training/
 
-  # TODO: Include when Pip package support distributed training.
-  # cp ${SRCBIN}/tensorflow/distribute/distribute.so ${SRCPK}/tensorflow_decision_forests/tensorflow/distribute/
-
   cp ${SRCBIN}/keras/wrappers.py ${SRCPK}/tensorflow_decision_forests/keras/
-
-  # TFDF's proto wrappers.
-  cp ${SRCBIN}/tensorflow/distribute/tf_distribution_pb2.py ${SRCPK}/tensorflow_decision_forests/tensorflow/distribute/
 
   # Distribution server binaries
   cp ${SRCBIN}/keras/grpc_worker_main ${SRCPK}/tensorflow_decision_forests/keras/

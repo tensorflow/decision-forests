@@ -15,7 +15,8 @@
             *   [Compilation](#compilation)
         *   [MacOS](#macos)
             *   [Setup](#setup-1)
-            *   [Compilation](#compilation-1)
+            *   [Building / Packaging (Apple CPU)](#building---packaging-apple-cpu)
+            *   [Cross-compiling for Intel CPUs](#cross-compiling-for-intel-cpus)
     *   [Final note](#final-note)
     *   [Troubleshooting](#troubleshooting)
 
