@@ -46,6 +46,8 @@ upper_tabs:
         path: /decision_forests/tutorials/index
       - title: Build, train and evaluate
         path: /decision_forests/tutorials/beginner_colab
+      - title: Learning to rank
+        path: /decision_forests/tutorials/ranking_colab
       - title: Text and pre-trained embeddings
         path: /decision_forests/tutorials/intermediate_colab
       - title: Making predictions
