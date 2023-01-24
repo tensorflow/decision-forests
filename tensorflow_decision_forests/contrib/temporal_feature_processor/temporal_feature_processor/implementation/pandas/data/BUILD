@@ -19,6 +19,8 @@ py_library(
     srcs_version = "PY3",
     deps = [
         # pandas dep,
+        "//temporal_feature_processor/core/data:event",
+        "//temporal_feature_processor/core/data:feature",
     ],
 )
 

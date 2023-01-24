@@ -37,3 +37,18 @@ py_test(
         "//temporal_feature_processor/proto:core_py_proto",
     ],
 )
+
+py_test(
+    name = "prototype_test",
+    srcs = ["prototype_test.py"],
+    srcs_version = "PY3",
+    deps = [
+        # absl/logging dep,
+        # absl/testing:absltest dep,
+        # pandas dep,
+        "//temporal_feature_processor/core:processor",
+        "//temporal_feature_processor/core/data:event",
+        "//temporal_feature_processor/core/operators:assign",
+        "//temporal_feature_processor/implementation/pandas/data:event",
+    ],
+)

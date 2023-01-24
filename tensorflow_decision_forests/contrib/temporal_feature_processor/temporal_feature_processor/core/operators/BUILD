@@ -12,8 +12,24 @@ py_library(
     srcs = ["__init__.py"],
     srcs_version = "PY3",
     deps = [
+        ":assign",
         ":place_holder",
         ":simple_moving_average",
+    ],
+)
+
+py_library(
+    name = "assign",
+    srcs = ["assign.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":base",
+        "//temporal_feature_processor/core:operator_lib",
+        "//temporal_feature_processor/core/data:event",
+        "//temporal_feature_processor/core/data:feature",
+        "//temporal_feature_processor/implementation/pandas/operators:assign",
+        "//temporal_feature_processor/implementation/pandas/operators:base",
+        "//temporal_feature_processor/proto:core_py_proto",
     ],
 )
 
@@ -22,7 +38,6 @@ py_library(
     srcs = ["base.py"],
     srcs_version = "PY3",
     deps = [
-        # absl/logging dep,
         "//temporal_feature_processor/core/data:event",
         "//temporal_feature_processor/implementation/pandas/operators:base",
         "//temporal_feature_processor/proto:core_py_proto",
