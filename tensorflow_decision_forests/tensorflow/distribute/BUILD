@@ -67,6 +67,7 @@ cc_library(
         "@ydf//yggdrasil_decision_forests/utils/distribute:core",
         "@ydf//yggdrasil_decision_forests/utils/distribute:distribute_cc_proto",
         "@ydf//yggdrasil_decision_forests/utils/distribute:utils",
+        "@com_google_absl//absl/status:statusor",
     ] + select({
         "@ydf//yggdrasil_decision_forests:tensorflow_with_header_lib": [
             "@tensorflow_pypi//:libtensorflow_framework",
@@ -166,6 +167,7 @@ cc_library(
         ":tf_distribution_common",
         ":tf_distribution_cc_proto",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
         "@ydf//yggdrasil_decision_forests/utils:concurrency",
         "@ydf//yggdrasil_decision_forests/utils:status_macros",
         "@ydf//yggdrasil_decision_forests/utils:tensorflow",

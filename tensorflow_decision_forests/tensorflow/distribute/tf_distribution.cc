@@ -19,6 +19,7 @@
 
 #include <random>
 
+#include "absl/status/statusor.h"
 #include "rapidjson/document.h"
 #include "rapidjson/reader.h"
 #include "tensorflow/cc/client/client_session.h"
@@ -42,7 +43,7 @@ namespace tf = ::tensorflow;
 
 constexpr char TfDistributionManager::kKey[];
 
-utils::StatusOr<int> TfDistributionManager::NumWorkersInConfiguration(
+absl::StatusOr<int> TfDistributionManager::NumWorkersInConfiguration(
     const proto::Config& config) const {
   const auto& imp_config = config.GetExtension(proto::tf_distribution);
 
@@ -157,7 +158,7 @@ void TfDistributionManager::ProcessGlobalQueries(Worker* worker) {
   }
 }
 
-utils::StatusOr<Blob> TfDistributionManager::BlockingRequest(Blob blob,
+absl::StatusOr<Blob> TfDistributionManager::BlockingRequest(Blob blob,
                                                              int worker_idx) {
   if (verbosity_ >= 2) {
     LOG(INFO) << "Sending blocking request with " << blob.size() << " bytes";
@@ -183,7 +184,7 @@ absl::Status TfDistributionManager::AsynchronousRequest(Blob blob,
   return absl::OkStatus();
 }
 
-utils::StatusOr<Blob> TfDistributionManager::NextAsynchronousAnswer() {
+absl::StatusOr<Blob> TfDistributionManager::NextAsynchronousAnswer() {
   if (verbosity_ >= 2) {
     LOG(INFO) << "Wait for next asynchronous result";
   }
@@ -393,7 +394,7 @@ absl::Status RemoteConnection::StopWorker(const bool kill_worker_manager) {
       session->Run(options, feeds, {}, {stop_worker_op}, &outputs, nullptr));
 }
 
-utils::StatusOr<Blob> RemoteConnection::RunTask(const Blob& input) {
+absl::StatusOr<Blob> RemoteConnection::RunTask(const Blob& input) {
   tf::ClientSession::FeedType feeds;
   feeds.emplace(tf::Output(*run_task_input), tf::Input::Initializer(input));
   std::vector<tf::Tensor> outputs;
@@ -434,7 +435,7 @@ utils::StatusOr<Blob> RemoteConnection::RunTask(const Blob& input) {
   }
 }
 
-utils::StatusOr<std::vector<std::string>> JsonConfigToWorkers(
+absl::StatusOr<std::vector<std::string>> JsonConfigToWorkers(
     const absl::string_view json) {
   std::vector<std::string> workers;
 

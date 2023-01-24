@@ -45,6 +45,7 @@
 #include <algorithm>
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"
 #include "tensorflow/core/framework/op_kernel.h"
@@ -69,7 +70,7 @@ namespace dataset = ::yggdrasil_decision_forests::dataset;
 namespace serving = ::yggdrasil_decision_forests::serving;
 
 template <typename T>
-using StatusOr = ::yggdrasil_decision_forests::utils::StatusOr<T>;
+using StatusOr = absl::StatusOr<T>;
 
 using Task = model::proto::Task;
 

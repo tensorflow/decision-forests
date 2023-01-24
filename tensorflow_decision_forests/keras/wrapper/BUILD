@@ -33,6 +33,7 @@ cc_library(
     hdrs = ["wrapper.h"],
     deps = [
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/status:statusor",
         "@ydf//yggdrasil_decision_forests/learner:abstract_learner_cc_proto",
         "@ydf//yggdrasil_decision_forests/learner:learner_library",
         "@ydf//yggdrasil_decision_forests/utils:compatibility",

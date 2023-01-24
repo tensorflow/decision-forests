@@ -15,6 +15,7 @@
 
 #include "tensorflow_decision_forests/keras/wrapper/wrapper.h"
 
+#include "absl/status/statusor.h"
 #include "absl/strings/str_replace.h"
 #include "absl/strings/substitute.h"
 #include "yggdrasil_decision_forests/learner/learner_library.h"
@@ -79,7 +80,7 @@ std::string PythonFloat(const float value) {
 
 // Generates the python documentation and python object for the pre-defined
 // hyper-parameters.
-ydf::utils::StatusOr<std::pair<std::string, std::string>>
+absl::StatusOr<std::pair<std::string, std::string>>
 BuildPredefinedHyperParameter(const ydf::model::AbstractLearner* learner) {
   // Documentation about the list of template hyper-parameters.
   std::string predefined_hp_doc;
@@ -225,7 +226,7 @@ std::string FormatDocumentation(const absl::string_view raw,
   return formatted;
 }
 
-ydf::utils::StatusOr<std::string> GenKerasPythonWrapper() {
+absl::StatusOr<std::string> GenKerasPythonWrapper() {
   const auto prefix = "";
 
   std::string imports = absl::Substitute(R"(

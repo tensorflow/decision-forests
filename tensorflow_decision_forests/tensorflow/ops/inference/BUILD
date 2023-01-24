@@ -113,6 +113,7 @@ cc_library(
     srcs = ["kernel.cc"],
     deps = [
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_cc_proto",
