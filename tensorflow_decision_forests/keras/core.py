@@ -1395,9 +1395,11 @@ class CoreModel(InferenceCoreModel):
             (per_worker_iter,))
 
     if self._verbose >= 1:
-      tf_logging.info("Training dataset read in %s. Found %d examples.",
-                      datetime.now() - time_begin_train_dataset_reading,
-                      self._num_training_examples)
+      t = datetime.now() - time_begin_train_dataset_reading
+      tf_logging.info(
+          f"Training dataset read in {t}. Found"
+          f" {self._num_training_examples} examples."
+      )
 
     # Load the validation dataset
     if validation_data is not None:
@@ -1462,9 +1464,10 @@ class CoreModel(InferenceCoreModel):
                         self.num_validation_examples)
 
         if self._verbose >= 1:
-          tf_logging.info("Validation dataset read in %s. Found %d examples.",
-                          datetime.now() - time_begin_valid_dataset_reading,
-                          self._num_validation_examples)
+          t = datetime.now() - time_begin_valid_dataset_reading
+          tf_logging.info(
+              f"Validation dataset read in {t}. Found"
+              f" {self._num_validation_examples} examples.")
 
     # Train the model
     # Note: The model should be trained after having collected both the training
