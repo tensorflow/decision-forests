@@ -309,6 +309,15 @@ REGISTER_OP("SimpleMLModelTrainerOnFile")
       return OkStatus();
     });
 
+// Tests if the training configuration is correct.
+REGISTER_OP("SimpleMLCheckTrainingConfiguration")
+    .SetIsStateful()
+    .Attr("hparams: string")
+    .Attr("training_config: string")
+    .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
+      return OkStatus();
+    });
+
 // Built a human readable description of the model.
 //
 // Args:

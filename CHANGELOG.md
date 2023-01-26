@@ -1,5 +1,11 @@
 # Changelog
 
+## HEAD
+
+### Features
+
+-   Check learner parameters during the model construction.
+
 ## 1.2.0 - 2023-01-24
 
 ### Features

@@ -45,7 +45,9 @@ NormalizedNumericalType = core_inference.NormalizedNumericalType
 NormalizedCategoricalIntType = core_inference.NormalizedCategoricalIntType
 NormalizedCategoricalStringType = core_inference.NormalizedCategoricalStringType
 NormalizedCategoricalSetIntType = core_inference.NormalizedCategoricalSetIntType
-NormalizedCategoricalSetStringType = core_inference.NormalizedCategoricalSetStringType
+NormalizedCategoricalSetStringType = (
+    core_inference.NormalizedCategoricalSetStringType
+)
 NormalizedHashType = core_inference.NormalizedHashType
 NormalizedBooleanType = core_inference.NormalizedBooleanType
 SemanticTensor = core_inference.SemanticTensor
@@ -53,7 +55,9 @@ Semantic = core_inference.Semantic
 Task = core_inference.Task
 TaskType = core_inference.TaskType
 AnyTensor = core_inference.AnyTensor
-build_default_input_model_signature = core_inference.build_default_input_model_signature
+build_default_input_model_signature = (
+    core_inference.build_default_input_model_signature
+)
 InputModelSignatureFn = core_inference.InputModelSignatureFn
 build_default_feature_signature = core_inference.build_default_feature_signature
 infer_semantic_from_dataframe = core_inference.infer_semantic_from_dataframe
@@ -92,7 +96,8 @@ class DistributionConfiguration(NamedTuple):
 
 
 def get_distribution_configuration(
-    strategy: Optional[Any]) -> Optional[DistributionConfiguration]:
+    strategy: Optional[Any],
+) -> Optional[DistributionConfiguration]:
   """Extracts the distribution configuration from the distribution strategy.
 
   Args:
@@ -107,26 +112,31 @@ def get_distribution_configuration(
     strategy = tf.distribute.get_strategy()
 
   # pylint:disable=protected-access
-  if isinstance(strategy,
-                parameter_server_strategy_v2.ParameterServerStrategyV2):
-
+  if isinstance(
+      strategy, parameter_server_strategy_v2.ParameterServerStrategyV2
+  ):
     cluster_spec = strategy._cluster_resolver.cluster_spec().as_dict()
     rpc_layer = strategy._cluster_resolver.rpc_layer or "grpc"
 
     if not cluster_spec["worker"]:
-      raise ValueError(f"No workers configured in the distribution strategy. "
-                       f"Cluster spec: {cluster_spec}")
+      raise ValueError(
+          "No workers configured in the distribution strategy. "
+          f"Cluster spec: {cluster_spec}"
+      )
 
     return DistributionConfiguration(
         num_workers=strategy._extended._num_workers,
         workers=cluster_spec["worker"],
-        rpc_layer=rpc_layer)
+        rpc_layer=rpc_layer,
+    )
   elif isinstance(strategy, distribute_lib._DefaultDistributionStrategy):
     return None
   # pylint:enable=protected-access
 
-  raise ValueError(f"Not supported distribution strategy {strategy}. Only "
-                   "no-strategy and ParameterServerStrategyV2 is supported")
+  raise ValueError(
+      f"Not supported distribution strategy {strategy}. Only "
+      "no-strategy and ParameterServerStrategyV2 is supported"
+  )
 
 
 def get_num_distribution_workers(strategy: Optional[Any] = None) -> int:
@@ -142,9 +152,11 @@ def get_num_distribution_workers(strategy: Optional[Any] = None) -> int:
 
   distribute_config = get_distribution_configuration(strategy)
   if distribute_config is None:
-    raise ValueError("Number of workers not available. The method "
-                     "`get_num_distribution_workers` should be called within a "
-                     "`ParameterServerStrategyV2` scope.")
+    raise ValueError(
+        "Number of workers not available. The method "
+        "`get_num_distribution_workers` should be called within a "
+        "`ParameterServerStrategyV2` scope."
+    )
 
   return distribute_config.num_workers
 
@@ -162,7 +174,8 @@ class WorkerIndex(NamedTuple):
 
 
 def get_worker_idx_and_num_workers(
-    context: distribute_lib.InputContext) -> WorkerIndex:
+    context: distribute_lib.InputContext,
+) -> WorkerIndex:
   """Gets the current worker index and the total number of workers.
 
   This method should be called by a worker in a tf.function called in the worker
@@ -224,7 +237,8 @@ def get_worker_idx_and_num_workers(
         "details here: "
         "https://www.tensorflow.org/decision_forests/distributed_training), "
         "(3) Recompile TF on monolithic mode and TF-DF with "
-        "tf_ps_distribution_strategy=1.")
+        "tf_ps_distribution_strategy=1."
+    )
 
   # Not used for now.
   del context
@@ -234,25 +248,29 @@ def get_worker_idx_and_num_workers(
         "Cannot retrieve the worker index. `get_worker_idx_and_num_workers` "
         "should be called from within a tf.function on a worker. To get the "
         "index of workers in the manager, try `context.input_pipeline_id` in "
-        "a `dataset_fn(context)`.")
+        "a `dataset_fn(context)`."
+    )
 
   def call_time_worker_index():
     dispatch_context = coordinator_context.get_current_dispatch_context()
     return dispatch_context.worker_index
 
   worker_index = tf.compat.v1.get_default_graph().capture_call_time_value(
-      call_time_worker_index, tf.TensorSpec([], dtype=tf.dtypes.int64))
+      call_time_worker_index, tf.TensorSpec([], dtype=tf.dtypes.int64)
+  )
   worker_index.op._set_attr(  # pylint: disable=protected-access
       "_user_specified_name",
-      tf.compat.v1.AttrValue(s=tf.compat.as_bytes("worker_index")))
+      tf.compat.v1.AttrValue(s=tf.compat.as_bytes("worker_index")),
+  )
 
   return WorkerIndex(
-      worker_idx=worker_index, num_workers=get_num_distribution_workers())
+      worker_idx=worker_index, num_workers=get_num_distribution_workers()
+  )
 
 
 def column_keys_to_resource_ids(
-    keys: Sequence[str], model_id: str,
-    collect_training_data: bool) -> Tuple[List[str], List[str]]:
+    keys: Sequence[str], model_id: str, collect_training_data: bool
+) -> Tuple[List[str], List[str]]:
   """Lists the resource id and feature names from a sequence of key.
 
   Args:
@@ -277,7 +295,8 @@ def column_keys_to_resource_ids(
 def collect_training_examples(
     inputs: Dict[str, SemanticTensor],
     model_id: str,
-    collect_training_data: Optional[bool] = True) -> tf.Operation:
+    collect_training_data: Optional[bool] = True,
+) -> tf.Operation:
   """Collects a batch of training examples.
 
   The features values are append to a set of column-wise in-memory accumulators
@@ -302,17 +321,22 @@ def collect_training_examples(
     def raise_non_supported():
       raise Exception(
           "Non supported tensor dtype {} and semantic {} for feature {}".format(
-              semantic_tensor.tensor.dtype, semantic_tensor.semantic, key))  # pylint: disable=cell-var-from-loop
+              semantic_tensor.tensor.dtype, semantic_tensor.semantic, key
+          )
+      )  # pylint: disable=cell-var-from-loop
 
     input_id = _input_key_to_id(model_id, key, collect_training_data)
 
     if semantic_tensor.semantic in [
-        Semantic.NUMERICAL, Semantic.DISCRETIZED_NUMERICAL
+        Semantic.NUMERICAL,
+        Semantic.DISCRETIZED_NUMERICAL,
     ]:
       if semantic_tensor.tensor.dtype == NormalizedNumericalType:
         ops.append(
             training_op.simple_ml_numerical_feature(
-                value=semantic_tensor.tensor, id=input_id, feature_name=key))
+                value=semantic_tensor.tensor, id=input_id, feature_name=key
+            )
+        )
       else:
         raise_non_supported()
 
@@ -320,11 +344,15 @@ def collect_training_examples(
       if semantic_tensor.tensor.dtype == NormalizedCategoricalStringType:
         ops.append(
             training_op.simple_ml_categorical_string_feature(
-                value=semantic_tensor.tensor, id=input_id, feature_name=key))
+                value=semantic_tensor.tensor, id=input_id, feature_name=key
+            )
+        )
       elif semantic_tensor.tensor.dtype == NormalizedCategoricalIntType:
         ops.append(
             training_op.simple_ml_categorical_int_feature(
-                value=semantic_tensor.tensor, id=input_id, feature_name=key))
+                value=semantic_tensor.tensor, id=input_id, feature_name=key
+            )
+        )
       else:
         raise_non_supported()
 
@@ -333,7 +361,7 @@ def collect_training_examples(
           "values": semantic_tensor.tensor.values,
           "row_splits": semantic_tensor.tensor.row_splits,
           "id": input_id,
-          "feature_name": key
+          "feature_name": key,
       }
       if semantic_tensor.tensor.dtype == NormalizedCategoricalSetStringType:
         ops.append(training_op.simple_ml_categorical_set_string_feature(**args))
@@ -346,7 +374,9 @@ def collect_training_examples(
       if semantic_tensor.tensor.dtype == NormalizedHashType:
         ops.append(
             training_op.simple_ml_hash_feature(
-                value=semantic_tensor.tensor, id=input_id, feature_name=key))
+                value=semantic_tensor.tensor, id=input_id, feature_name=key
+            )
+        )
       else:
         raise_non_supported()
 
@@ -360,9 +390,9 @@ def collect_training_examples(
   return tf.group(ops)
 
 
-def collect_distributed_training_examples(inputs: Dict[str, SemanticTensor],
-                                          model_id: str,
-                                          dataset_path: str) -> tf.Operation:
+def collect_distributed_training_examples(
+    inputs: Dict[str, SemanticTensor], model_id: str, dataset_path: str
+) -> tf.Operation:
   """Exports feature values to file in the partial dataset cache format.
 
   For distributed training, multiple tasks (with task="worker" and different
@@ -385,15 +415,16 @@ def collect_distributed_training_examples(inputs: Dict[str, SemanticTensor],
   in_order_inputs.sort(key=lambda x: x[0])
 
   ops = []
-  for feature_idx, (feature_name,
-                    semantic_tensor) in enumerate(in_order_inputs):
-
+  for feature_idx, (feature_name, semantic_tensor) in enumerate(
+      in_order_inputs
+  ):
     def raise_non_supported():
       # pylint: disable=cell-var-from-loop
       raise Exception(
           f"Non supported tensor dtype {semantic_tensor.tensor.dtype} "
           f"and semantic {semantic_tensor.semantic} for feature {feature_name} "
-          "for distributed training")
+          "for distributed training"
+      )
       # pylint: enable=cell-var-from-loop
 
     resource_id = _input_key_to_id(model_id, feature_name, training_column=True)
@@ -405,7 +436,9 @@ def collect_distributed_training_examples(inputs: Dict[str, SemanticTensor],
                 resource_id=resource_id,
                 feature_name=feature_name,
                 feature_idx=feature_idx,
-                dataset_path=dataset_path))
+                dataset_path=dataset_path,
+            )
+        )
       else:
         raise_non_supported()
 
@@ -417,7 +450,9 @@ def collect_distributed_training_examples(inputs: Dict[str, SemanticTensor],
                 resource_id=resource_id,
                 feature_name=feature_name,
                 feature_idx=feature_idx,
-                dataset_path=dataset_path))
+                dataset_path=dataset_path,
+            )
+        )
       elif semantic_tensor.tensor.dtype == NormalizedCategoricalStringType:
         ops.append(
             training_op.SimpleMLCategoricalStringFeatureOnFile(
@@ -425,7 +460,9 @@ def collect_distributed_training_examples(inputs: Dict[str, SemanticTensor],
                 resource_id=resource_id,
                 feature_name=feature_name,
                 feature_idx=feature_idx,
-                dataset_path=dataset_path))
+                dataset_path=dataset_path,
+            )
+        )
       else:
         raise_non_supported()
 
@@ -433,6 +470,21 @@ def collect_distributed_training_examples(inputs: Dict[str, SemanticTensor],
       raise_non_supported()
 
   return tf.group(ops)
+
+
+def check_config(
+    generic_hparms: hyperparameter_pb2.GenericHyperParameters,
+    training_config: abstract_learner_pb2.TrainingConfig,
+):
+  """Checks the validity of a training configuration."""
+
+  try:
+    training_op.SimpleMLCheckTrainingConfiguration(
+        hparams=generic_hparms.SerializeToString(),
+        training_config=training_config.SerializeToString(),
+    )
+  except tf.errors.UnknownError as e:
+    raise ValueError(e.message)
 
 
 def train(
@@ -446,7 +498,8 @@ def train(
     keep_model_in_resource: Optional[bool] = True,
     try_resume_training: Optional[bool] = False,
     has_validation_dataset: Optional[bool] = False,
-    node_format: Optional[NodeFormat] = None):
+    node_format: Optional[NodeFormat] = None,
+):
   """Trains a model on the dataset accumulated by collect_training_examples.
 
   Args:
@@ -466,7 +519,7 @@ def train(
       contains any checkpoint, start the training from the start.
     has_validation_dataset: True if a validation dataset is available (in
       addition to the training dataset).
-    node_format: Format for storing a model's nodes used by Yggdrasil Decision 
+    node_format: Format for storing a model's nodes used by Yggdrasil Decision
       Forests.
 
   Returns:
@@ -506,13 +559,15 @@ def train(
       has_validation_dataset=has_validation_dataset,
       use_file_prefix=True,
       create_model_resource=keep_model_in_resource,
-      node_format="" if node_format is None else node_format)
+      node_format="" if node_format is None else node_format,
+  )
 
   if process_id != -1:
     # Wait for the training to be done.
     while True:
-      if training_op.SimpleMLCheckStatus(
-          process_id=process_id) == 1:  # kSuccess
+      if (
+          training_op.SimpleMLCheckStatus(process_id=process_id) == 1
+      ):  # kSuccess
         break
 
 
@@ -530,7 +585,7 @@ def train_on_file_dataset(
     distribution_config: Optional[DistributionConfiguration] = None,
     try_resume_training: Optional[bool] = False,
     cluster_coordinator: Optional[Any] = None,
-    node_format: Optional[NodeFormat] = None
+    node_format: Optional[NodeFormat] = None,
 ):
   """Trains a model on dataset stored on file.
 
@@ -574,7 +629,7 @@ def train_on_file_dataset(
       "working_cache_path" directory. The the "working_cache_path" does not
       contains any checkpoint, start the training from the start.
     cluster_coordinator: Cluster coordinator of the distributed training.
-    node_format: Format for storing a model's nodes used by Yggdrasil Decision 
+    node_format: Format for storing a model's nodes used by Yggdrasil Decision
       Forests.
 
   Returns:
@@ -604,8 +659,10 @@ def train_on_file_dataset(
 
   if try_resume_training:
     if working_cache_path is None:
-      raise ValueError("Cannot train a model with `try_resume_training=True` "
-                       "without a working cache directory.")
+      raise ValueError(
+          "Cannot train a model with `try_resume_training=True` "
+          "without a working cache directory."
+      )
     deployment_config.try_resume_training = True
 
   # Thread in charge with checking the status of workers.
@@ -634,7 +691,8 @@ def train_on_file_dataset(
     # TF addresses used by the TF workers.
     tf_workers_addresses = distribution_config.workers
     grpc_workers_addresses = ensure_grpc_workers_are_running(
-        cluster_coordinator, grpc_session_key, tf_workers_addresses)
+        cluster_coordinator, grpc_session_key, tf_workers_addresses
+    )
 
     deployment_config.try_resume_training = True
     deployment_config.distribute.implementation_key = "GRPC"
@@ -642,8 +700,9 @@ def train_on_file_dataset(
     grpc_dist_config.key = grpc_session_key
     grpc_dist_config.grpc_addresses.addresses[:] = grpc_workers_addresses
 
-    def check_workers(grpc_workers_addresses: List[str],
-                      tf_workers_addresses: List[str]) -> None:
+    def check_workers(
+        grpc_workers_addresses: List[str], tf_workers_addresses: List[str]
+    ) -> None:
       """Continuously checks the status of GRPC workers.
 
       This function is responsible for restarting GRPC workers and retrieving
@@ -655,24 +714,29 @@ def train_on_file_dataset(
       """
 
       while not check_worker_stop:
-
         # Run the check every 30 seconds.
         time.sleep(30)
 
         new_grpc_workers_addresses = ensure_grpc_workers_are_running(
-            cluster_coordinator, grpc_session_key, tf_workers_addresses)
+            cluster_coordinator, grpc_session_key, tf_workers_addresses
+        )
 
         assert len(new_grpc_workers_addresses) == len(grpc_workers_addresses)
         for worker_idx, grpc_workers_address in enumerate(
-            grpc_workers_addresses):
+            grpc_workers_addresses
+        ):
           if new_grpc_workers_addresses[worker_idx] != grpc_workers_address:
-            logging.info("Update worker #%d port from %d to %d", worker_idx,
-                         grpc_workers_address,
-                         new_grpc_workers_addresses[worker_idx])
+            logging.info(
+                "Update worker #%d port from %d to %d",
+                worker_idx,
+                grpc_workers_address,
+                new_grpc_workers_addresses[worker_idx],
+            )
             training_op.SimpleMLUpdateGRPCWorkerAddress(
                 key=grpc_session_key,
                 worker_idx=worker_idx,
-                new_address=new_grpc_workers_addresses[worker_idx])
+                new_address=new_grpc_workers_addresses[worker_idx],
+            )
 
         grpc_workers_addresses = new_grpc_workers_addresses
 
@@ -682,7 +746,8 @@ def train_on_file_dataset(
             grpc_workers_addresses,
             tf_workers_addresses,
         ),
-        daemon=True)
+        daemon=True,
+    )
     check_workers_thread.start()
 
   # Start the chief training logic.
@@ -697,7 +762,8 @@ def train_on_file_dataset(
       guide=guide.SerializeToString(),
       use_file_prefix=True,
       create_model_resource=keep_model_in_resource,
-      node_format="" if node_format is None else node_format)
+      node_format="" if node_format is None else node_format,
+  )
 
   if process_id != -1:
     # Wait for the chief training logic to be done.
@@ -706,12 +772,12 @@ def train_on_file_dataset(
     # of preemption of the worker during the shut-down phase, it is possible
     # for a GRPC worker to remain active.
     while True:
-      if training_op.SimpleMLCheckStatus(
-          process_id=process_id) == 1:  # kSuccess
+      if (
+          training_op.SimpleMLCheckStatus(process_id=process_id) == 1
+      ):  # kSuccess
         break
 
   if distribution_config is not None:
-
     # Stop the grpc worker checker
     check_worker_stop = True
     if check_workers_thread is not None:
@@ -721,10 +787,12 @@ def train_on_file_dataset(
     stop_grpc_workers(cluster_coordinator, grpc_session_key)
 
 
-def finalize_distributed_dataset_collection(cluster_coordinator,
-                                            feature_names: List[str],
-                                            resource_ids: List[str],
-                                            dataset_path: str) -> None:
+def finalize_distributed_dataset_collection(
+    cluster_coordinator,
+    feature_names: List[str],
+    resource_ids: List[str],
+    dataset_path: str,
+) -> None:
   """Finaliazes the collection of the partial dataset cache.
 
   Args:
@@ -737,21 +805,24 @@ def finalize_distributed_dataset_collection(cluster_coordinator,
 
   def worker_fn():
     training_op.SimpleMLWorkerFinalizeFeatureOnFile(
-        feature_resource_ids=resource_ids, dataset_path=dataset_path)
+        feature_resource_ids=resource_ids, dataset_path=dataset_path
+    )
 
   execute_function_on_each_worker(cluster_coordinator, worker_fn)
 
   training_op.SimpleMLChiefFinalizeFeatureOnFile(
       feature_names=feature_names,
       num_shards=len(cluster_coordinator._cluster.workers),  # pylint: disable=protected-access
-      dataset_path=dataset_path)
+      dataset_path=dataset_path,
+  )
 
 
 def execute_function_on_each_worker(
     coordinator: Any,
     call_fn: Any,
     args: Any = None,
-    reduce_results: bool = True) -> Union[Any, List[Any]]:
+    reduce_results: bool = True,
+) -> Union[Any, List[Any]]:
   """Blocking execution of `call_fn` once on each of the workers in parallel.
 
   Unlike "execute_function_on_each_worker" that use directly the "device" API,
@@ -805,19 +876,17 @@ def execute_function_on_each_worker(
   result = Result()
 
   def thread_body(worker_idx, result):
-
     closure = cluster_coordinator_lib.Closure(
-        call_fn,
-        coordinator._cluster.closure_queue._cancellation_mgr,
-        args=args)
+        call_fn, coordinator._cluster.closure_queue._cancellation_mgr, args=args
+    )
     ret = closure.build_output_remote_value()
 
     def run_my_closure():
       closure.execute_on(coordinator._cluster.workers[worker_idx])
 
     with coordinator._cluster.failure_handler.wait_on_failure(
-        on_recovery_fn=run_my_closure,
-        worker_device_name=f"worker {worker_idx}"):
+        on_recovery_fn=run_my_closure, worker_device_name=f"worker {worker_idx}"
+    ):
       run_my_closure()
 
     ret_value = ret.get()
@@ -827,10 +896,13 @@ def execute_function_on_each_worker(
   threads = []
   for worker_idx in range(coordinator._strategy._extended._num_workers):
     thread = threading.Thread(
-        target=thread_body, args=(
+        target=thread_body,
+        args=(
             worker_idx,
             result,
-        ), daemon=True)
+        ),
+        daemon=True,
+    )
     thread.start()
     threads.append(thread)
 
@@ -847,8 +919,8 @@ def execute_function_on_each_worker(
 
 
 def ensure_grpc_workers_are_running(
-    cluster_coordinator, grpc_session_key: int,
-    tf_workers_addresses: List[str]) -> List[str]:
+    cluster_coordinator, grpc_session_key: int, tf_workers_addresses: List[str]
+) -> List[str]:
   """Ensures that a GRPC YDF worker is running on each of the TF Workers.
 
   If a TF Worker is not running a GRPC YDF worker, create the missing GRPC YDF
@@ -867,7 +939,8 @@ def ensure_grpc_workers_are_running(
     return training_op.SimpleMLCreateYDFGRPCWorker(key=grpc_session_key)
 
   grpc_ports = execute_function_on_each_worker(
-      cluster_coordinator, worker_fn, reduce_results=False)
+      cluster_coordinator, worker_fn, reduce_results=False
+  )
 
   assert len(tf_workers_addresses) == len(grpc_ports)
 
@@ -875,7 +948,8 @@ def ensure_grpc_workers_are_running(
   for worker_idx in range(len(tf_workers_addresses)):
     tf_workers_address = tf_workers_addresses[worker_idx]
     addresses.append(
-        replace_port_in_address(tf_workers_address, grpc_ports[worker_idx]))
+        replace_port_in_address(tf_workers_address, grpc_ports[worker_idx])
+    )
   return addresses
 
 
@@ -891,7 +965,8 @@ def stop_grpc_workers(cluster_coordinator, grpc_session_key: int) -> None:
     return training_op.SimpleMLStopYDFGRPCWorker(key=grpc_session_key)
 
   execute_function_on_each_worker(
-      cluster_coordinator, worker_fn, reduce_results=False)
+      cluster_coordinator, worker_fn, reduce_results=False
+  )
 
 
 def replace_port_in_address(address: str, new_port: int) -> str:
@@ -932,7 +1007,7 @@ def _input_key_to_id(model_id: str, key: str, training_column: bool) -> str:
 
 
 def hparams_dict_to_generic_proto(
-    hparams: Optional[HyperParameters] = None
+    hparams: Optional[HyperParameters] = None,
 ) -> hyperparameter_pb2.GenericHyperParameters:
   """Converts hyper-parameters from dict to proto representation."""
 
@@ -955,8 +1030,9 @@ def hparams_dict_to_generic_proto(
       field.value.categorical = value
     else:
       raise Exception(
-          "Unsupported type \"{}:{}\" for hyper-parameter \"{}\". "
+          'Unsupported type "{}:{}" for hyper-parameter "{}". '
           "Possible types are int (for integer), float (for real), and str "
-          "(for categorical)".format(value, type(value), key))
+          "(for categorical)".format(value, type(value), key)
+      )
 
   return generic

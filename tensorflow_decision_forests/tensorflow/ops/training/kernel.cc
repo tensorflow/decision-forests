@@ -996,6 +996,61 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
 REGISTER_KERNEL_BUILDER(Name("SimpleMLModelTrainer").Device(tf::DEVICE_CPU),
                         SimpleMLModelTrainer);
 
+class SimpleMLCheckTrainingConfiguration : public tensorflow::OpKernel {
+ public:
+  explicit SimpleMLCheckTrainingConfiguration(tf::OpKernelConstruction* ctx)
+      : OpKernel(ctx) {
+    std::string hparams;
+    OP_REQUIRES_OK(ctx, ctx->GetAttr("hparams", &hparams));
+    if (!hparams_.ParseFromString(hparams)) {
+      OP_REQUIRES_OK(ctx, tf::Status(tf::error::INVALID_ARGUMENT,
+                                     "Cannot de-serialize hparams proto."));
+    }
+
+    {
+      std::string serialized_training_config;
+      OP_REQUIRES_OK(
+          ctx, ctx->GetAttr("training_config", &serialized_training_config));
+      if (!training_config_.MergeFromString(serialized_training_config)) {
+        OP_REQUIRES_OK(
+            ctx, tf::Status(tf::error::INVALID_ARGUMENT,
+                            "Cannot de-serialize training_config proto."));
+      }
+    }
+  }
+
+  ~SimpleMLCheckTrainingConfiguration() override = default;
+
+  void Compute(tf::OpKernelContext* ctx) override {
+    if (!training_config_.has_task()) {
+      OP_REQUIRES_OK(
+          ctx, tf::Status(tf::error::INVALID_ARGUMENT, "\"task\" not set"));
+    }
+    if (!training_config_.has_learner()) {
+      OP_REQUIRES_OK(
+          ctx, tf::Status(tf::error::INVALID_ARGUMENT, "\"learner\" not set"));
+    }
+    if (!training_config_.has_label()) {
+      OP_REQUIRES_OK(
+          ctx, tf::Status(tf::error::INVALID_ARGUMENT, "\"label\" not set"));
+    }
+
+    // Check the parameters by creating a learner.
+    std::unique_ptr<model::AbstractLearner> learner;
+    OP_REQUIRES_OK(
+        ctx, utils::FromUtilStatus(GetLearner(training_config_, &learner)));
+    OP_REQUIRES_OK(
+        ctx, utils::FromUtilStatus(learner->SetHyperParameters(hparams_)));
+  }
+
+  model::proto::GenericHyperParameters hparams_;
+  model::proto::TrainingConfig training_config_;
+};
+
+REGISTER_KERNEL_BUILDER(
+    Name("SimpleMLCheckTrainingConfiguration").Device(tf::DEVICE_CPU),
+    SimpleMLCheckTrainingConfiguration);
+
 // Utility class for operations on simpleML models stored in a resource.
 class AbstractSimpleMLModelOp : public tensorflow::OpKernel {
  public:

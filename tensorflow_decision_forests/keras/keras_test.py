@@ -52,7 +52,8 @@ CategoryEncoding = layers.experimental.preprocessing.CategoryEncoding
 StringLookup = layers.experimental.preprocessing.StringLookup
 
 Dataset = collections.namedtuple(
-    "Dataset", ["train", "test", "semantics", "label", "num_classes"])
+    "Dataset", ["train", "test", "semantics", "label", "num_classes"]
+)
 
 # Tf's tf.feature_column_FeatureColumn is not accessible.
 FeatureColumn = Any
@@ -66,13 +67,15 @@ def data_root_path() -> str:
 
 
 def ydf_test_data_path() -> str:
-  return os.path.join(data_root_path(),
-                      "external/ydf/yggdrasil_decision_forests/test_data")
+  return os.path.join(
+      data_root_path(), "external/ydf/yggdrasil_decision_forests/test_data"
+  )
 
 
 def tfdf_test_data_path() -> str:
-  return os.path.join(data_root_path(),
-                      "tensorflow_decision_forests/test_data")
+  return os.path.join(
+      data_root_path(), "tensorflow_decision_forests/test_data"
+  )
 
 
 def tmp_path() -> str:
@@ -99,11 +102,13 @@ def prepare_dataset(train, test, label, num_classes) -> Dataset:
       test=test,
       semantics=semantics,
       label=label,
-      num_classes=num_classes)
+      num_classes=num_classes,
+  )
 
 
-def train_test_split(dataset: pd.DataFrame,
-                     ratio_second: float) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def train_test_split(
+    dataset: pd.DataFrame, ratio_second: float
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
   """Splits randomly a dataframe in two."""
   assert ratio_second >= 0.0
   assert ratio_second <= 1.0
@@ -169,8 +174,9 @@ def shopping_dataset() -> Dataset:
 
   # Path to dataset.
   dataset_directory = os.path.join(internal_test_data_path(), "dataset")
-  dataset_path = os.path.join(dataset_directory,
-                              "shopping_relevance_small1.csv")
+  dataset_path = os.path.join(
+      dataset_directory, "shopping_relevance_small1.csv"
+  )
   dataset = pd.read_csv(dataset_path)
   train, test = train_test_split(dataset, ratio_second=0.30)
 
@@ -181,8 +187,9 @@ def z_normalize(value, mean, std):
   return (value - mean) / std
 
 
-def build_feature_usages(dataset: Dataset,
-                         include_semantic: bool) -> List[keras.FeatureUsage]:
+def build_feature_usages(
+    dataset: Dataset, include_semantic: bool
+) -> List[keras.FeatureUsage]:
   if include_semantic:
     return [
         keras.FeatureUsage(key, semantic=semantic)
@@ -208,12 +215,15 @@ def build_feature_columns(dataset: Dataset, dense: bool) -> List[FeatureColumn]:
       feature_columns.append(
           tf.feature_column.numeric_column(
               key,
-              normalizer_fn=functools.partial(z_normalize, mean=mean, std=std)))
+              normalizer_fn=functools.partial(z_normalize, mean=mean, std=std),
+          )
+      )
 
     elif semantic == keras.FeatureSemantic.CATEGORICAL:
       vocabulary = dataset.train[key].unique()
       sparse_column = tf.feature_column.categorical_column_with_vocabulary_list(
-          key, vocabulary)
+          key, vocabulary
+      )
 
       if dense:
         indicator_column = tf.feature_column.indicator_column(sparse_column)
@@ -228,7 +238,6 @@ def build_feature_columns(dataset: Dataset, dense: bool) -> List[FeatureColumn]:
 
 
 def build_preprocessing(dataset: Dataset) -> Tuple[List[Any], List[Any]]:
-
   raw_inputs = []
   processed_inputs = []
 
@@ -236,7 +245,6 @@ def build_preprocessing(dataset: Dataset) -> Tuple[List[Any], List[Any]]:
     raw_input_values = dataset.train[key].values
 
     if semantic == keras.FeatureSemantic.NUMERICAL:
-
       normalizer = Normalization(axis=None)
       normalizer.adapt(raw_input_values)
 
@@ -247,13 +255,13 @@ def build_preprocessing(dataset: Dataset) -> Tuple[List[Any], List[Any]]:
       processed_inputs.append(processed_input)
 
     elif semantic == keras.FeatureSemantic.CATEGORICAL:
-
       if raw_input_values.dtype in [np.int64]:
         # Integer
         raw_input = layers.Input(shape=(1,), name=key, dtype="int64")
         raw_input = layers.minimum([raw_input, 5])
         onehot = CategoryEncoding(
-            num_tokens=np.minimum(raw_input_values, 5), output_mode="binary")
+            num_tokens=np.minimum(raw_input_values, 5), output_mode="binary"
+        )
         processed_input = onehot(raw_input)
 
       else:
@@ -274,12 +282,14 @@ def build_preprocessing(dataset: Dataset) -> Tuple[List[Any], List[Any]]:
 
 
 def dataset_to_tf_dataset(
-    dataset: Dataset) -> Tuple[tf.data.Dataset, tf.data.Dataset]:
+    dataset: Dataset,
+) -> Tuple[tf.data.Dataset, tf.data.Dataset]:
   """Converts a Dataset into a training and testing tf.Datasets."""
 
   def df_to_ds(df):
     return tf.data.Dataset.from_tensor_slices(
-        (dict(df.drop(dataset.label, axis=1)), df[dataset.label].values))
+        (dict(df.drop(dataset.label, axis=1)), df[dataset.label].values)
+    )
 
   train_ds = df_to_ds(dataset.train).batch(1024)
   test_ds = df_to_ds(dataset.test).batch(1024)
@@ -292,7 +302,9 @@ def create_tf_data_service():
   dispatcher_address = dispatcher.target.split("://")[1]
   worker = tf.data.experimental.service.WorkerServer(
       tf.data.experimental.service.WorkerConfig(
-          dispatcher_address=dispatcher_address))
+          dispatcher_address=dispatcher_address
+      )
+  )
   # Attach the worker to the dispatcher to avoid having it garbage collected.
   setattr(dispatcher, "worker", worker)
   return dispatcher
@@ -386,7 +398,8 @@ def build_model(signature: Signature, dataset: Dataset, **args) -> models.Model:
     for key in processed_inputs.keys():
       features.append(keras.FeatureUsage(key))
     model = keras.RandomForestModel(
-        preprocessing=preprocessing, features=features, **args)
+        preprocessing=preprocessing, features=features, **args
+    )
 
   elif signature == Signature.DENSE_FEATURE_COLUMN:
     feature_columns = build_feature_columns(dataset, dense=True)
@@ -406,11 +419,9 @@ def build_model(signature: Signature, dataset: Dataset, **args) -> models.Model:
 
 class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
-  def _check_adult_model(self,
-                         model,
-                         dataset,
-                         minimum_accuracy,
-                         check_serialization=True):
+  def _check_adult_model(
+      self, model, dataset, minimum_accuracy, check_serialization=True
+  ):
     """Runs a battery of test on a model compatible with the adult dataset.
 
     The following tests are run:
@@ -466,29 +477,36 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
       # Export the trained model.
       saved_model_path = os.path.join(self.get_temp_dir(), "saved_model")
-      new_saved_model_path = os.path.join(self.get_temp_dir(),
-                                          "saved_model_copy")
+      new_saved_model_path = os.path.join(
+          self.get_temp_dir(), "saved_model_copy"
+      )
       logging.info("Saving model to %s", saved_model_path)
       model.save(saved_model_path)
 
       tf.keras.backend.clear_session()
 
       logging.info("Run model in separate binary")
-      process = subprocess.Popen([
-          os.path.join(
-              data_root_path(),
-              "tensorflow_decision_forests/keras/test_runner"),
-          "--model_path", saved_model_path, "--dataset_path",
-          os.path.join(ydf_test_data_path(), "dataset", "adult_test.csv")
-      ],
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE)
+      process = subprocess.Popen(
+          [
+              os.path.join(
+                  data_root_path(),
+                  "tensorflow_decision_forests/keras/test_runner",
+              ),
+              "--model_path",
+              saved_model_path,
+              "--dataset_path",
+              os.path.join(ydf_test_data_path(), "dataset", "adult_test.csv"),
+          ],
+          stdout=subprocess.PIPE,
+          stderr=subprocess.PIPE,
+      )
       stdout, stderr = process.communicate()
       logging.info("stdout:\n%s", stdout.decode("utf-8"))
       logging.info("stderr:\n%s", stderr.decode("utf-8"))
 
-      logging.info("Copying model from %s to %s", saved_model_path,
-                   new_saved_model_path)
+      logging.info(
+          "Copying model from %s to %s", saved_model_path, new_saved_model_path
+      )
 
       shutil.copytree(saved_model_path, new_saved_model_path)
       shutil.rmtree(saved_model_path)
@@ -505,29 +523,29 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
       predictions = loaded_model.predict(tf_test)
       logging.info("Loaded model predictions: %s", predictions)
 
-  def _check_adult_model_with_cart(self,
-                                   model,
-                                   dataset,
-                                   check_serialization=True):
+  def _check_adult_model_with_cart(
+      self, model, dataset, check_serialization=True
+  ):
     """Instance of _check_model for the adult dataset."""
 
     self._check_adult_model(
         model=model,
         dataset=dataset,
         minimum_accuracy=0.864,
-        check_serialization=check_serialization)
+        check_serialization=check_serialization,
+    )
 
-  def _check_adult_model_with_one_hot(self,
-                                      model,
-                                      dataset,
-                                      check_serialization=True):
+  def _check_adult_model_with_one_hot(
+      self, model, dataset, check_serialization=True
+  ):
     """Instance of _check_model for the adult dataset with bad preprocessing."""
 
     self._check_adult_model(
         model=model,
         dataset=dataset,
         minimum_accuracy=0.859,
-        check_serialization=check_serialization)
+        check_serialization=check_serialization,
+    )
 
   def test_model_adult_automatic_discovery(self):
     """Test on the Adult dataset.
@@ -539,7 +557,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     model = build_model(
         signature=Signature.AUTOMATIC_FEATURE_DISCOVERY,
         dataset=dataset,
-        num_threads=8)
+        num_threads=8,
+    )
     self._check_adult_model_with_cart(model, dataset)
 
     inspector = model.make_inspector()
@@ -560,13 +579,15 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     dataset = adult_dataset()
     model = keras.RandomForestModel(
-        hyperparameter_template="benchmark_rank1@v1")
+        hyperparameter_template="benchmark_rank1@v1"
+    )
 
     self._check_adult_model(
         model=model,
         dataset=dataset,
         minimum_accuracy=0.864,
-        check_serialization=True)
+        check_serialization=True,
+    )
 
   def test_model_adult_with_hyperparameter_template_v2(self):
     """Test on the Adult dataset.
@@ -581,7 +602,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         model=model,
         dataset=dataset,
         minimum_accuracy=0.864,
-        check_serialization=True)
+        check_serialization=True,
+    )
 
   def test_model_adult_with_pure_model(self):
     dataset = adult_dataset()
@@ -591,7 +613,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         model=model,
         dataset=dataset,
         minimum_accuracy=0.864,
-        check_serialization=True)
+        check_serialization=True,
+    )
 
   def test_model_numpy_weighted(self):
     """Test on the synthetic numpy dataset with weighting."""
@@ -622,14 +645,14 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     dataset = adult_dataset()
     model = keras.RandomForestModel()
     ds = keras.pd_dataframe_to_tf_dataset(
-        dataset.train, dataset.label, weight="age")
+        dataset.train, dataset.label, weight="age"
+    )
     model.fit(ds)
 
     inspector = model.make_inspector()
     self.assertGreater(inspector.evaluation().accuracy, 0.84)
 
   def test_model_adult_automatic_discovery_oob_variable_importance(self):
-
     dataset = adult_dataset()
     model = keras.RandomForestModel(compute_oob_variable_importances=True)
     model.fit(keras.pd_dataframe_to_tf_dataset(dataset.train, dataset.label))
@@ -658,7 +681,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         model=model,
         dataset=dataset,
         minimum_accuracy=0.853,
-        check_serialization=True)
+        check_serialization=True,
+    )
 
   def test_model_adult_automatic_discovery_cart_pandas_dataframe(self):
     """Test the support of pandas dataframes."""
@@ -670,19 +694,25 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     # Train the model.
     model.fit(
         keras.pd_dataframe_to_tf_dataset(
-            dataset.train, dataset.label, task=keras.Task.CLASSIFICATION))
+            dataset.train, dataset.label, task=keras.Task.CLASSIFICATION
+        )
+    )
 
     # Evaluate the model.
     evaluation = model.evaluate(
         keras.pd_dataframe_to_tf_dataset(
-            dataset.test, dataset.label, task=keras.Task.CLASSIFICATION))
+            dataset.test, dataset.label, task=keras.Task.CLASSIFICATION
+        )
+    )
     self.assertGreaterEqual(evaluation[1], 0.853)
 
     # Generate predictions with a dataset containing labels (i.e. the label
     # are ignored).
     prediction_1 = model.predict(
         keras.pd_dataframe_to_tf_dataset(
-            dataset.test, dataset.label, task=keras.Task.CLASSIFICATION))
+            dataset.test, dataset.label, task=keras.Task.CLASSIFICATION
+        )
+    )
     logging.info("prediction_1 %s", prediction_1)
 
     # Generate predictions with a dataset without labels.
@@ -720,19 +750,22 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
   def test_model_adult_features_without_semantic(self):
     dataset = adult_dataset()
     model = build_model(
-        signature=Signature.FEATURES_WITHOUT_SEMANTIC, dataset=dataset)
+        signature=Signature.FEATURES_WITHOUT_SEMANTIC, dataset=dataset
+    )
     self._check_adult_model_with_cart(model, dataset)
 
   def test_model_adult_features_with_semantic(self):
     dataset = adult_dataset()
     model = build_model(
-        signature=Signature.FEATURES_WITH_SEMANTIC, dataset=dataset)
+        signature=Signature.FEATURES_WITH_SEMANTIC, dataset=dataset
+    )
     self._check_adult_model_with_cart(model, dataset)
 
   def test_model_adult_structured_preprocessing(self):
     dataset = adult_dataset()
     model = build_model(
-        signature=Signature.STRUCTURED_LIST_PREPROCESSING, dataset=dataset)
+        signature=Signature.STRUCTURED_LIST_PREPROCESSING, dataset=dataset
+    )
     self._check_adult_model_with_one_hot(model, dataset)
 
   def test_model_adult_structured_dictionary_preprocessing(self):
@@ -740,7 +773,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     model = build_model(
         signature=Signature.STRUCTURED_DICTIONARY_PREPROCESSING,
         dataset=dataset,
-        num_trees=100)
+        num_trees=100,
+    )
     self._check_adult_model_with_one_hot(model, dataset)
 
   def test_model_adult_structured_preprocessing_with_semantic(self):
@@ -748,17 +782,20 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     model = build_model(
         signature=Signature.STRUCTURED_PREPROCESSING_WITH_SEMANTIC,
         dataset=dataset,
-        num_trees=100)
+        num_trees=100,
+    )
     self._check_adult_model_with_one_hot(model, dataset)
 
   def test_model_adult_dense_feature_columns(self):
     dataset = adult_dataset()
     model = build_model(
-        signature=Signature.DENSE_FEATURE_COLUMN, dataset=dataset)
+        signature=Signature.DENSE_FEATURE_COLUMN, dataset=dataset
+    )
     # The z-normalization of numerical feature columns cannot be serialized
     # (25 Nov.2020).
     self._check_adult_model_with_one_hot(
-        model, dataset, check_serialization=False)
+        model, dataset, check_serialization=False
+    )
 
   def test_model_adult_dense_nparray(self):
     dataset = adult_dataset()
@@ -771,7 +808,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     test_y = dataset.test[dataset.label].values
 
     model = build_model(
-        signature=Signature.AUTOMATIC_FEATURE_DISCOVERY, dataset=dataset)
+        signature=Signature.AUTOMATIC_FEATURE_DISCOVERY, dataset=dataset
+    )
 
     model.compile(metrics=["accuracy"])
 
@@ -792,7 +830,6 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     logging.info("Predictions: %s", predictions)
 
   def test_model_adult_dense_tfdataset(self):
-
     dataset = adult_dataset()
     feature_columns = build_feature_columns(dataset, dense=True)
     dense_features = layers.DenseFeatures(feature_columns)
@@ -809,7 +846,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     test_ds = test_ds.batch(100)
 
     model = build_model(
-        signature=Signature.AUTOMATIC_FEATURE_DISCOVERY, dataset=dataset)
+        signature=Signature.AUTOMATIC_FEATURE_DISCOVERY, dataset=dataset
+    )
 
     model.compile(metrics=["accuracy"])
 
@@ -832,7 +870,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     tf_train, tf_test = dataset_to_tf_dataset(dataset)
 
     model = build_model(
-        signature=Signature.AUTOMATIC_FEATURE_DISCOVERY, dataset=dataset)
+        signature=Signature.AUTOMATIC_FEATURE_DISCOVERY, dataset=dataset
+    )
 
     model.compile(metrics=["accuracy"])
 
@@ -848,7 +887,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
   def test_model_abalone(self):
     """Test on the Abalone dataset.
 
-      Regression.
+    Regression.
     """
 
     dataset = abalone_dataset()
@@ -857,7 +896,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     model = build_model(
         signature=Signature.AUTOMATIC_FEATURE_DISCOVERY,
         dataset=dataset,
-        task=keras.Task.REGRESSION)
+        task=keras.Task.REGRESSION,
+    )
 
     model.compile(metrics=["mse"])
 
@@ -875,7 +915,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     tf_train, tf_test = dataset_to_tf_dataset(dataset)
 
     model = keras.GradientBoostedTreesModel(
-        sorting_strategy="IN_NODE", task=keras.Task.REGRESSION)
+        sorting_strategy="IN_NODE", task=keras.Task.REGRESSION
+    )
 
     model.fit(x=tf_train, validation_data=tf_test)
     model.summary()
@@ -894,18 +935,24 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     # Disable the pre-sorting of the numerical features.
     yggdrasil_training_config = keras.core.YggdrasilTrainingConfig()
     rf_training_config = yggdrasil_training_config.Extensions[
-        random_forest_pb2.random_forest_config]
-    rf_training_config.decision_tree.internal.sorting_strategy = decision_tree_pb2.DecisionTreeTrainingConfig.Internal.SortingStrategy.IN_NODE
+        random_forest_pb2.random_forest_config
+    ]
+    rf_training_config.decision_tree.internal.sorting_strategy = (
+        decision_tree_pb2.DecisionTreeTrainingConfig.Internal.SortingStrategy.IN_NODE
+    )
 
     # Train on 10 threads.
     yggdrasil_deployment_config = keras.core.YggdrasilDeploymentConfig(
-        num_threads=10)
+        num_threads=10
+    )
 
     model = keras.RandomForestModel(
         task=keras.Task.REGRESSION,
         advanced_arguments=keras.AdvancedArguments(
             yggdrasil_training_config=yggdrasil_training_config,
-            yggdrasil_deployment_config=yggdrasil_deployment_config))
+            yggdrasil_deployment_config=yggdrasil_deployment_config,
+        ),
+    )
 
     model.compile(metrics=["mse"])  # REMOVE run_eagerly
     model.fit(x=tf_train, validation_data=tf_test)
@@ -927,7 +974,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
       test_categorical: Optional[bool] = False,
       test_categorical_set: Optional[bool] = False,
       label_shape: Optional[int] = None,
-      fit_raises: Optional[Type[Exception]] = None):
+      fit_raises: Optional[Type[Exception]] = None,
+  ):
     """Trains a model on a synthetic dataset."""
 
     train_path = os.path.join(self.get_temp_dir(), "train.rio.gz")
@@ -938,8 +986,10 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         num_categorical_set=2 if test_categorical_set else 0,
         num_boolean=1 if test_numerical else 0,
         num_multidimensional_numerical=1
-        if test_multidimensional_numerical else 0,
-        num_accumulators=3)
+        if test_multidimensional_numerical
+        else 0,
+        num_accumulators=3,
+    )
     if task == keras.Task.CLASSIFICATION:
       options.classification.num_classes = 2
       options.classification.store_label_as_str = False
@@ -957,9 +1007,15 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     logging.info("Create synthetic dataset in %s and %s", train_path, test_path)
     args = [
         "tensorflow_decision_forests/keras/synthetic_dataset",
-        "--alsologtostderr", "--train", "tfrecord+tfe:" + train_path, "--test",
-        "tfrecord+tfe:" + test_path, "--ratio_test", "0.1", "--options",
-        options_path
+        "--alsologtostderr",
+        "--train",
+        "tfrecord+tfe:" + train_path,
+        "--test",
+        "tfrecord+tfe:" + test_path,
+        "--ratio_test",
+        "0.1",
+        "--options",
+        options_path,
     ]
     popen = subprocess.Popen(args, stdout=subprocess.PIPE)
     popen.wait()
@@ -982,7 +1038,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     if test_multidimensional_numerical:
       feature_spec["multidimensional_num_0"] = tf.io.FixedLenFeature(
-          [5], tf.float32, [np.nan] * 5)
+          [5], tf.float32, [np.nan] * 5
+      )
 
     if test_categorical:
       feature_spec["cat_int_0"] = tf.io.FixedLenFeature([], tf.int64, -2)
@@ -998,7 +1055,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     def parse(serialized_example):
       feature_values = tf.io.parse_single_example(
-          serialized_example, features=feature_spec)
+          serialized_example, features=feature_spec
+      )
       label = feature_values.pop("LABEL")
       return feature_values, label
 
@@ -1006,37 +1064,46 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
       if test_categorical_set:
         for name in ["cat_set_int_1", "cat_set_str_1"]:
           feature_values[name] = tf.RaggedTensor.from_sparse(
-              feature_values[name])
+              feature_values[name]
+          )
 
       if task == keras.Task.CLASSIFICATION:
         label = label - 1  # Encode the label in {0,1}.
       return feature_values, label
 
-    train_dataset = tf.data.TFRecordDataset(
-        train_path,
-        compression_type="GZIP").map(parse).batch(500).map(preprocess)
-    test_dataset = tf.data.TFRecordDataset(
-        test_path,
-        compression_type="GZIP").map(parse).batch(500).map(preprocess)
+    train_dataset = (
+        tf.data.TFRecordDataset(train_path, compression_type="GZIP")
+        .map(parse)
+        .batch(500)
+        .map(preprocess)
+    )
+    test_dataset = (
+        tf.data.TFRecordDataset(test_path, compression_type="GZIP")
+        .map(parse)
+        .batch(500)
+        .map(preprocess)
+    )
 
     features = []
 
     if test_categorical_set:
       # The semantic of sparse tensors cannot be inferred safely.
       features.extend([
-          keras.FeatureUsage("cat_set_int_0",
-                             keras.FeatureSemantic.CATEGORICAL_SET),
+          keras.FeatureUsage(
+              "cat_set_int_0", keras.FeatureSemantic.CATEGORICAL_SET
+          ),
           keras.FeatureUsage(
               "cat_set_str_0",
               keras.FeatureSemantic.CATEGORICAL_SET,
-              max_vocab_count=500)
+              max_vocab_count=500,
+          ),
       ])
 
     if test_categorical:
       # integers are detected as numerical by default.
       features.extend([
           keras.FeatureUsage("cat_int_0", keras.FeatureSemantic.CATEGORICAL),
-          keras.FeatureUsage("cat_int_1", keras.FeatureSemantic.CATEGORICAL)
+          keras.FeatureUsage("cat_int_1", keras.FeatureSemantic.CATEGORICAL),
       ])
 
     val_keys = ["val_loss"]
@@ -1052,7 +1119,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
       val_keys += ["val_mse"]
     elif task == keras.Task.RANKING:
       model = keras.GradientBoostedTreesModel(
-          task=task, features=features, ranking_group="GROUP", num_trees=50)
+          task=task, features=features, ranking_group="GROUP", num_trees=50
+      )
       compare = None
     else:
       assert False
@@ -1067,11 +1135,13 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     if fit_raises is not None:
       with self.assertRaises(fit_raises):
         model.fit(
-            train_dataset, validation_data=test_dataset, callbacks=[callback])
+            train_dataset, validation_data=test_dataset, callbacks=[callback]
+        )
       return
 
     history = model.fit(
-        train_dataset, validation_data=test_dataset, callbacks=[callback])
+        train_dataset, validation_data=test_dataset, callbacks=[callback]
+    )
     model.summary()
 
     # Compare the different model evaluations.
@@ -1088,8 +1158,9 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     logging.info("Train history: %s", history.history)
     val_evaluation = [history.history[key][0] for key in val_keys]
     logging.info(
-        "Validation evaluation in training "
-        "(validation_data=test_dataset): %s", val_evaluation)
+        "Validation evaluation in training (validation_data=test_dataset): %s",
+        val_evaluation,
+    )
 
     # Test evaluation (computed with the callback)
     logging.info("Callback evaluation (test_dataset): %s", callback.evaluation)
@@ -1106,7 +1177,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
   @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_classification_numerical(self):
     self._synthetic_train_and_test(
-        keras.Task.CLASSIFICATION, 0.795, 0.717, test_numerical=True)
+        keras.Task.CLASSIFICATION, 0.795, 0.717, test_numerical=True
+    )
 
   @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_classification_squeeze_label(self):
@@ -1115,7 +1187,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         0.795,
         0.717,
         test_numerical=True,
-        label_shape=1)
+        label_shape=1,
+    )
 
   @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_classification_squeeze_label_invalid_shape(self):
@@ -1125,12 +1198,14 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         0.72,
         test_numerical=True,
         label_shape=2,
-        fit_raises=ValueError)
+        fit_raises=ValueError,
+    )
 
   @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_classification_categorical(self):
     self._synthetic_train_and_test(
-        keras.Task.CLASSIFICATION, 0.95, 0.70, test_categorical=True)
+        keras.Task.CLASSIFICATION, 0.95, 0.70, test_categorical=True
+    )
 
   @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_classification_multidimensional_numerical(self):
@@ -1138,37 +1213,44 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         keras.Task.CLASSIFICATION,
         0.96,
         0.70,
-        test_multidimensional_numerical=True)
+        test_multidimensional_numerical=True,
+    )
 
   @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_classification_categorical_set(self):
     self._synthetic_train_and_test(
-        keras.Task.CLASSIFICATION, 0.915, 0.645, test_categorical_set=True)
+        keras.Task.CLASSIFICATION, 0.915, 0.645, test_categorical_set=True
+    )
 
   @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_regression_numerical(self):
     self._synthetic_train_and_test(
-        keras.Task.REGRESSION, 0.41, 0.43, test_numerical=True)
+        keras.Task.REGRESSION, 0.41, 0.43, test_numerical=True
+    )
 
   @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_regression_categorical(self):
     self._synthetic_train_and_test(
-        keras.Task.REGRESSION, 0.34, 0.34, test_categorical=True)
+        keras.Task.REGRESSION, 0.34, 0.34, test_categorical=True
+    )
 
   @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_regression_multidimensional_numerical(self):
     self._synthetic_train_and_test(
-        keras.Task.REGRESSION, 0.47, 0.46, test_multidimensional_numerical=True)
+        keras.Task.REGRESSION, 0.47, 0.46, test_multidimensional_numerical=True
+    )
 
   @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_regression_categorical_set(self):
     self._synthetic_train_and_test(
-        keras.Task.REGRESSION, 0.345, 0.345, test_categorical_set=True)
+        keras.Task.REGRESSION, 0.345, 0.345, test_categorical_set=True
+    )
 
   @unittest.skip("Creation of synthetic datasets in YDF is broken.")
   def test_synthetic_ranking_numerical(self):
     self._synthetic_train_and_test(
-        keras.Task.RANKING, -1.0, -1.0, test_numerical=True)
+        keras.Task.RANKING, -1.0, -1.0, test_numerical=True
+    )
 
   def test_model_adult_df_on_top_of_nn(self):
     """Composition of a DF on top of a NN."""
@@ -1189,7 +1271,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     nn_model.compile(
         optimizer=optimizers.Adam(),
         loss=tf.keras.losses.BinaryCrossentropy(),
-        metrics=["accuracy"])
+        metrics=["accuracy"],
+    )
 
     nn_model.fit(x=tf_train, validation_data=tf_test, epochs=10)
     logging.info("Trained NN")
@@ -1197,7 +1280,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     # Build a DF on top of the NN
     nn_without_head = models.Model(
-        inputs=nn_model.inputs, outputs=nn_model.get_layer("last").output)
+        inputs=nn_model.inputs, outputs=nn_model.get_layer("last").output
+    )
     df_model = keras.RandomForestModel(preprocessing=nn_without_head)
 
     df_model.compile(metrics=["accuracy"])
@@ -1207,7 +1291,6 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     df_model.summary()
 
   def test_parse_hp_template(self):
-
     self.assertEqual(core._parse_hp_template("abc@v5"), ("abc", 5))
     self.assertEqual(core._parse_hp_template("abc"), ("abc", None))
     with self.assertRaises(ValueError):
@@ -1215,11 +1298,14 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
   def test_get_matching_template(self):
     a = core.HyperParameterTemplate(
-        name="t1", version=1, parameters={"p": 1.0}, description="")
+        name="t1", version=1, parameters={"p": 1.0}, description=""
+    )
     b = core.HyperParameterTemplate(
-        name="t1", version=2, parameters={"p": 2.0}, description="")
+        name="t1", version=2, parameters={"p": 2.0}, description=""
+    )
     c = core.HyperParameterTemplate(
-        name="t2", version=1, parameters={"p": 3.0}, description="")
+        name="t2", version=1, parameters={"p": 3.0}, description=""
+    )
     templates = [a, b, c]
 
     self.assertEqual(core._get_matching_template("t1@v1", templates), a)
@@ -1236,29 +1322,30 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
   def test_apply_hp_template(self):
     templates = [
         core.HyperParameterTemplate(
-            name="t1", version=1, parameters={"p1": 2.0}, description="")
+            name="t1", version=1, parameters={"p1": 2.0}, description=""
+        )
     ]
 
     self.assertEqual(
-        core._apply_hp_template({"p1": 1.0},
-                                "t1",
-                                templates,
-                                explicit_parameters=set()), {"p1": 2.0})
+        core._apply_hp_template(
+            {"p1": 1.0}, "t1", templates, explicit_parameters=set()
+        ),
+        {"p1": 2.0},
+    )
 
     self.assertEqual(
-        core._apply_hp_template({"p1": 1.0},
-                                "t1",
-                                templates,
-                                explicit_parameters=set(["p1"])), {"p1": 1.0})
+        core._apply_hp_template(
+            {"p1": 1.0}, "t1", templates, explicit_parameters=set(["p1"])
+        ),
+        {"p1": 1.0},
+    )
 
     with self.assertRaises(ValueError):
-      core._apply_hp_template({"p1": 1.0},
-                              "t2",
-                              templates,
-                              explicit_parameters=set())
+      core._apply_hp_template(
+          {"p1": 1.0}, "t2", templates, explicit_parameters=set()
+      )
 
   def test_list_explicit_arguments(self):
-
     @core._list_explicit_arguments
     def f(a=1, b=2, c=3, explicit_args=None):
       f.last_explicit_args = explicit_args
@@ -1288,12 +1375,14 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     dataframe = pd.DataFrame({"x": list(range(10)), "label": list(range(10))})
     with self.assertRaises(ValueError):
       keras.pd_dataframe_to_tf_dataset(
-          dataframe, label="label", max_num_classes=5)
+          dataframe, label="label", max_num_classes=5
+      )
 
   def test_error_non_matching_task(self):
     dataframe = pd.DataFrame({"x": list(range(10)), "label": list(range(10))})
     dataset = keras.pd_dataframe_to_tf_dataset(
-        dataframe, label="label", task=keras.Task.CLASSIFICATION)
+        dataframe, label="label", task=keras.Task.CLASSIFICATION
+    )
     model = keras.GradientBoostedTreesModel(task=keras.Task.REGRESSION)
     with self.assertRaises(ValueError):
       model.fit(dataset)
@@ -1308,12 +1397,12 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     def create_ds(feature_name):
       return keras.pd_dataframe_to_tf_dataset(
-          pd.DataFrame({
-              feature_name: [1.0, 2.0, 3.0, 4.0],
-              "label": [0, 1, 0, 1]
-          }),
+          pd.DataFrame(
+              {feature_name: [1.0, 2.0, 3.0, 4.0], "label": [0, 1, 0, 1]}
+          ),
           label="label",
-          fix_feature_names=False)
+          fix_feature_names=False,
+      )
 
     model = keras.GradientBoostedTreesModel()
     with self.assertRaises(ValueError):
@@ -1325,7 +1414,9 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     # Disable the error.
     model = keras.GradientBoostedTreesModel(
         advanced_arguments=keras.AdvancedArguments(
-            fail_on_non_keras_compatible_feature_name=False))
+            fail_on_non_keras_compatible_feature_name=False
+        )
+    )
     model.fit(create_ds("x y"))
 
     # Export does not support spaces in feature names.
@@ -1342,12 +1433,12 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     def create_ds(feature_name):
       return keras.pd_dataframe_to_tf_dataset(
-          pd.DataFrame({
-              feature_name: [1.0, 2.0, 3.0, 4.0],
-              "label": [0, 1, 0, 1]
-          }),
+          pd.DataFrame(
+              {feature_name: [1.0, 2.0, 3.0, 4.0], "label": [0, 1, 0, 1]}
+          ),
           label="label",
-          fix_feature_names=False)
+          fix_feature_names=False,
+      )
 
     model = keras.GradientBoostedTreesModel()
     model.fit(create_ds("_xy"))
@@ -1374,7 +1465,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         train_path=train_path,
         label_key=label,
         dataset_format="csv",
-        valid_path=test_path)
+        valid_path=test_path,
+    )
     logging.info("Training history: %s", training_history.history)
 
     logging.info("Trained model:")
@@ -1389,11 +1481,25 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     model.predict(tf_test)
 
     features = [feature.name for feature in model.make_inspector().features()]
-    self.assertEqual(features, [
-        "age", "workclass", "fnlwgt", "education", "education_num",
-        "marital_status", "occupation", "relationship", "race", "sex",
-        "capital_gain", "capital_loss", "hours_per_week", "native_country"
-    ])
+    self.assertEqual(
+        features,
+        [
+            "age",
+            "workclass",
+            "fnlwgt",
+            "education",
+            "education_num",
+            "marital_status",
+            "occupation",
+            "relationship",
+            "race",
+            "sex",
+            "capital_gain",
+            "capital_loss",
+            "hours_per_week",
+            "native_country",
+        ],
+    )
 
   def _shard_dataset(self, path, num_shards=20) -> List[str]:
     """Splits a csv dataset into multiple csv files."""
@@ -1426,7 +1532,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         label_key=label,
         dataset_format="csv",
         valid_path=test_path,
-        num_io_threads=15)
+        num_io_threads=15,
+    )
     logging.info("Training history: %s", training_history.history)
 
     logging.info("Trained model:")
@@ -1449,18 +1556,21 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     model = keras.GradientBoostedTreesModel(
         features=[
             keras.FeatureUsage("age", keras.FeatureSemantic.NUMERICAL),
-            keras.FeatureUsage("relationship",
-                               keras.FeatureSemantic.CATEGORICAL),
+            keras.FeatureUsage(
+                "relationship", keras.FeatureSemantic.CATEGORICAL
+            ),
             keras.FeatureUsage("capital_loss", keras.FeatureSemantic.NUMERICAL),
         ],
-        exclude_non_specified_features=True)
+        exclude_non_specified_features=True,
+    )
     model.compile(metrics=["accuracy"])
 
     training_history = model.fit_on_dataset_path(
         train_path=train_path,
         label_key=label,
         dataset_format="csv",
-        valid_path=test_path)
+        valid_path=test_path,
+    )
     logging.info("Training history: %s", training_history.history)
 
     logging.info("Trained model:")
@@ -1486,7 +1596,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         "c,d": [0, 1, 2],
         "e%f": [0, 1, 2],
         "a%b": [0, 1, 2],
-        "label": [0, 1, 2]
+        "label": [0, 1, 2],
     })
     dataset = keras.pd_dataframe_to_tf_dataset(dataframe, label="label")
 
@@ -1500,7 +1610,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         ",cd": [0, 1, 2],
         "%ef": [0, 1, 2],
         "_ab": [0, 1, 2],
-        "label": [0, 1, 2]
+        "label": [0, 1, 2],
     })
     dataset = keras.pd_dataframe_to_tf_dataset(dataframe, label="label")
 
@@ -1513,7 +1623,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         "self": [0, 1, 2],
         " self": [0, 1, 2],
         "self%": [0, 1, 2],
-        "label": [0, 1, 2]
+        "label": [0, 1, 2],
     })
     dataset = keras.pd_dataframe_to_tf_dataset(dataframe, label="label")
 
@@ -1522,30 +1632,27 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         self.assertIn(expected_name, features)
 
   def test_override_save(self):
-
     model_path = os.path.join(self.get_temp_dir(), "model")
     logging.info("model_path: %s", model_path)
 
     model_1 = keras.GradientBoostedTreesModel()
-    dataset_1 = pd.DataFrame({
-        "f1": [0, 1, 2] * 100,
-        "f2": [3, 4, 6] * 100,
-        "label": [0, 1, 0] * 100
-    })
+    dataset_1 = pd.DataFrame(
+        {"f1": [0, 1, 2] * 100, "f2": [3, 4, 6] * 100, "label": [0, 1, 0] * 100}
+    )
     model_1.fit(keras.pd_dataframe_to_tf_dataset(dataset_1, label="label"))
     model_1.save(model_path)
 
     model_2 = keras.GradientBoostedTreesModel()
-    dataset_2 = pd.DataFrame({
-        "f1": ["a", "b", "c"] * 100,
-        "label": [0, 1, 0] * 100
-    })
+    dataset_2 = pd.DataFrame(
+        {"f1": ["a", "b", "c"] * 100, "label": [0, 1, 0] * 100}
+    )
     model_2.fit(keras.pd_dataframe_to_tf_dataset(dataset_2, label="label"))
     model_2.save(model_path)
 
     model_2_restored = tf.keras.models.load_model(model_path)
     model_2_restored.predict(
-        keras.pd_dataframe_to_tf_dataset(dataset_2, label="label"))
+        keras.pd_dataframe_to_tf_dataset(dataset_2, label="label")
+    )
 
   def test_output_logits(self):
     dataset = adult_dataset()
@@ -1575,7 +1682,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
       features = np.random.uniform(size=(num_examples, num_features))
       hidden = features[:, 0] + 0.05 * np.random.uniform(size=num_examples)
       labels = (hidden >= features[:, 1]).astype(int) + (
-          hidden >= features[:, 2]).astype(int)
+          hidden >= features[:, 2]
+      ).astype(int)
       return tf.data.Dataset.from_tensor_slices((features, labels)).batch(100)
 
     train_dataset = make_dataset()
@@ -1594,14 +1702,18 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
       # Assumed one dimension output.
       self.assertEqual(predictions.shape[1], 1)
 
-    logging.info("Pre-training call signature: %s",
-                 model.call.pretty_printed_concrete_signatures())
+    logging.info(
+        "Pre-training call signature: %s",
+        model.call.pretty_printed_concrete_signatures(),
+    )
 
     # The model is trained after the composition.
     model.fit(train_dataset)
 
-    logging.info("Post-training call signature: %s",
-                 model.call.pretty_printed_concrete_signatures())
+    logging.info(
+        "Post-training call signature: %s",
+        model.call.pretty_printed_concrete_signatures(),
+    )
 
     for features, _ in test_dataset.take(1):
       predictions = functional_model(features)
@@ -1613,8 +1725,10 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     num_examples = 100
     num_features = 4
     x_train = np.random.uniform(size=(num_examples, num_features))
-    y_train = x_train[:, 0] + 0.1 * np.random.uniform(
-        size=(num_examples)) >= x_train[:, 1] + x_train[:, 2]
+    y_train = (
+        x_train[:, 0] + 0.1 * np.random.uniform(size=(num_examples))
+        >= x_train[:, 1] + x_train[:, 2]
+    )
 
     def postprocessing(x):
       return {"pred": x, "pred_plus_one": x + 1}
@@ -1628,14 +1742,15 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     self.assertAllGreaterEqual(predictions["pred_plus_one"], 1.0)
 
   def test_unset_predict_single_probability_for_binary_classification(self):
-
     # Train a simple binary classification model.
     x_train = np.random.uniform(size=(50, 1))
     y_train = x_train[:, 0] >= 0.5
     model = keras.RandomForestModel(
         num_trees=10,
         advanced_arguments=keras.AdvancedArguments(
-            predict_single_probability_for_binary_classification=False))
+            predict_single_probability_for_binary_classification=False
+        ),
+    )
     model.fit(x=x_train, y=y_train)
 
     # Make sure the prediction contains the probabilities of the two classes.
@@ -1643,14 +1758,15 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     self.assertEqual(predictions.shape[1], 2)
 
   def test_set_predict_single_probability_for_binary_classification(self):
-
     # Train a simple binary classification model.
     x_train = np.random.uniform(size=(50, 1))
     y_train = x_train[:, 0] >= 0.5
     model = keras.RandomForestModel(
         num_trees=10,
         advanced_arguments=keras.AdvancedArguments(
-            predict_single_probability_for_binary_classification=True))
+            predict_single_probability_for_binary_classification=True
+        ),
+    )
     model.fit(x=x_train, y=y_train)
     predictions = model.predict(x_train)
     self.assertEqual(predictions.shape[1], 1)
@@ -1663,8 +1779,9 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
       ("focal", 6, "BINARY_FOCAL_LOSS", 0.862, False),
       ("focal_no_quick_scorer", 10, "BINARY_FOCAL_LOSS", 0.862, False),
   )
-  def test_resume_training(self, name, max_depth, loss, min_accuracy,
-                           accuracy_should_increase):
+  def test_resume_training(
+      self, name, max_depth, loss, min_accuracy, accuracy_should_increase
+  ):
     # Path to dataset.
     dataset_directory = os.path.join(ydf_test_data_path(), "dataset")
     train_path = os.path.join(dataset_directory, "adult_train.csv")
@@ -1673,12 +1790,15 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     label = "income"
 
     train_ds = keras.pd_dataframe_to_tf_dataset(
-        pd.read_csv(train_path), label=label)
+        pd.read_csv(train_path), label=label
+    )
     test_ds = keras.pd_dataframe_to_tf_dataset(
-        pd.read_csv(test_path), label=label)
+        pd.read_csv(test_path), label=label
+    )
 
     model = keras.GradientBoostedTreesModel(
-        num_trees=50, validation_ratio=0.0, loss=loss, max_depth=max_depth)
+        num_trees=50, validation_ratio=0.0, loss=loss, max_depth=max_depth
+    )
     model.compile("accuracy")
 
     model.fit(train_ds)
@@ -1717,7 +1837,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         tf.data.experimental.service.distribute(
             processing_mode=tf.data.experimental.service.ShardingPolicy.OFF,
             service=dispatcher.target,
-        ))
+        )
+    )
     self.assertTrue(core._contains_repeat(a))
 
   def test_contains_batch(self):
@@ -1738,7 +1859,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         tf.data.experimental.service.distribute(
             processing_mode=tf.data.experimental.service.ShardingPolicy.OFF,
             service=dispatcher.target,
-        ))
+        )
+    )
     self.assertEqual(core._get_batch_size(a), 5)
 
   def test_contains_shuffle(self):
@@ -1759,7 +1881,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         tf.data.experimental.service.distribute(
             processing_mode=tf.data.experimental.service.ShardingPolicy.OFF,
             service=dispatcher.target,
-        ))
+        )
+    )
     self.assertTrue(core._contains_shuffle(a))
 
   def test_check_dataset(self):
@@ -1797,12 +1920,15 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     task = keras.Task.CATEGORICAL_UPLIFT
     train_ds = keras.pd_dataframe_to_tf_dataset(
-        train_df, label=outcome_key, task=task)
+        train_df, label=outcome_key, task=task
+    )
     test_ds = keras.pd_dataframe_to_tf_dataset(
-        test_df, label=outcome_key, task=task)
+        test_df, label=outcome_key, task=task
+    )
 
     model = keras.RandomForestModel(
-        task=task, uplift_treatment=treatment_key, uplift_split_score="ED")
+        task=task, uplift_treatment=treatment_key, uplift_split_score="ED"
+    )
     model.fit(train_ds)
 
     logging.info("Trained model:")
@@ -1814,9 +1940,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     # TODO: Evaluate with the Uplift framework.
 
   def test_uplift_regression_sim_pte(self):
-
     with tf.compat.forward_compatibility_horizon(2022, 6, 8):
-
       # Path to dataset.
       dataset_directory = os.path.join(ydf_test_data_path(), "dataset")
       train_path = os.path.join(dataset_directory, "sim_pte_train.csv")
@@ -1838,12 +1962,15 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
       task = keras.Task.NUMERICAL_UPLIFT
       train_ds = keras.pd_dataframe_to_tf_dataset(
-          train_df, label=outcome_key, task=task)
+          train_df, label=outcome_key, task=task
+      )
       test_ds = keras.pd_dataframe_to_tf_dataset(
-          test_df, label=outcome_key, task=task)
+          test_df, label=outcome_key, task=task
+      )
 
       model = keras.RandomForestModel(
-          task=task, uplift_treatment=treatment_key, uplift_split_score="ED")
+          task=task, uplift_treatment=treatment_key, uplift_split_score="ED"
+      )
       model.fit(train_ds)
 
       logging.info("Trained model:")
@@ -1876,9 +2003,11 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     task = keras.Task.CATEGORICAL_UPLIFT
     train_ds = keras.pd_dataframe_to_tf_dataset(
-        train_df, label=outcome_key, task=task, batch_size=200)
+        train_df, label=outcome_key, task=task, batch_size=200
+    )
     test_ds = keras.pd_dataframe_to_tf_dataset(
-        test_df, label=outcome_key, task=task, batch_size=200)
+        test_df, label=outcome_key, task=task, batch_size=200
+    )
 
     model = keras.RandomForestModel(
         task=task,
@@ -1886,7 +2015,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         uplift_split_score="ED",
         sampling_with_replacement=False,
         bootstrap_size_ratio=0.5,
-        honest=True)
+        honest=True,
+    )
     model.fit(train_ds)
     self.assertEqual(model.num_training_examples, 1000)
 
@@ -1899,13 +2029,14 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     # TODO: Evaluate with the Uplift framework.
 
   def test_metadata(self):
-
     x_train = [0, 1, 2, 3] * 10
     y_train = [0, 1, 0, 1] * 10
 
     model_1 = keras.RandomForestModel(
         advanced_arguments=keras.AdvancedArguments(
-            metadata_owner="some owner", metadata_framework="some framework"))
+            metadata_owner="some owner", metadata_framework="some framework"
+        )
+    )
     model_1.fit(x=x_train, y=y_train)
 
     inspector = model_1.make_inspector()
@@ -1924,7 +2055,6 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     self.assertEqual(inspector.metadata.framework, "TF Keras")
 
   def test_no_validation_data(self):
-
     x_train = [0, 1, 2, 3] * 10
     y_train = [0, 1, 0, 1] * 10
 
@@ -1937,13 +2067,13 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     inspector.export_to_tensorboard(tensorboard_logs)
 
   def test_get_leaves(self):
-
     dataset_directory = os.path.join(ydf_test_data_path(), "dataset")
     train_path = os.path.join(dataset_directory, "adult_train.csv")
     label = "income"
 
     train_ds = keras.pd_dataframe_to_tf_dataset(
-        pd.read_csv(train_path), label=label, batch_size=20)
+        pd.read_csv(train_path), label=label, batch_size=20
+    )
 
     model = keras.RandomForestModel(num_trees=20, check_dataset=False)
     model.fit(train_ds)
@@ -1956,9 +2086,11 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
   def test_validation_dataset(self):
     # 40 examples in training, and 10 examples in validation.
     train_ds = tf.data.Dataset.from_tensor_slices(
-        ([1, 2] * 20, [0, 1] * 20)).batch(100)
+        ([1, 2] * 20, [0, 1] * 20)
+    ).batch(100)
     valid_ds = tf.data.Dataset.from_tensor_slices(
-        ([1, 2] * 10, [0, 1] * 10)).batch(100)
+        ([1, 2] * 10, [0, 1] * 10)
+    ).batch(100)
 
     model_with_valid = keras.GradientBoostedTreesModel()
     model_with_valid.fit(train_ds, validation_data=valid_ds)
@@ -1972,53 +2104,63 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     self.assertEqual(inspector_with_valid.dataspec.created_num_rows, 40)
     self.assertEqual(
-        inspector_with_valid.extract_tree(0).root.value.num_examples, 40)
+        inspector_with_valid.extract_tree(0).root.value.num_examples, 40
+    )
 
     self.assertEqual(inspector_without_valid.dataspec.created_num_rows, 40)
     # ~10% of the training example are used for the internal validation.
     self.assertLess(
-        inspector_without_valid.extract_tree(0).root.value.num_examples, 40)
+        inspector_without_valid.extract_tree(0).root.value.num_examples, 40
+    )
 
   def test_gbt_loss(self):
-
     x_train = [0, 1, 2, 3] * 10
     y_train = [0, 1, 0, 1] * 10
 
     default_model = keras.GradientBoostedTreesModel(
-        validation_ratio=0.0, loss="DEFAULT")
+        validation_ratio=0.0, loss="DEFAULT"
+    )
     default_model.fit(x=x_train, y=y_train)
 
     binom_model = keras.GradientBoostedTreesModel(
-        validation_ratio=0.0, loss="BINOMIAL_LOG_LIKELIHOOD")
+        validation_ratio=0.0, loss="BINOMIAL_LOG_LIKELIHOOD"
+    )
     binom_model.fit(x=x_train, y=y_train)
 
     mse_model = keras.GradientBoostedTreesModel(
-        validation_ratio=0.0, loss="SQUARED_ERROR", task=keras.Task.REGRESSION)
+        validation_ratio=0.0, loss="SQUARED_ERROR", task=keras.Task.REGRESSION
+    )
     mse_model.fit(x=x_train, y=y_train)
 
     multinom_model = keras.GradientBoostedTreesModel(
-        validation_ratio=0.0, loss="MULTINOMIAL_LOG_LIKELIHOOD")
+        validation_ratio=0.0, loss="MULTINOMIAL_LOG_LIKELIHOOD"
+    )
     multinom_model.fit(x=x_train, y=y_train)
 
     self.assertEqual(
         default_model.make_inspector().loss,
-        inspector_lib.gradient_boosted_trees_pb2.Loss.BINOMIAL_LOG_LIKELIHOOD)
+        inspector_lib.gradient_boosted_trees_pb2.Loss.BINOMIAL_LOG_LIKELIHOOD,
+    )
 
     self.assertEqual(
         binom_model.make_inspector().loss,
-        inspector_lib.gradient_boosted_trees_pb2.Loss.BINOMIAL_LOG_LIKELIHOOD)
+        inspector_lib.gradient_boosted_trees_pb2.Loss.BINOMIAL_LOG_LIKELIHOOD,
+    )
 
     self.assertEqual(
         mse_model.make_inspector().loss,
-        inspector_lib.gradient_boosted_trees_pb2.Loss.SQUARED_ERROR)
+        inspector_lib.gradient_boosted_trees_pb2.Loss.SQUARED_ERROR,
+    )
 
     self.assertEqual(
-        multinom_model.make_inspector().loss, inspector_lib
-        .gradient_boosted_trees_pb2.Loss.MULTINOMIAL_LOG_LIKELIHOOD)
+        multinom_model.make_inspector().loss,
+        inspector_lib.gradient_boosted_trees_pb2.Loss.MULTINOMIAL_LOG_LIKELIHOOD,
+    )
 
   def test_properties(self):
     model = keras.GradientBoostedTreesModel(
-        task=keras.Task.REGRESSION, num_threads=2, num_trees=5)
+        task=keras.Task.REGRESSION, num_threads=2, num_trees=5
+    )
     self.assertEqual(model.learner, "GRADIENT_BOOSTED_TREES")
     self.assertEqual(model.task, keras.Task.REGRESSION)
     self.assertEqual(model.num_threads, 2)
@@ -2028,9 +2170,11 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
   def test_golden_model_gbt(self):
     dataset = adult_dataset()
     loaded_model = models.load_model(
-        os.path.join(tfdf_test_data_path(), "model/saved_model_adult_gbt"))
+        os.path.join(tfdf_test_data_path(), "model/saved_model_adult_gbt")
+    )
     prediction = loaded_model.predict(
-        keras.pd_dataframe_to_tf_dataset(dataset.test, label="income"))
+        keras.pd_dataframe_to_tf_dataset(dataset.test, label="income")
+    )
     self.assertNear(prediction[0, 0], 0.13323984, 0.00001)
     self.assertNear(prediction[1, 0], 0.47678572, 0.00001)
     self.assertNear(prediction[2, 0], 0.81846154, 0.00001)
@@ -2039,21 +2183,29 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
       ("adult_binary_class_rf", 0.040936, False),
       ("prefixed_adult_binary_class_rf", 0.040936, True),
       ("adult_binary_class_gbdt", 0.012131, False),
-      ("prefixed_adult_binary_class_gbdt", 0.012131, True))
-  def test_ydf_to_keras_model(self, ydf_model_directory, expected_prediction,
-                              uses_prefixes):
-    ygg_model_path = os.path.join(ydf_test_data_path(), "model",
-                                  ydf_model_directory)
+      ("prefixed_adult_binary_class_gbdt", 0.012131, True),
+  )
+  def test_ydf_to_keras_model(
+      self, ydf_model_directory, expected_prediction, uses_prefixes
+  ):
+    ygg_model_path = os.path.join(
+        ydf_test_data_path(), "model", ydf_model_directory
+    )
     tfdf_model_path = os.path.join(tmp_path(), ydf_model_directory)
 
     # Extract a piece of this model
     def custom_model_input_signature(
-        inspector: inspector_lib.AbstractInspector) -> Any:
+        inspector: inspector_lib.AbstractInspector,
+    ) -> Any:
       input_spec = keras.build_default_input_model_signature(inspector)
       # Those features are stored as int64 in the dataset.
       for feature_name in [
-          "age", "capital_gain", "capital_loss", "education_num", "fnlwgt",
-          "hours_per_week"
+          "age",
+          "capital_gain",
+          "capital_loss",
+          "education_num",
+          "fnlwgt",
+          "hours_per_week",
       ]:
         input_spec[feature_name] = tf.TensorSpec(shape=[None], dtype=tf.int64)
       return input_spec
@@ -2061,22 +2213,26 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     core.yggdrasil_model_to_keras_model(
         ygg_model_path,
         tfdf_model_path,
-        input_model_signature_fn=custom_model_input_signature)
+        input_model_signature_fn=custom_model_input_signature,
+    )
     loaded_model = models.load_model(tfdf_model_path)
     dataset = adult_dataset()
     prediction = loaded_model.predict(
-        keras.pd_dataframe_to_tf_dataset(dataset.test, label="income"))
+        keras.pd_dataframe_to_tf_dataset(dataset.test, label="income")
+    )
     self.assertNear(prediction[0, 0], expected_prediction, 0.00001)
 
   @parameterized.parameters(
-      ("directory"),
-      ("zip"),
+      "directory",
+      "zip",
   )
-  def test_ydf_to_keras_model_with_source_container(self,
-                                                    effective_src_container):
+  def test_ydf_to_keras_model_with_source_container(
+      self, effective_src_container
+  ):
     # The effective input and output models.
-    raw_src_model_path = os.path.join(ydf_test_data_path(), "model",
-                                      "adult_binary_class_rf")
+    raw_src_model_path = os.path.join(
+        ydf_test_data_path(), "model", "adult_binary_class_rf"
+    )
     dst_model_path = os.path.join(tmp_path(), "adult_binary_class_rf")
 
     # Prepare the input model as expected by yggdrasil_model_to_keras_model.
@@ -2084,12 +2240,14 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
       src_model_path = raw_src_model_path
     elif effective_src_container == "zip":
       # Compress the model into a zip file
-      src_model_path_without_extension = os.path.join(tmp_path(),
-                                                      "zipped_model")
+      src_model_path_without_extension = os.path.join(
+          tmp_path(), "zipped_model"
+      )
       src_model_path = src_model_path_without_extension + ".zip"
 
-      shutil.make_archive(src_model_path_without_extension, "zip",
-                          raw_src_model_path)
+      shutil.make_archive(
+          src_model_path_without_extension, "zip", raw_src_model_path
+      )
     else:
       raise ValueError(f"Non supported value: {effective_src_container}")
 
@@ -2133,36 +2291,38 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     # Check if inference is working on the combined model.
     loaded_combined_model_prediction = loaded_combined_model.predict([[1, 1]])
-    self.assertEqual(combined_model_prediction,
-                     loaded_combined_model_prediction)
+    self.assertEqual(
+        combined_model_prediction, loaded_combined_model_prediction
+    )
 
     # Load and use the individual models
-    examples_1 = tf.data.Dataset.from_tensor_slices({
-        "my_feature.0": [1.0],
-        "my_feature.1": [1.0]
-    }).batch(2)
+    examples_1 = tf.data.Dataset.from_tensor_slices(
+        {"my_feature.0": [1.0], "my_feature.1": [1.0]}
+    ).batch(2)
     loaded_model_1_path = os.path.join(tmp_path(), "model_1")
     core.yggdrasil_model_to_keras_model(
         os.path.join(combined_model_path, "assets"),
         loaded_model_1_path,
-        file_prefix=model_1.training_model_id)
+        file_prefix=model_1.training_model_id,
+    )
     loaded_model_1 = models.load_model(loaded_model_1_path)
-    logging.info("Prediction result 1 is %s",
-                 loaded_model_1.predict(examples_1))
+    logging.info(
+        "Prediction result 1 is %s", loaded_model_1.predict(examples_1)
+    )
 
-    examples_2 = tf.data.Dataset.from_tensor_slices({
-        "f2": [1.0],
-        "f3.0": [1.0],
-        "f3.1": [1.0]
-    }).batch(2)
+    examples_2 = tf.data.Dataset.from_tensor_slices(
+        {"f2": [1.0], "f3.0": [1.0], "f3.1": [1.0]}
+    ).batch(2)
     loaded_model_2_path = os.path.join(tmp_path(), "model_2")
     core.yggdrasil_model_to_keras_model(
         os.path.join(combined_model_path, "assets"),
         loaded_model_2_path,
-        file_prefix=model_2.training_model_id)
+        file_prefix=model_2.training_model_id,
+    )
     loaded_model_2 = models.load_model(loaded_model_2_path)
-    logging.info("Prediction result 2 is %s",
-                 loaded_model_2.predict(examples_2))
+    logging.info(
+        "Prediction result 2 is %s", loaded_model_2.predict(examples_2)
+    )
 
   def test_adult_discretize_age_feature(self):
     dataset = adult_dataset()
@@ -2170,7 +2330,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         keras.FeatureUsage(
             "age",
             keras.FeatureSemantic.DISCRETIZED_NUMERICAL,
-            num_discretized_numerical_bins=16)
+            num_discretized_numerical_bins=16,
+        )
     ]
     model = keras.RandomForestModel(features=features)
     tf_train, tf_test = dataset_to_tf_dataset(dataset)
@@ -2183,15 +2344,23 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     inspector = model.make_inspector()
     for feature in inspector.features():
       if feature.name == "age":
-        self.assertEqual(feature.type,
-                         inspector_lib.ColumnType.DISCRETIZED_NUMERICAL)
+        self.assertEqual(
+            feature.type, inspector_lib.ColumnType.DISCRETIZED_NUMERICAL
+        )
         self.assertLessEqual(
             inspector.dataspec.columns[
-                feature.col_idx].discretized_numerical.maximum_num_bins, 16)
+                feature.col_idx
+            ].discretized_numerical.maximum_num_bins,
+            16,
+        )
 
       elif feature.name in [
-          "age", "capital_gain", "capital_loss", "education_num", "fnlwgt",
-          "hours_per_week"
+          "age",
+          "capital_gain",
+          "capital_loss",
+          "education_num",
+          "fnlwgt",
+          "hours_per_week",
       ]:
         self.assertEqual(feature.type, inspector_lib.ColumnType.NUMERICAL)
       else:
@@ -2200,7 +2369,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
   def test_adult_discretize_all_features(self):
     dataset = adult_dataset()
     model = keras.RandomForestModel(
-        discretize_numerical_features=True, num_discretized_numerical_bins=64)
+        discretize_numerical_features=True, num_discretized_numerical_bins=64
+    )
     tf_train, tf_test = dataset_to_tf_dataset(dataset)
     model.fit(tf_train)
     model.compile(metrics=["accuracy"])
@@ -2210,14 +2380,22 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     inspector = model.make_inspector()
     for feature in inspector.features():
       if feature.name in [
-          "age", "capital_gain", "capital_loss", "education_num", "fnlwgt",
-          "hours_per_week"
+          "age",
+          "capital_gain",
+          "capital_loss",
+          "education_num",
+          "fnlwgt",
+          "hours_per_week",
       ]:
-        self.assertEqual(feature.type,
-                         inspector_lib.ColumnType.DISCRETIZED_NUMERICAL)
+        self.assertEqual(
+            feature.type, inspector_lib.ColumnType.DISCRETIZED_NUMERICAL
+        )
         self.assertLessEqual(
             inspector.dataspec.columns[
-                feature.col_idx].discretized_numerical.maximum_num_bins, 64)
+                feature.col_idx
+            ].discretized_numerical.maximum_num_bins,
+            64,
+        )
       else:
         self.assertEqual(feature.type, inspector_lib.ColumnType.CATEGORICAL)
 
@@ -2249,7 +2427,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         model=model,
         dataset=dataset,
         minimum_accuracy=0.864,
-        check_serialization=True)
+        check_serialization=True,
+    )
 
   def test_gbt_hp_sampling(self):
     model = keras.GradientBoostedTreesModel(subsample=0.1)
@@ -2257,7 +2436,6 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     self.assertEqual(model.learner_params["subsample"], 0.1)
 
   def test_multi_task(self):
-
     num_features = 5
 
     def make_dataset(num_examples):
@@ -2266,14 +2444,16 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
       # Binary classification.
       label_1 = (hidden >= features[:, 1]).astype(int) + (
-          hidden >= features[:, 2]).astype(int)
+          hidden >= features[:, 2]
+      ).astype(int)
 
       # Regression
       label_2 = hidden + features[:, 2] + 2 * features[:, 3]
 
       # Multi-class classification.
-      label_3 = ((np.random.uniform(size=num_examples) + features[:, 3]) * 4 /
-                 2).astype(int)
+      label_3 = (
+          (np.random.uniform(size=num_examples) + features[:, 3]) * 4 / 2
+      ).astype(int)
 
       labels = {
           "label_1": label_1,
@@ -2288,12 +2468,15 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     model = keras.GradientBoostedTreesModel(
         multitask=[
             keras.MultiTaskItem(
-                label="label_1", task=keras.Task.CLASSIFICATION),
+                label="label_1", task=keras.Task.CLASSIFICATION
+            ),
             keras.MultiTaskItem(label="label_2", task=keras.Task.REGRESSION),
             keras.MultiTaskItem(
-                label="label_3", task=keras.Task.CLASSIFICATION)
+                label="label_3", task=keras.Task.CLASSIFICATION
+            ),
         ],
-        verbose=2)
+        verbose=2,
+    )
     model.fit(train_dataset)
 
     logging.info("model:")
@@ -2317,7 +2500,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     predictions = model.predict(test_dataset)
     logging.info("predictions: %s", predictions)
     self.assertSetEqual(
-        set(predictions.keys()), set(["label_1", "label_2", "label_3"]))
+        set(predictions.keys()), set(["label_1", "label_2", "label_3"])
+    )
     self.assertTupleEqual(predictions["label_1"].shape, (10, 1))
     self.assertTupleEqual(predictions["label_2"].shape, (10, 1))
     self.assertTupleEqual(predictions["label_3"].shape, (10, 4))
@@ -2343,15 +2527,18 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     train_path = os.path.join(dataset_directory, "adult_train.csv")
     test_path = os.path.join(dataset_directory, "adult_test.csv")
 
-    model = keras.GradientBoostedTreesModel(multitask=[
-        keras.MultiTaskItem(label="age", task=keras.Task.REGRESSION),
-        keras.MultiTaskItem(label="income", task=keras.Task.CLASSIFICATION),
-        keras.MultiTaskItem(label="sex", task=keras.Task.CLASSIFICATION)
-    ])
+    model = keras.GradientBoostedTreesModel(
+        multitask=[
+            keras.MultiTaskItem(label="age", task=keras.Task.REGRESSION),
+            keras.MultiTaskItem(label="income", task=keras.Task.CLASSIFICATION),
+            keras.MultiTaskItem(label="sex", task=keras.Task.CLASSIFICATION),
+        ]
+    )
     model.compile(metrics=["accuracy"])
 
     model.fit_on_dataset_path(
-        train_path=train_path, dataset_format="csv", valid_path=test_path)
+        train_path=train_path, dataset_format="csv", valid_path=test_path
+    )
 
     logging.info("Trained model:")
     model.summary()
@@ -2382,32 +2569,44 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         "y": [0, 1, 0, 1, 0, 1],
     })
     dataset = keras.pd_dataframe_to_tf_dataset(dataframe, label="y")
-    model = keras.GradientBoostedTreesModel(features=[
-        keras.FeatureUsage(
-            name="x",
-            semantic=keras.FeatureSemantic.CATEGORICAL,
-            min_vocab_frequency=1,
-            override_global_imputation_value="B")
-    ])
+    model = keras.GradientBoostedTreesModel(
+        features=[
+            keras.FeatureUsage(
+                name="x",
+                semantic=keras.FeatureSemantic.CATEGORICAL,
+                min_vocab_frequency=1,
+                override_global_imputation_value="B",
+            )
+        ]
+    )
     model.fit(dataset)
 
     inspector = model.make_inspector()
     self.assertEqual(inspector.dataspec.columns[1].name, "x")
     # The values are ordered by frequency. 1 is A, 2 is B, 3 is C.
     self.assertEqual(
-        inspector.dataspec.columns[1].categorical.most_frequent_value, 2)
+        inspector.dataspec.columns[1].categorical.most_frequent_value, 2
+    )
 
   def test_node_format_blob_sequence(self):
     """Test that the node format is BLOB_SEQUENCE if required."""
     dataset = adult_dataset()
     model = keras.RandomForestModel(
-        advanced_arguments=keras.AdvancedArguments(
-            node_format="BLOB_SEQUENCE"))
-    ds = keras.pd_dataframe_to_tf_dataset(
-        dataset.train, dataset.label)
+        advanced_arguments=keras.AdvancedArguments(node_format="BLOB_SEQUENCE")
+    )
+    ds = keras.pd_dataframe_to_tf_dataset(dataset.train, dataset.label)
     model.fit(ds)
-    self.assertEqual(model.make_inspector().specialized_header().node_format,
-                     "BLOB_SEQUENCE")
+    self.assertEqual(
+        model.make_inspector().specialized_header().node_format, "BLOB_SEQUENCE"
+    )
+
+  def test_check_parameters(self):
+    with self.assertRaisesRegex(
+        ValueError, 'The parameter "num_trees" is smaller than the minimum'
+    ):
+      keras.RandomForestModel(num_trees=-10)
+
+    keras.RandomForestModel(num_trees=10)
 
 
 if __name__ == "__main__":
