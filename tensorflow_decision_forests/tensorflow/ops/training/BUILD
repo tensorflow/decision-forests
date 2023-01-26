@@ -114,6 +114,7 @@ cc_library(
         "@ydf//yggdrasil_decision_forests/model:abstract_model",
         "@ydf//yggdrasil_decision_forests/model:model_library",
         "@ydf//yggdrasil_decision_forests/utils:concurrency",
+        "@ydf//yggdrasil_decision_forests/utils:logging",
         "@ydf//yggdrasil_decision_forests/utils:distribution_cc_proto",
         "@ydf//yggdrasil_decision_forests/utils:synchronization_primitives",
         "@ydf//yggdrasil_decision_forests/utils:tensorflow",

@@ -21,6 +21,7 @@
 #include "yggdrasil_decision_forests/utils/concurrency.h"
 #include "yggdrasil_decision_forests/utils/distribute/implementations/grpc/grpc_manager.h"
 #include "yggdrasil_decision_forests/utils/distribute/implementations/grpc/grpc_worker.h"
+#include "yggdrasil_decision_forests/utils/logging.h"
 #include "yggdrasil_decision_forests/utils/synchronization_primitives.h"
 
 namespace tensorflow_decision_forests {
@@ -58,7 +59,7 @@ class YDFGRPCServerResource : public ::tensorflow::ResourceBase {
   // Blocking function running the worker.
   void ThreadMain() {
     ydf::distribute::grpc_worker::WaitForGRPCWorkerToShutdown(server_.get());
-    LOG(INFO) << "YDF GRPC Worker stopped";
+    YDF_LOG(INFO) << "YDF GRPC Worker stopped";
   }
 
   // Starts the GRPC in a new thread.
@@ -68,14 +69,14 @@ class YDFGRPCServerResource : public ::tensorflow::ResourceBase {
     }
     ASSIGN_OR_RETURN(server_, ydf::distribute::grpc_worker::StartGRPCWorker(
                                   /*port=*/0, /*use_loas=*/false));
-    LOG(INFO) << "GRPC worker started on port " << server_->port;
+    YDF_LOG(INFO) << "GRPC worker started on port " << server_->port;
     thread_ = absl::make_unique<utils::concurrency::Thread>(
         [this]() { return ThreadMain(); });
     return absl::OkStatus();
   }
 
   void StopServer() {
-    LOG(INFO) << "Stop YDF GRPC Worker";
+    YDF_LOG(INFO) << "Stop YDF GRPC Worker";
     if (server_) {
       server_->stop_server.Notify();
     }

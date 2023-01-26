@@ -311,7 +311,7 @@ class CoreModel(InferenceCoreModel):
   ```
 
   The training logs (e.g. feature statistics, validation loss, remaining
-  training time) are exported to LOG(INFO). If you use a colab, make sure to
+  training time) are exported to YDF_LOG(INFO). If you use a colab, make sure to
   display these logs:
 
     from colabtools import googlelog

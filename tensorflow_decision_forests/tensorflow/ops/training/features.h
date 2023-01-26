@@ -207,7 +207,7 @@ class Feature : public tensorflow::OpKernel {
                                      "The input 1 feature should have rank 1"));
       resource_->Add(ctx->input(0), ctx->input(1));
     } else {
-      LOG(FATAL) << "Invalid dimensions";
+      YDF_LOG(FATAL) << "Invalid dimensions";
     }
   }
 

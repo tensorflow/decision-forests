@@ -219,8 +219,8 @@ class FeatureOnFileOp : public tensorflow::OpKernel {
     worker_idx_ = device->parsed_name().task;
 
     if (dataset_already_on_disk_) {
-      LOG(INFO) << "Already existing dataset cache for worker #" << worker_idx_
-                << " on device " << ctx->device()->name();
+      YDF_LOG(INFO) << "Already existing dataset cache for worker #"
+                    << worker_idx_ << " on device " << ctx->device()->name();
     }
   }
 

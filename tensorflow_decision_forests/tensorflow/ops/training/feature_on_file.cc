@@ -15,6 +15,8 @@
 
 #include "tensorflow_decision_forests/tensorflow/ops/training/feature_on_file.h"
 
+#include "yggdrasil_decision_forests/utils/logging.h"
+
 namespace tensorflow_decision_forests {
 namespace ops {
 namespace {
@@ -103,9 +105,9 @@ absl::Status NumericalResourceOnFile::AddValueImp(
 
 absl::Status NumericalResourceOnFile::EndImp(
     PartialColumnShardMetadata* meta_data) {
-  LOG(INFO) << "[worker] End for " << feature_name_ << ":" << feature_idx_
-            << " on worker #" << worker_idx_ << " with " << num_examples_
-            << " examples and " << num_batches_ << " batches";
+  YDF_LOG(INFO) << "[worker] End for " << feature_name_ << ":" << feature_idx_
+                << " on worker #" << worker_idx_ << " with " << num_examples_
+                << " examples and " << num_batches_ << " batches";
   meta_data->set_num_examples(num_examples_);
   meta_data->set_num_missing_examples(num_missing_examples_);
   auto* numerical = meta_data->mutable_numerical();
@@ -149,8 +151,8 @@ absl::Status CategoricalResourceOnFile::AddValueImp(
 
 absl::Status CategoricalResourceOnFile::EndImp(
     PartialColumnShardMetadata* meta_data) {
-  LOG(INFO) << "[worker] End for " << feature_name_ << ":" << feature_idx_
-            << " on worker #" << worker_idx_;
+  YDF_LOG(INFO) << "[worker] End for " << feature_name_ << ":" << feature_idx_
+                << " on worker #" << worker_idx_;
   meta_data->set_num_examples(num_examples_);
   meta_data->set_num_missing_examples(num_missing_examples_);
   meta_data->mutable_categorical()->set_number_of_unique_values(
@@ -200,8 +202,8 @@ absl::Status CategoricalStringResourceOnFile::AddValueImp(
 
 absl::Status CategoricalStringResourceOnFile::EndImp(
     PartialColumnShardMetadata* meta_data) {
-  LOG(INFO) << "[worker] End for " << feature_name_ << ":" << feature_idx_
-            << " on worker #" << worker_idx_;
+  YDF_LOG(INFO) << "[worker] End for " << feature_name_ << ":" << feature_idx_
+                << " on worker #" << worker_idx_;
   meta_data->set_num_examples(num_examples_);
   meta_data->set_num_missing_examples(num_missing_examples_);
   auto* categorical = meta_data->mutable_categorical();
@@ -215,8 +217,8 @@ absl::Status CategoricalStringResourceOnFile::EndImp(
 
 void SimpleMLWorkerFinalizeFeatureOnFile::Compute(
     tensorflow::OpKernelContext* ctx) {
-  LOG(INFO) << "[Feature] SimpleMLWorkerFinalizeDiskFeature on device "
-            << ctx->device()->name();
+  YDF_LOG(INFO) << "[Feature] SimpleMLWorkerFinalizeDiskFeature on device "
+                << ctx->device()->name();
 
   if (HasDoneFile(dataset_path_)) {
     return;
@@ -227,8 +229,8 @@ void SimpleMLWorkerFinalizeFeatureOnFile::Compute(
     const auto lookup_status = ctx->resource_manager()->Lookup(
         kModelContainer, feature_resource_id, &abstract_resource);
     if (!lookup_status.ok()) {
-      LOG(INFO) << "Resource "
-                << " not found on " << ctx->device()->name();
+      YDF_LOG(INFO) << "Resource "
+                    << " not found on " << ctx->device()->name();
       return;
     }
     OP_REQUIRES_OK(ctx, utils::FromUtilStatus(abstract_resource->End()));
@@ -238,14 +240,14 @@ void SimpleMLWorkerFinalizeFeatureOnFile::Compute(
 
 void SimpleMLChiefFinalizeFeatureOnFile::Compute(
     tensorflow::OpKernelContext* ctx) {
-  LOG(INFO) << "[Feature] SimpleMLChiefFinalizeDiskFeature on device "
-            << ctx->device()->name();
+  YDF_LOG(INFO) << "[Feature] SimpleMLChiefFinalizeDiskFeature on device "
+                << ctx->device()->name();
 
   if (HasDoneFile(dataset_path_)) {
     return;
   }
 
-  LOG(INFO) << "Finalizing dataset";
+  YDF_LOG(INFO) << "Finalizing dataset";
 
   PartialDatasetMetadata meta_data;
   *meta_data.mutable_column_names() = {feature_names_.begin(),
