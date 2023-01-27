@@ -13,7 +13,7 @@ py_library(
     srcs_version = "PY3",
 )
 
-# Indiviudual test data
+# Individual test data
 # =====================
 
 py_library(

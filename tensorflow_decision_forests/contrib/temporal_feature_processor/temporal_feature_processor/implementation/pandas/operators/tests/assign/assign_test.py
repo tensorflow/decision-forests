@@ -22,7 +22,6 @@ from temporal_feature_processor.implementation.pandas.operators.tests.assign.tes
 
 
 class AssignOperatorTest(absltest.TestCase):
-  base_data_dir = "temporal_feature_processor/tests/operators/assign/data"
 
   def setUp(self) -> None:
     self.operator = assign.PandasAssignOperator()

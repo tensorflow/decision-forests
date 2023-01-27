@@ -25,8 +25,8 @@ INPUT_1 = pd.DataFrame({
         193285921,
     ],
     "timestamp": [
-        pd.Timestamp("2020-11-09", tz="UTC"),
-        pd.Timestamp("2020-11-10", tz="UTC"),
+        pd.Timestamp("2020-11-09"),
+        pd.Timestamp("2020-11-10"),
     ],
     "price": [
         63.49,
@@ -42,8 +42,8 @@ INPUT_2 = pd.DataFrame({
         574016,
     ],
     "timestamp": [
-        pd.Timestamp("2020-11-09", tz="UTC"),
-        pd.Timestamp("2020-11-10", tz="UTC"),
+        pd.Timestamp("2020-11-09"),
+        pd.Timestamp("2020-11-10"),
     ],
     "price": [
         126.98,

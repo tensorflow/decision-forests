@@ -12,14 +12,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Base class for the implementation of window operators."""
-
-from temporal_feature_processor.implementation.pandas.operators.base import PandasOperator
-
-
-class PandasWindowOperator(PandasOperator):
-  """Base class for pandas window operator implementations."""
-
-  def __init__(self, window_length: str) -> None:
-    super().__init__()
-    self.window_length = window_length
