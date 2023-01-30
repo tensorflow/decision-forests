@@ -31,7 +31,13 @@ from yggdrasil_decision_forests.model import abstract_model_pb2
 FlexibleNumericalTypes = [
     tf.float32, tf.int8, tf.int16, tf.int32, tf.int64, tf.float64
 ]
-FlexibleCategoricalIntTypes = [tf.int8, tf.int16, tf.int32, tf.int64]
+FlexibleCategoricalIntTypes = [
+    tf.int8,
+    tf.int16,
+    tf.int32,
+    tf.int64,
+    tf.float32,
+]
 FlexibleCategoricalStringTypes = [tf.string]
 FlexibleCategoricalSetIntTypes = FlexibleCategoricalIntTypes
 FlexibleCategoricalSetStringTypes = FlexibleCategoricalStringTypes
