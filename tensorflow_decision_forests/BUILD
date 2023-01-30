@@ -1,7 +1,14 @@
+load("//tools/build_defs/license:license.bzl", "license")
 
 package(
+    default_applicable_licenses = ["//tensorflow_decision_forests:license"],
     default_visibility = ["//visibility:public"],
     licenses = ["notice"],
+)
+
+license(
+    name = "license",
+    package_name = "tensorflow_decision_forests",
 )
 
 exports_files(["LICENSE"])
