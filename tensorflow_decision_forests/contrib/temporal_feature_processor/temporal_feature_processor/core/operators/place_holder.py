@@ -21,7 +21,6 @@ from temporal_feature_processor.core.data import event as event_lib
 from temporal_feature_processor.core.data import feature as feature_lib
 from temporal_feature_processor.core.data import sampling as sampling_lib
 from temporal_feature_processor.core.operators import base
-from temporal_feature_processor.implementation.pandas.operators.base import PandasOperator
 from temporal_feature_processor.proto import core_pb2 as pb
 
 
@@ -55,9 +54,6 @@ class PlaceHolder(base.Operator):
         place_holder=True,
         outputs=[pb.OperatorDef.Output(key="output")],
     )
-
-  def _get_pandas_implementation(self) -> PandasOperator:
-    raise NotImplementedError()
 
 
 operator_lib.register_operator(PlaceHolder)

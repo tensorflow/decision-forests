@@ -31,3 +31,12 @@ py_library(
         "//temporal_feature_processor/implementation/pandas/data:event",
     ],
 )
+
+py_library(
+    name = "core_mapping",
+    srcs = ["core_mapping.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":assign",
+    ],
+)

@@ -20,8 +20,6 @@ from temporal_feature_processor.core import operator_lib
 from temporal_feature_processor.core.data.event import Event
 from temporal_feature_processor.core.data.feature import Feature
 from temporal_feature_processor.core.operators.base import Operator
-from temporal_feature_processor.implementation.pandas.operators.base import PandasOperator
-from temporal_feature_processor.implementation.pandas.operators.window.simple_moving_average import PandasSimpleMovingAverageOperator
 from temporal_feature_processor.proto import core_pb2 as pb
 
 
@@ -74,9 +72,6 @@ class SimpleMovingAverage(Operator):
         ],
         outputs=[pb.OperatorDef.Output(key="output")],
     )
-
-  def _get_pandas_implementation(self) -> PandasOperator:
-    return PandasSimpleMovingAverageOperator(window_length=self.window_length)
 
 
 operator_lib.register_operator(SimpleMovingAverage)
