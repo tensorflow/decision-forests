@@ -187,13 +187,5 @@ if [ "${RUN_TESTS}" = 1 ]; then
   time ${BAZEL} ${STARTUP_FLAGS} test ${TEST_RULES} ${FLAGS} --flaky_test_attempts=1 --test_size_filters=small,medium,large
 fi
 
-# Temporal Feature Processor
-TFPDIR=tensorflow_decision_forests/contrib/temporal_feature_processor
-( cd ${TFPDIR} ; time ${BAZEL} build //...:all )
-
-if [ "${RUN_TESTS}" = 1 ]; then
-  (cd ${TFPDIR} ; time ${BAZEL} test //...:all --flaky_test_attempts=1 )
-fi
-
 # Example of dependency check.
 # ${BAZEL} --bazelrc=${TENSORFLOW_BAZELRC} cquery "somepath(//tensorflow_decision_forests/tensorflow/ops/inference:api_py,@org_tensorflow//tensorflow/c:kernels.cc)" ${FLAGS}
