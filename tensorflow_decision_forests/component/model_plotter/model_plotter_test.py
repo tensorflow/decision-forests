@@ -30,10 +30,6 @@ from tensorflow_decision_forests.component.py_tree import tree as tree_lib
 from tensorflow_decision_forests.component.py_tree import value as value_lib
 
 
-def tmp_path() -> str:
-  return flags.FLAGS.test_tmpdir
-
-
 class ModelPlotterTest(parameterized.TestCase, tf.test.TestCase):
 
   def _save_plot(self, plot):

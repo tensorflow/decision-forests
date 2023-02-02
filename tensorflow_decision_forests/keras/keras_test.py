@@ -2180,13 +2180,13 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     self.assertNear(prediction[2, 0], 0.81846154, 0.00001)
 
   @parameterized.parameters(
-      ("adult_binary_class_rf", 0.040936, False),
-      ("prefixed_adult_binary_class_rf", 0.040936, True),
-      ("adult_binary_class_gbdt", 0.012131, False),
-      ("prefixed_adult_binary_class_gbdt", 0.012131, True),
+      ("adult_binary_class_rf", 0.040936),
+      ("prefixed_adult_binary_class_rf", 0.040936),
+      ("adult_binary_class_gbdt", 0.012131),
+      ("prefixed_adult_binary_class_gbdt", 0.012131),
   )
   def test_ydf_to_keras_model(
-      self, ydf_model_directory, expected_prediction, uses_prefixes
+      self, ydf_model_directory, expected_prediction
   ):
     ygg_model_path = os.path.join(
         ydf_test_data_path(), "model", ydf_model_directory
@@ -2607,6 +2607,28 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
       keras.RandomForestModel(num_trees=-10)
 
     keras.RandomForestModel(num_trees=10)
+
+  def test_plot_ydf_model(self):
+    ygg_model_path = os.path.join(
+        ydf_test_data_path(), "model", "prefixed_adult_binary_class_rf"
+    )
+    model_tmp_path_keras = os.path.join(self.get_temp_dir(), "kerasmodel")
+    keras.yggdrasil_model_to_keras_model(
+        ygg_model_path, model_tmp_path_keras
+    )
+    model = tf.keras.models.load_model(model_tmp_path_keras)
+    tree_plot = model_plotter.plot_model(model, tree_idx=0, max_depth=2)
+    expected_tree_start = (
+        'display_tree({"margin": 10, "node_x_size": 160, "node_y_size": 28,'
+        ' "node_x_offset": 180, "node_y_offset": 33, "font_size": 10,'
+        ' "edge_rounding": 20, "node_padding": 2, "show_plot_bounding_box":'
+        ' false, "labels": "[\\"<=50K\\", \\">50K\\"]"}, {"value": {"type":'
+        ' "PROBABILITY", "distribution": [0.758029133029133,'
+        ' 0.24197086697086698], "num_examples": 22792.0}, "condition": {"type":'
+        ' "CATEGORICAL_IS_IN", "attribute": "marital_status", "mask":'
+        ' ["Married-civ-spouse", "Married-AF-spouse"]}'
+    )
+    self.assertIn(expected_tree_start, tree_plot)
 
 
 if __name__ == "__main__":
