@@ -25,12 +25,17 @@ namespace tensorflow {
 // Args:
 //     "key": Key of the server. Only one server with a given key can exist in a
 //     session.
+//     "force_ydf_port": Port for YDF to use. The chief and the workers should
+//     be able to communicate thought this port. If -1, an available port
+//     is automatically selected.
 //
 // Output:
-//   port: Port of the GRPC server.
+//   port: Port of the GRPC server. If force_ydf_port is set, returns
+//   "force_ydf_port".
 REGISTER_OP("SimpleMLCreateYDFGRPCWorker")
     .SetIsStateful()
     .Attr("key: int")
+    .Attr("force_ydf_port: int = -1")
     .Output("port: int32")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
       c->set_output(0, c->Scalar());

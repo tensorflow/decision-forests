@@ -42,9 +42,7 @@ class YDFGRPCServerResource : public ::tensorflow::ResourceBase {
  public:
   YDFGRPCServerResource() = default;
 
-  virtual ~YDFGRPCServerResource() override {
-    StopServer();
-  };
+  virtual ~YDFGRPCServerResource() override { StopServer(); };
 
   std::string DebugString() const override { return ""; }
 
@@ -63,12 +61,17 @@ class YDFGRPCServerResource : public ::tensorflow::ResourceBase {
   }
 
   // Starts the GRPC in a new thread.
-  absl::Status StartServer() {
+  //
+  // Args:
+  //   force_ydf_port: Port to use. If -1, select automatically a port.
+  absl::Status StartServer(int force_ydf_port) {
     if (server_) {
       return absl::InvalidArgumentError("Server already running");
     }
-    ASSIGN_OR_RETURN(server_, ydf::distribute::grpc_worker::StartGRPCWorker(
-                                  /*port=*/0, /*use_loas=*/false));
+    ASSIGN_OR_RETURN(server_,
+                     ydf::distribute::grpc_worker::StartGRPCWorker(
+                         /*port=*/(force_ydf_port != -1) ? force_ydf_port : 0,
+                         /*use_loas=*/false));
     YDF_LOG(INFO) << "GRPC worker started on port " << server_->port;
     thread_ = absl::make_unique<utils::concurrency::Thread>(
         [this]() { return ThreadMain(); });
@@ -97,6 +100,7 @@ class SimpleMLCreateYDFGRPCWorker : public tensorflow::OpKernel {
   explicit SimpleMLCreateYDFGRPCWorker(tf::OpKernelConstruction* ctx)
       : OpKernel(ctx) {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("key", &key_));
+    OP_REQUIRES_OK(ctx, ctx->GetAttr("force_ydf_port", &force_ydf_port_));
   }
 
   ~SimpleMLCreateYDFGRPCWorker() override {}
@@ -110,7 +114,8 @@ class SimpleMLCreateYDFGRPCWorker : public tensorflow::OpKernel {
             kTFContainer, absl::StrCat(key_), &server_resource,
             [&](YDFGRPCServerResource** resource) -> tensorflow::Status {
               *resource = new YDFGRPCServerResource();
-              return utils::FromUtilStatus((*resource)->StartServer());
+              return utils::FromUtilStatus(
+                  (*resource)->StartServer(force_ydf_port_));
             }));
 
     // Returns the server port.
@@ -123,6 +128,7 @@ class SimpleMLCreateYDFGRPCWorker : public tensorflow::OpKernel {
  private:
   // Unique identifier of the GRPC server in the TF session.
   int key_;
+  int force_ydf_port_;
 };
 
 REGISTER_KERNEL_BUILDER(

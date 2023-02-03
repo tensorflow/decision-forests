@@ -1870,6 +1870,7 @@ class CoreModel(InferenceCoreModel):
           distribution_config=distribution_config,
           try_resume_training=try_resume_training,
           cluster_coordinator=cluster_coordinator,
+          force_ydf_port=self._advanced_arguments.force_ydf_port,
       )
 
       # Request and store a description of the model.
@@ -2130,6 +2131,7 @@ class CoreModel(InferenceCoreModel):
             try_resume_training=self._try_resume_training,
             cluster_coordinator=cluster_coordinator,
             node_format=self._advanced_arguments.node_format,
+            force_ydf_port=self._advanced_arguments.force_ydf_port,
         )
 
       # Request and store a description of the model.

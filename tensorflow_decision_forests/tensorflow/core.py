@@ -275,6 +275,7 @@ def column_keys_to_resource_ids(
 
   Args:
     keys: Sequence of keys:
+    model_id: Identifier of the model.
     collect_training_data: Are those training or validation data resources.
 
   Returns:
@@ -506,8 +507,6 @@ def train(
     resource_ids: Id of the tf resources containing the feature values.
     model_id: Id of the model.
     generic_hparms: Hyper-parameter of the learner.
-    ranking_group: Id of the ranking group feature. Only for ranking.
-    uplift_treatment: Id of the uplift treatment feature. Only for uplift.
     training_config: Training configuration.
     deployment_config: Deployment configuration (e.g. where to train the model).
     guide: Dataset specification guide.
@@ -586,6 +585,7 @@ def train_on_file_dataset(
     try_resume_training: Optional[bool] = False,
     cluster_coordinator: Optional[Any] = None,
     node_format: Optional[NodeFormat] = None,
+    force_ydf_port: Optional[int] = None,
 ):
   """Trains a model on dataset stored on file.
 
@@ -605,15 +605,8 @@ def train_on_file_dataset(
   Args:
     train_dataset_path: Path to the training dataset.
     valid_dataset_path: Path to the validation dataset.
-    feature_ids: Ids/names of the input features.
-    label_id: Id/name of the label feature.
-    weight_id: Id/name of the weight feature.
     model_id: Id of the model.
-    learner: Key of the learner.
-    task: Task to solve.
     generic_hparms: Hyper-parameter of the learner.
-    ranking_group: Id of the ranking group feature. Only for ranking.
-    uplift_treatment: Id of the uplift treatment group feature. Only for uplift.
     training_config: Training configuration.
     deployment_config: Deployment configuration (e.g. where to train the model).
     guide: Dataset specification guide.
@@ -631,6 +624,9 @@ def train_on_file_dataset(
     cluster_coordinator: Cluster coordinator of the distributed training.
     node_format: Format for storing a model's nodes used by Yggdrasil Decision
       Forests.
+    force_ydf_port: Port for YDF to use. The chief and the workers should be
+      able to communicate thought this port. If not set, an available port is
+      automatically selected.
 
   Returns:
     The OP that trigger the training.
@@ -691,7 +687,10 @@ def train_on_file_dataset(
     # TF addresses used by the TF workers.
     tf_workers_addresses = distribution_config.workers
     grpc_workers_addresses = ensure_grpc_workers_are_running(
-        cluster_coordinator, grpc_session_key, tf_workers_addresses
+        cluster_coordinator=cluster_coordinator,
+        grpc_session_key=grpc_session_key,
+        tf_workers_addresses=tf_workers_addresses,
+        force_ydf_port=force_ydf_port,
     )
 
     deployment_config.try_resume_training = True
@@ -718,7 +717,10 @@ def train_on_file_dataset(
         time.sleep(30)
 
         new_grpc_workers_addresses = ensure_grpc_workers_are_running(
-            cluster_coordinator, grpc_session_key, tf_workers_addresses
+            cluster_coordinator=cluster_coordinator,
+            grpc_session_key=grpc_session_key,
+            tf_workers_addresses=tf_workers_addresses,
+            force_ydf_port=force_ydf_port,
         )
 
         assert len(new_grpc_workers_addresses) == len(grpc_workers_addresses)
@@ -799,7 +801,6 @@ def finalize_distributed_dataset_collection(
     cluster_coordinator: Cluster coordinator of the distributed training.
     feature_names: Key of the features/columns to collect.
     resource_ids: TF resource id for the columns to collect.
-    model_id: Id of the model.
     dataset_path: Directory path to the output partial dataset cache.
   """
 
@@ -919,7 +920,10 @@ def execute_function_on_each_worker(
 
 
 def ensure_grpc_workers_are_running(
-    cluster_coordinator, grpc_session_key: int, tf_workers_addresses: List[str]
+    cluster_coordinator,
+    grpc_session_key: int,
+    tf_workers_addresses: List[str],
+    force_ydf_port: Optional[int],
 ) -> List[str]:
   """Ensures that a GRPC YDF worker is running on each of the TF Workers.
 
@@ -930,13 +934,18 @@ def ensure_grpc_workers_are_running(
     cluster_coordinator: A TF cluster coordinate.
     grpc_session_key: Identifier of the GRPC session.
     tf_workers_addresses: Address of the TF workers.
+    force_ydf_port: Port for YDF to use. The chief and the workers should be
+      able to communicate thought this port. If not set, an available port is
+      automatically selected.
 
   Returns:
     The addresses of the workers.
   """
 
   def worker_fn():
-    return training_op.SimpleMLCreateYDFGRPCWorker(key=grpc_session_key)
+    return training_op.SimpleMLCreateYDFGRPCWorker(
+        key=grpc_session_key, force_ydf_port=force_ydf_port
+    )
 
   grpc_ports = execute_function_on_each_worker(
       cluster_coordinator, worker_fn, reduce_results=False

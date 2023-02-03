@@ -39,8 +39,9 @@ def data_root_path() -> str:
 
 
 def test_data_path() -> str:
-  return os.path.join(data_root_path(),
-                      "external/ydf/yggdrasil_decision_forests/test_data")
+  return os.path.join(
+      data_root_path(), "external/ydf/yggdrasil_decision_forests/test_data"
+  )
 
 
 def tmp_path() -> str:
@@ -76,20 +77,24 @@ def _create_in_process_tf_ps_cluster(num_workers, num_ps):
         job_name="worker",
         task_index=i,
         config=worker_config,
-        protocol="grpc")
+        protocol="grpc",
+    )
 
   for i in range(num_ps):
     tf.distribute.Server(
-        cluster_spec, job_name="ps", task_index=i, protocol="grpc")
+        cluster_spec, job_name="ps", task_index=i, protocol="grpc"
+    )
 
   os.environ["GRPC_FAIL_FAST"] = "use_caller"
 
   return tf.distribute.cluster_resolver.SimpleClusterResolver(
-      cluster_spec, rpc_layer="grpc")
+      cluster_spec, rpc_layer="grpc"
+  )
 
 
 def _create_in_process_grpc_worker_cluster(
-    num_workers) -> List[Tuple[str, int]]:
+    num_workers,
+) -> List[Tuple[str, int]]:
   """Create a cluster of GRPC workers and returns their addresses.
 
   Args:
@@ -107,8 +112,9 @@ def _create_in_process_grpc_worker_cluster(
     worker_addresses.append((worker_ip, worker_ports[i]))
     args = [
         "tensorflow_decision_forests/keras/grpc_worker_main",
-        "--alsologtostderr", "--port",
-        str(worker_ports[i])
+        "--alsologtostderr",
+        "--port",
+        str(worker_ports[i]),
     ]
     subprocess.Popen(args, stdout=subprocess.PIPE)
     time.sleep(1)
@@ -133,9 +139,9 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
       y = x[:, 0] + (x[:, 1] - 0.5) * 0.1 >= 0.5
       return tf.data.Dataset.from_tensor_slices((x, y))
 
-    def dataset_fn(context: distribute_lib.InputContext,
-                   seed: int,
-                   infinite: bool = False) -> tf.data.Dataset:
+    def dataset_fn(
+        context: distribute_lib.InputContext, seed: int, infinite: bool = False
+    ) -> tf.data.Dataset:
       dataset = make_dataset(seed=seed)
 
       if context is not None:
@@ -144,7 +150,8 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
         assert current_worker.num_workers == 4
         dataset = dataset.shard(
             num_shards=current_worker.num_workers,
-            index=current_worker.worker_idx)
+            index=current_worker.worker_idx,
+        )
 
       # TODO: Remove repeat when possible.
       if infinite:
@@ -158,26 +165,31 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
 
     # Configure the model and datasets
     strategy = tf.distribute.experimental.ParameterServerStrategy(
-        cluster_resolver)
+        cluster_resolver
+    )
     with strategy.scope():
       model = tfdf.keras.DistributedGradientBoostedTreesModel(worker_logs=False)
       model.compile(metrics=["accuracy"])
       # Note: "tf.keras.utils.experimental.DatasetCreator" seems to also work.
       train_dataset_creator = strategy.distribute_datasets_from_function(
-          lambda context: dataset_fn(context, seed=111))
+          lambda context: dataset_fn(context, seed=111)
+      )
 
       # TODO: Remove "infinite" when the valuation support finite datasets.
       valid_dataset_creator = strategy.distribute_datasets_from_function(
-          lambda context: dataset_fn(context, seed=222, infinite=True))
+          lambda context: dataset_fn(context, seed=222, infinite=True)
+      )
       # Note: A distributed dataset cannot be reused twice.
       valid_dataset_creator_again = strategy.distribute_datasets_from_function(
-          lambda context: dataset_fn(context, seed=333, infinite=True))
+          lambda context: dataset_fn(context, seed=333, infinite=True)
+      )
 
     # Train model
     training_history = model.fit(
         train_dataset_creator,
         validation_data=valid_dataset_creator,
-        validation_steps=num_examples / batch_size)
+        validation_steps=num_examples / batch_size,
+    )
     self.assertEqual(model.num_training_examples, num_examples)
 
     logging.info("Training history: %s", training_history.history)
@@ -187,7 +199,8 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     valid_evaluation_again = model.evaluate(
         valid_dataset_creator_again,
         steps=num_examples // batch_size,
-        return_dict=True)
+        return_dict=True,
+    )
     logging.info("Valid evaluation (again): %s", valid_evaluation_again)
     self.assertGreaterEqual(valid_evaluation_again["accuracy"], 0.98)
 
@@ -196,13 +209,13 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
 
     # Check the models structure.
     inspector = model.make_inspector()
-    self.assertEqual([f.name for f in inspector.features()],
-                     ["data:0.0", "data:0.1"])
+    self.assertEqual(
+        [f.name for f in inspector.features()], ["data:0.0", "data:0.1"]
+    )
     self.assertEqual(inspector.label().name, "__LABEL")
     self.assertEqual(inspector.num_trees(), 300)
 
   def test_distribution_strategy_not_supported(self):
-
     # Create a distributed dataset.
     global_batch_size = 20
     num_examples = 200
@@ -216,8 +229,9 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     def dataset_fn(input_context):
       batch_size = input_context.get_per_replica_batch_size(global_batch_size)
       dataset = make_dataset(seed=input_context.input_pipeline_id)
-      dataset = dataset.shard(input_context.num_input_pipelines,
-                              input_context.input_pipeline_id)
+      dataset = dataset.shard(
+          input_context.num_input_pipelines, input_context.input_pipeline_id
+      )
       dataset = dataset.batch(batch_size)
       dataset = dataset.prefetch(2)
       return dataset
@@ -227,15 +241,17 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     cluster_resolver = _create_in_process_tf_ps_cluster(num_workers=2, num_ps=1)
 
     strategy = tf.distribute.experimental.ParameterServerStrategy(
-        cluster_resolver)
+        cluster_resolver
+    )
     with strategy.scope():
       model = tfdf.keras.GradientBoostedTreesModel()
 
     with self.assertRaisesRegex(
-        ValueError,
-        "does not support training with a TF Distribution strategy"):
+        ValueError, "does not support training with a TF Distribution strategy"
+    ):
       model.fit(
-          dataset_creator, steps_per_epoch=num_examples // global_batch_size)
+          dataset_creator, steps_per_epoch=num_examples // global_batch_size
+      )
 
   def _shard_dataset(self, path, num_shards=20) -> List[str]:
     """Splits a csv dataset into multiple csv files."""
@@ -255,8 +271,9 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
       ("infinite_dataset_without_failures", False, False),
       ("finite_dataset_with_failures", True, True),
   )
-  def test_distributed_training_adult(self, use_finite_dataset,
-                                      simulate_failures):
+  def test_distributed_training_adult(
+      self, use_finite_dataset, simulate_failures
+  ):
 
     if simulate_failures:
       self.skipTest("Not tested in OSS build")
@@ -276,8 +293,9 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
 
     # Create the dataset
     def dataset_fn(context: distribute_lib.InputContext, paths, infinite=False):
-      logging.info("Create dataset with context: %s and %d path(s)", context,
-                   len(paths))
+      logging.info(
+          "Create dataset with context: %s and %d path(s)", context, len(paths)
+      )
 
       ds_path = tf.data.Dataset.from_tensor_slices(paths)
 
@@ -287,7 +305,8 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
         assert current_worker.num_workers == 5
         ds_path = ds_path.shard(
             num_shards=current_worker.num_workers,
-            index=current_worker.worker_idx)
+            index=current_worker.worker_idx,
+        )
 
       if infinite:
         ds_path = ds_path.repeat(None)
@@ -317,18 +336,31 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
       ds_columns = ds_path.interleave(read_csv_file)
 
       column_names = [
-          "age", "workclass", "fnlwgt", "education", "education_num",
-          "marital_status", "occupation", "relationship", "race", "sex",
-          "capital_gain", "capital_loss", "hours_per_week", "native_country",
-          "income"
+          "age",
+          "workclass",
+          "fnlwgt",
+          "education",
+          "education_num",
+          "marital_status",
+          "occupation",
+          "relationship",
+          "race",
+          "sex",
+          "capital_gain",
+          "capital_loss",
+          "hours_per_week",
+          "native_country",
+          "income",
       ]
       label_name = "income"
 
       init_label_table = tf.lookup.KeyValueTensorInitializer(
           keys=tf.constant(["<=50K", ">50K"]),
-          values=tf.constant([0, 1], dtype=tf.int64))
+          values=tf.constant([0, 1], dtype=tf.int64),
+      )
       label_table = tf.lookup.StaticVocabularyTable(
-          init_label_table, num_oov_buckets=1)
+          init_label_table, num_oov_buckets=1
+      )
 
       def map_features(*columns):
         assert len(column_names) == len(columns)
@@ -345,30 +377,35 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
 
     # Configure the model and datasets
     strategy = tf.distribute.experimental.ParameterServerStrategy(
-        cluster_resolver)
+        cluster_resolver
+    )
 
     advanced_arguments = tfdf.keras.AdvancedArguments()
     if simulate_failures:
       gbt_training_config = advanced_arguments.yggdrasil_training_config.Extensions[
-          distributed_gradient_boosted_trees_pb2
-          .distributed_gradient_boosted_trees_config]
+          distributed_gradient_boosted_trees_pb2.distributed_gradient_boosted_trees_config
+      ]
       gbt_training_config.internal.simulate_worker_failure = True
       gbt_training_config.checkpoint_interval_trees = 5
 
     with strategy.scope():
       model = tfdf.keras.DistributedGradientBoostedTreesModel(
-          worker_logs=False, advanced_arguments=advanced_arguments)
+          worker_logs=False, advanced_arguments=advanced_arguments
+      )
       model.compile(metrics=["accuracy"])
 
       train_dataset = strategy.distribute_datasets_from_function(
           lambda context: dataset_fn(
-              context, sharded_train_paths, infinite=not use_finite_dataset))
+              context, sharded_train_paths, infinite=not use_finite_dataset
+          )
+      )
 
     # Train model
     model.fit(
         train_dataset,
-        steps_per_epoch=None if use_finite_dataset else
-        (num_train_examples // batch_size),
+        steps_per_epoch=None
+        if use_finite_dataset
+        else (num_train_examples // batch_size),
     )
 
     if use_finite_dataset:
@@ -394,6 +431,8 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     # Non-distributed evaluation of the model.
     model._distribution_strategy = None
     model._cluster_coordinator = None
+    model._compile_time_distribution_strategy = None
+
     evaluation = model.evaluate(dataset_fn(None, [test_path]), return_dict=True)
     logging.info("Evaluation: %s", evaluation)
 
@@ -424,7 +463,8 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
 
     # Configure the model and datasets
     strategy = tf.distribute.experimental.ParameterServerStrategy(
-        cluster_resolver)
+        cluster_resolver
+    )
 
     with strategy.scope():
       model = tfdf.keras.DistributedGradientBoostedTreesModel(worker_logs=False)
@@ -434,7 +474,8 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
         train_path=train_path,
         label_key=label,
         dataset_format="csv",
-        valid_path=test_path)
+        valid_path=test_path,
+    )
     logging.info("Training history: %s", training_history.history)
 
     logging.info("Trained model:")
@@ -449,14 +490,27 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     self.assertAlmostEqual(evaluation["accuracy"], 0.8703476, delta=0.01)
 
     features = [feature.name for feature in model.make_inspector().features()]
-    self.assertEqual(features, [
-        "age", "workclass", "fnlwgt", "education", "education_num",
-        "marital_status", "occupation", "relationship", "race", "sex",
-        "capital_gain", "capital_loss", "hours_per_week", "native_country"
-    ])
+    self.assertEqual(
+        features,
+        [
+            "age",
+            "workclass",
+            "fnlwgt",
+            "education",
+            "education_num",
+            "marital_status",
+            "occupation",
+            "relationship",
+            "race",
+            "sex",
+            "capital_gain",
+            "capital_loss",
+            "hours_per_week",
+            "native_country",
+        ],
+    )
 
   def test_distributed_hyperparameter_tuning_on_adult_from_file(self):
-
     # Path to dataset.
     dataset_directory = os.path.join(test_data_path(), "dataset")
     train_path = os.path.join(dataset_directory, "adult_train.csv")
@@ -468,7 +522,8 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
 
     # Configure the model and datasets
     strategy = tf.distribute.experimental.ParameterServerStrategy(
-        cluster_resolver)
+        cluster_resolver
+    )
 
     with strategy.scope():
       tuner = tfdf.tuner.RandomSearch(num_trials=10, use_predefined_hps=True)
@@ -479,7 +534,8 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
         train_path=train_path,
         label_key=label,
         dataset_format="csv",
-        valid_path=test_path)
+        valid_path=test_path,
+    )
     logging.info("Training history: %s", training_history.history)
 
     logging.info("Trained model:")
@@ -494,14 +550,27 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     self.assertAlmostEqual(evaluation["accuracy"], 0.8703476, delta=0.01)
 
     features = [feature.name for feature in model.make_inspector().features()]
-    self.assertEqual(features, [
-        "age", "workclass", "fnlwgt", "education", "education_num",
-        "marital_status", "occupation", "relationship", "race", "sex",
-        "capital_gain", "capital_loss", "hours_per_week", "native_country"
-    ])
+    self.assertEqual(
+        features,
+        [
+            "age",
+            "workclass",
+            "fnlwgt",
+            "education",
+            "education_num",
+            "marital_status",
+            "occupation",
+            "relationship",
+            "race",
+            "sex",
+            "capital_gain",
+            "capital_loss",
+            "hours_per_week",
+            "native_country",
+        ],
+    )
 
   def test_distributed_training_adult_from_file_with_grpc_worker(self):
-
     self.skipTest("Not tested in OSS build")
 
     # Path to dataset.
@@ -519,21 +588,25 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     deployment_config.try_resume_training = True
     deployment_config.distribute.implementation_key = "GRPC"
     socket_addresses = deployment_config.distribute.Extensions[
-        tfdf.keras.core.grpc_pb2.grpc].socket_addresses
+        tfdf.keras.core.grpc_pb2.grpc
+    ].socket_addresses
     for worker_ip, worker_port in worker_addresses:
       socket_addresses.addresses.add(ip=worker_ip, port=worker_port)
 
     model = tfdf.keras.DistributedGradientBoostedTreesModel(
         worker_logs=False,
         advanced_arguments=tfdf.keras.AdvancedArguments(
-            yggdrasil_deployment_config=deployment_config))
+            yggdrasil_deployment_config=deployment_config
+        ),
+    )
     model.compile(metrics=["accuracy"])
 
     training_history = model.fit_on_dataset_path(
         train_path=train_path,
         label_key=label,
         dataset_format="csv",
-        valid_path=test_path)
+        valid_path=test_path,
+    )
     logging.info("Training history: %s", training_history.history)
 
     logging.info("Trained model:")
@@ -558,7 +631,8 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
 
     # Configure the model and datasets
     strategy = tf.distribute.experimental.ParameterServerStrategy(
-        cluster_resolver)
+        cluster_resolver
+    )
 
     with strategy.scope():
       model = tfdf.keras.DistributedGradientBoostedTreesModel(
@@ -572,7 +646,8 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
         train_path=train_path,
         label_key=label,
         dataset_format="csv",
-        valid_path=test_path)
+        valid_path=test_path,
+    )
     logging.info("Training history: %s", training_history.history)
 
     logging.info("Trained model:")
@@ -586,20 +661,33 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     self.assertAlmostEqual(evaluation["accuracy"], 0.8703476, delta=0.01)
 
     features = [feature.name for feature in model.make_inspector().features()]
-    self.assertEqual(features, [
-        "age", "workclass", "fnlwgt", "education", "education_num",
-        "marital_status", "occupation", "relationship", "race", "sex",
-        "capital_gain", "capital_loss", "hours_per_week", "native_country"
-    ])
+    self.assertEqual(
+        features,
+        [
+            "age",
+            "workclass",
+            "fnlwgt",
+            "education",
+            "education_num",
+            "marital_status",
+            "occupation",
+            "relationship",
+            "race",
+            "sex",
+            "capital_gain",
+            "capital_loss",
+            "hours_per_week",
+            "native_country",
+        ],
+    )
 
   def test_in_memory_not_supported(self):
-
     dataframe = pd.DataFrame({
         "a b": [0, 1, 2],
         "c,d": [0, 1, 2],
         "e%f": [0, 1, 2],
         "a%b": [0, 1, 2],
-        "label": [0, 1, 2]
+        "label": [0, 1, 2],
     })
     dataset = tfdf.keras.pd_dataframe_to_tf_dataset(dataframe, label="label")
 
@@ -607,7 +695,8 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
 
     with self.assertRaisesRegex(
         tf.errors.UnknownError,
-        "does not support training from in-memory datasets"):
+        "does not support training from in-memory datasets",
+    ):
       model.fit(dataset)
 
 

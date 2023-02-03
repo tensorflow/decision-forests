@@ -142,6 +142,10 @@ class AdvancedArguments(object):
       the model is only available with the slow engine, an error is raised. If
       true, the fastest compatible inference engine (possibly the slow one) will
       be used.
+    force_ydf_port: Socket port for YDF GRPC to use during distributed training
+      in addition to the TF GRPC. The chief and the workers should be able to
+      communicate thought this port. If not set, an available port is
+      automatically selected.
   """
 
   def __init__(
@@ -159,6 +163,7 @@ class AdvancedArguments(object):
       disable_categorical_integer_offset_correction: bool = False,
       node_format: Optional[NodeFormat] = None,
       allow_slow_inference: bool = True,
+      force_ydf_port: Optional[int] = None,
   ):
     self.infer_prediction_signature = infer_prediction_signature
     self.yggdrasil_training_config = (
@@ -183,6 +188,7 @@ class AdvancedArguments(object):
     )
     self.node_format = node_format
     self.allow_slow_inference = allow_slow_inference
+    self.force_ydf_port = force_ydf_port
 
 
 class MultiTaskItem(NamedTuple):
@@ -506,6 +512,7 @@ class InferenceCoreModel(models.Model):
           self._steps_per_execution is None
           or self._steps_per_execution.numpy().item() == 1
       ):
+
         def test_function(iterator):
           """Runs a test execution with a single step."""
           return step_function_trained(self, iterator)
