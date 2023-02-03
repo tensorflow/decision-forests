@@ -729,7 +729,7 @@ def train_on_file_dataset(
         ):
           if new_grpc_workers_addresses[worker_idx] != grpc_workers_address:
             logging.info(
-                "Update worker #%d port from %d to %d",
+                "Update worker #%d port from %s to %s",
                 worker_idx,
                 grpc_workers_address,
                 new_grpc_workers_addresses[worker_idx],
