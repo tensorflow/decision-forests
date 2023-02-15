@@ -13,5 +13,6 @@ def deps(from_git_repo = True):
         # You can also clone the YDF repository manually.
         native.local_repository(
             name = "ydf",
-            path = "../yggdrasil-decision-forests",
+            # When downloading from Github, you might need - instead of _ as folder name
+            path = "../yggdrasil_decision_forests",
         )

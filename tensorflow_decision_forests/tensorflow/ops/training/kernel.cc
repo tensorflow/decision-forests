@@ -313,7 +313,8 @@ tf::Status FeatureSet::InitializeDatasetFromFeatures(
                                dataset::proto::Column* col,
                                const bool apply_type = false) -> tf::Status {
     dataset::proto::ColumnGuide col_guide;
-    dataset::BuildColumnGuide(feature_name, guide, &col_guide);
+    TF_RETURN_IF_ERROR_FROM_ABSL_STATUS(
+        dataset::BuildColumnGuide(feature_name, guide, &col_guide).status());
     if (apply_type) {
       if (col_guide.has_type()) {
         col->set_type(col_guide.type());
