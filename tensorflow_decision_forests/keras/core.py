@@ -1258,7 +1258,7 @@ class CoreModel(InferenceCoreModel):
         x=x,
         y=y,
         callbacks=callbacks,
-        verbose=verbose,
+        verbose=self._verbose,
         validation_steps=validation_steps,
         validation_data=validation_data,
         sample_weight=sample_weight,
