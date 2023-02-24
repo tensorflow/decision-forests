@@ -318,10 +318,11 @@ tf::Status FeatureSet::InitializeDatasetFromFeatures(
     if (apply_type) {
       if (col_guide.has_type()) {
         col->set_type(col_guide.type());
-      }
-      if (col->type() == dataset::proto::NUMERICAL &&
-          guide.detect_numerical_as_discretized_numerical()) {
-        col->set_type(dataset::proto::DISCRETIZED_NUMERICAL);
+      } else {
+        if (col->type() == dataset::proto::NUMERICAL &&
+            guide.detect_numerical_as_discretized_numerical()) {
+          col->set_type(dataset::proto::DISCRETIZED_NUMERICAL);
+        }
       }
     }
     return utils::FromUtilStatus(
@@ -768,6 +769,8 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
           << "No training example available. Ignore training request.";
       return;
     }
+
+    YDF_LOG(INFO) << "Dataspec guide:\n" << guide_.DebugString();
 
     auto dataset = absl::make_unique<dataset::VerticalDataset>();
     OP_REQUIRES_OK(

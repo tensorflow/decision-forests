@@ -5,6 +5,7 @@
 ### Features
 
 -   Check learner parameters during the model construction.
+-   Fix discretized numerical features for regression task.
 
 ## 1.2.0 - 2023-01-24
 

@@ -910,6 +910,33 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     predictions = model.predict(tf_test)
     logging.info("Predictions: %s", predictions)
 
+  def test_model_abalone_discretized(self):
+    """Test on the Abalone dataset with discretized features.
+
+    Regression.
+    """
+
+    dataset = abalone_dataset()
+    tf_train, tf_test = dataset_to_tf_dataset(dataset)
+
+    model = build_model(
+        signature=Signature.AUTOMATIC_FEATURE_DISCOVERY,
+        dataset=dataset,
+        task=keras.Task.REGRESSION,
+        discretize_numerical_features=True,
+    )
+
+    model.compile(metrics=["mse"])
+
+    model.fit(x=tf_train, validation_data=tf_test)
+    model.summary()
+    evaluation = model.evaluate(tf_test)
+    logging.info("Evaluation: %s", evaluation)
+    self.assertLessEqual(evaluation[1], 6.0)  # mse
+
+    predictions = model.predict(tf_test)
+    logging.info("Predictions: %s", predictions)
+
   def test_model_abalone_disable_presorted_index(self):
     dataset = abalone_dataset()
     tf_train, tf_test = dataset_to_tf_dataset(dataset)
@@ -2185,9 +2212,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
       ("adult_binary_class_gbdt", 0.012131),
       ("prefixed_adult_binary_class_gbdt", 0.012131),
   )
-  def test_ydf_to_keras_model(
-      self, ydf_model_directory, expected_prediction
-  ):
+  def test_ydf_to_keras_model(self, ydf_model_directory, expected_prediction):
     ygg_model_path = os.path.join(
         ydf_test_data_path(), "model", ydf_model_directory
     )
@@ -2613,9 +2638,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         ydf_test_data_path(), "model", "prefixed_adult_binary_class_rf"
     )
     model_tmp_path_keras = os.path.join(self.get_temp_dir(), "kerasmodel")
-    keras.yggdrasil_model_to_keras_model(
-        ygg_model_path, model_tmp_path_keras
-    )
+    keras.yggdrasil_model_to_keras_model(ygg_model_path, model_tmp_path_keras)
     model = tf.keras.models.load_model(model_tmp_path_keras)
     tree_plot = model_plotter.plot_model(model, tree_idx=0, max_depth=2)
     expected_tree_start = (
