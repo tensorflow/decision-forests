@@ -1,5 +1,4 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
-
 load("@org_tensorflow//tensorflow:tensorflow.bzl", "tf_cc_test")
 
 package(
@@ -16,8 +15,8 @@ bzl_library(
     name = "wrapper_bzl",
     srcs = ["wrapper.bzl"],
     deps = [
-        "@org_tensorflow//tensorflow:tensorflow_bzl",
         "//tensorflow_decision_forests/tensorflow:utils_bzl",
+        "@org_tensorflow//tensorflow:tensorflow_bzl",
     ],
 )
 
