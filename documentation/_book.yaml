@@ -48,6 +48,8 @@ upper_tabs:
         path: /decision_forests/tutorials/beginner_colab
       - title: Learning to rank
         path: /decision_forests/tutorials/ranking_colab
+      - title: Visualizing Trees
+        path: /decision_forests/tutorials/dtreeviz_colab
       - title: Text and pre-trained embeddings
         path: /decision_forests/tutorials/intermediate_colab
       - title: Making predictions
