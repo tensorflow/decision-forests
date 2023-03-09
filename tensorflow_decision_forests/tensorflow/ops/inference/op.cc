@@ -125,8 +125,9 @@ Status SimpleMLInferenceOpSetShapeGeneric(shape_inference::InferenceContext* c,
       if (known_batch_size == -1) {
         known_batch_size = value;
       } else if (known_batch_size != value) {
-        return Status(error::INVALID_ARGUMENT,
-                      "The batch size of the input features are inconsistent");
+        return Status(
+            static_cast<tsl::errors::Code>(absl::StatusCode::kInvalidArgument),
+            "The batch size of the input features are inconsistent");
       }
     }
 

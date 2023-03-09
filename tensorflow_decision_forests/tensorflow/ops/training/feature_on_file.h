@@ -213,7 +213,8 @@ class FeatureOnFileOp : public tensorflow::OpKernel {
     auto* device = dynamic_cast<tensorflow::Device*>(ctx->device());
     if (device == nullptr) {
       OP_REQUIRES_OK(ctx,
-                     tensorflow::Status(tensorflow::error::INVALID_ARGUMENT,
+                     tensorflow::Status(static_cast<tsl::errors::Code>(
+                                            absl::StatusCode::kInvalidArgument),
                                         "Cannot find the worker idx"));
     }
     worker_idx_ = device->parsed_name().task;
@@ -242,7 +243,8 @@ class FeatureOnFileOp : public tensorflow::OpKernel {
 
     tensorflow::mutex_lock l(mu_);
     OP_REQUIRES(ctx, ctx->input(0).dims() == 1,
-                tensorflow::Status(tensorflow::error::INVALID_ARGUMENT,
+                tensorflow::Status(static_cast<tsl::errors::Code>(
+                                       absl::StatusCode::kInvalidArgument),
                                    "The input 0 feature should have rank 1"));
     if (!resource_) {
       AbstractFeatureResourceOnFile* abstract_resource;
@@ -259,7 +261,8 @@ class FeatureOnFileOp : public tensorflow::OpKernel {
       resource_ = static_cast<Resource*>(abstract_resource);
     }
     OP_REQUIRES(ctx, ctx->input(0).dims() == 1,
-                tensorflow::Status(tensorflow::error::INVALID_ARGUMENT,
+                tensorflow::Status(static_cast<tsl::errors::Code>(
+                                       absl::StatusCode::kInvalidArgument),
                                    "The input should have rank 1"));
     OP_REQUIRES_OK(ctx, FromUtilStatus(resource_->AddValue(ctx->input(0))));
   }

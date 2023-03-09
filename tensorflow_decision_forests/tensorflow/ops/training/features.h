@@ -195,15 +195,18 @@ class Feature : public tensorflow::OpKernel {
     }
     if constexpr (kNumInputs == 1) {
       OP_REQUIRES(ctx, ctx->input(0).dims() == 1,
-                  tensorflow::Status(tensorflow::error::INVALID_ARGUMENT,
+                  tensorflow::Status(static_cast<tsl::errors::Code>(
+                                         absl::StatusCode::kInvalidArgument),
                                      "The input 0 feature should have rank 1"));
       resource_->Add(ctx->input(0));
     } else if constexpr (kNumInputs == 2) {
       OP_REQUIRES(ctx, ctx->input(0).dims() == 1,
-                  tensorflow::Status(tensorflow::error::INVALID_ARGUMENT,
+                  tensorflow::Status(static_cast<tsl::errors::Code>(
+                                         absl::StatusCode::kInvalidArgument),
                                      "The input 0 feature should have rank 1"));
       OP_REQUIRES(ctx, ctx->input(1).dims() == 1,
-                  tensorflow::Status(tensorflow::error::INVALID_ARGUMENT,
+                  tensorflow::Status(static_cast<tsl::errors::Code>(
+                                         absl::StatusCode::kInvalidArgument),
                                      "The input 1 feature should have rank 1"));
       resource_->Add(ctx->input(0), ctx->input(1));
     } else {
