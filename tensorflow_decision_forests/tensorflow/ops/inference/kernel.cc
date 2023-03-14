@@ -182,7 +182,9 @@ struct OutputLeavesTensors {
 };
 
 tf::Status TfStatusInvalidArgument(const absl::string_view message) {
-  return tf::Status(tf::error::INVALID_ARGUMENT, message);
+  return tf::Status(
+      static_cast<tf::errors::Code>(absl::StatusCode::kInvalidArgument),
+      message);
 }
 
 // Converts the vector of item to bitmap representation of the output types.
@@ -234,7 +236,7 @@ class FeatureIndex {
           break;
         default:
           return tf::Status(
-              tf::error::UNIMPLEMENTED,
+              static_cast<tf::errors::Code>(absl::StatusCode::kUnimplemented),
               absl::Substitute(
                   "Non supported feature type \"$0\" for feature \"$1\".",
                   dataset::proto::ColumnType_Name(feature_spec.type()),
@@ -287,8 +289,9 @@ tf::Status ExtractCategoricalSetInt(const InputTensors& inputs,
                                     std::vector<int32_t>* values) {
   if (inputs.categorical_set_int_features_row_splits_dim_2(example_idx) !=
       example_idx * feature_index.categorical_set_int_features().size()) {
-    return tf::Status(tf::error::INTERNAL,
-                      "Unexpected features_row_splits_dim_2 size.");
+    return tf::Status(
+        static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
+        "Unexpected features_row_splits_dim_2 size.");
   }
 
   const int d1_cell =
@@ -296,8 +299,9 @@ tf::Status ExtractCategoricalSetInt(const InputTensors& inputs,
       tensor_col_idx;
   if (d1_cell + 1 >=
       inputs.categorical_set_int_features_row_splits_dim_1.size()) {
-    return tf::Status(tf::error::INTERNAL,
-                      "Unexpected features_row_splits_dim_1 size.");
+    return tf::Status(
+        static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
+        "Unexpected features_row_splits_dim_1 size.");
   }
 
   const int begin_idx =
@@ -387,7 +391,9 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
     // Update the vertical dataset with the input tensors.
     auto* cache = dynamic_cast<Cache*>(abstract_cache);
     if (cache == nullptr) {
-      return tf::Status(tf::error::INTERNAL, "Unexpected cache type.");
+      return tf::Status(
+          static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
+          "Unexpected cache type.");
     }
     TF_RETURN_IF_ERROR(SetVerticalDataset(inputs, feature_index, cache));
 
@@ -412,8 +418,9 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
           if (outputs->output_dim == 1 && !output_is_proba) {
             // Output the logit of the positive class.
             if (pred.distribution().counts().size() != 3) {
-              return tf::Status(tf::error::INTERNAL,
-                                "Wrong \"distribution\" shape.");
+              return tf::Status(
+                  static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
+                  "Wrong \"distribution\" shape.");
             }
             const float logit =
                 prediction.classification().distribution().counts(2) /
@@ -423,8 +430,9 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
             // Output the logit or probabilities.
             if (outputs->dense_predictions.dimension(1) !=
                 pred.distribution().counts().size() - 1) {
-              return tf::Status(tf::error::INTERNAL,
-                                "Wrong \"distribution\" shape.");
+              return tf::Status(
+                  static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
+                  "Wrong \"distribution\" shape.");
             }
             for (int class_idx = 0; class_idx < outputs->output_dim;
                  class_idx++) {
@@ -459,8 +467,9 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
           const auto& pred = prediction.uplift();
           if (outputs->dense_predictions.dimension(1) !=
               pred.treatment_effect_size()) {
-            return tf::Status(tf::error::INTERNAL,
-                              "Wrong \"distribution\" shape.");
+            return tf::Status(
+                static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
+                "Wrong \"distribution\" shape.");
           }
           for (int uplift_idx = 0; uplift_idx < outputs->output_dim;
                uplift_idx++) {
@@ -470,9 +479,10 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
         } break;
 
         default:
-          return tf::Status(tf::error::UNIMPLEMENTED,
-                            absl::Substitute("Non supported task $0",
-                                             Task_Name(model_->task())));
+          return tf::Status(
+              static_cast<tf::errors::Code>(absl::StatusCode::kUnimplemented),
+              absl::Substitute("Non supported task $0",
+                               Task_Name(model_->task())));
       }
     }
 
@@ -486,7 +496,9 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
     // Update the vertical dataset with the input tensors.
     auto* cache = dynamic_cast<Cache*>(abstract_cache);
     if (cache == nullptr) {
-      return tf::Status(tf::error::INTERNAL, "Unexpected cache type.");
+      return tf::Status(
+          static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
+          "Unexpected cache type.");
     }
     TF_RETURN_IF_ERROR(SetVerticalDataset(inputs, feature_index, cache));
 
@@ -549,7 +561,9 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
               dataset::NumericalToDiscretizedNumerical(col_spec, value);
         }
       } else {
-        return tf::Status(tf::error::INTERNAL, "Unexpected column type.");
+        return tf::Status(
+            static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
+            "Unexpected column type.");
       }
     }
 
@@ -560,7 +574,9 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
       auto* col = cache->dataset_.MutableColumnWithCastOrNull<
           dataset::VerticalDataset::BooleanColumn>(feature_idx);
       if (col == nullptr) {
-        return tf::Status(tf::error::INTERNAL, "Unexpected column type.");
+        return tf::Status(
+            static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
+            "Unexpected column type.");
       }
       col->Resize(inputs.batch_size);
       auto& dst = *col->mutable_values();
@@ -586,7 +602,9 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
       auto* col = cache->dataset_.MutableColumnWithCastOrNull<
           dataset::VerticalDataset::CategoricalColumn>(feature_idx);
       if (col == nullptr) {
-        return tf::Status(tf::error::INTERNAL, "Unexpected column type.");
+        return tf::Status(
+            static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
+            "Unexpected column type.");
       }
       col->Resize(inputs.batch_size);
       const int max_value = cache->dataset_.data_spec()
@@ -621,7 +639,9 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
       auto* col = cache->dataset_.MutableColumnWithCastOrNull<
           dataset::VerticalDataset::CategoricalSetColumn>(feature_idx);
       if (col == nullptr) {
-        return tf::Status(tf::error::INTERNAL, "Unexpected column type.");
+        return tf::Status(
+            static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
+            "Unexpected column type.");
       }
       col->Resize(inputs.batch_size);
 
@@ -716,7 +736,9 @@ class SemiFastGenericInferenceEngine : public AbstractInferenceEngine {
     // Update the vertical dataset with the input tensors.
     auto* cache = dynamic_cast<Cache*>(abstract_cache);
     if (cache == nullptr) {
-      return tf::Status(tf::error::INTERNAL, "Unexpected cache type.");
+      return tf::Status(
+          static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
+          "Unexpected cache type.");
     }
 
     TF_RETURN_IF_ERROR(SetInputFeatures(inputs, feature_index, cache));
@@ -729,7 +751,9 @@ class SemiFastGenericInferenceEngine : public AbstractInferenceEngine {
     if (decompact_probability_) {
       DCHECK_EQ(outputs->output_dim, 2);
       if (engine_->NumPredictionDimension() != 1) {
-        return tf::Status(tf::error::INTERNAL, "Wrong NumPredictionDimension");
+        return tf::Status(
+            static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
+            "Wrong NumPredictionDimension");
       }
       for (int example_idx = 0; example_idx < inputs.batch_size;
            example_idx++) {
@@ -741,7 +765,9 @@ class SemiFastGenericInferenceEngine : public AbstractInferenceEngine {
 
     } else {
       if (engine_->NumPredictionDimension() != outputs->output_dim) {
-        return tf::Status(tf::error::INTERNAL, "Wrong NumPredictionDimension");
+        return tf::Status(
+            static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
+            "Wrong NumPredictionDimension");
       }
       for (int example_idx = 0; example_idx < inputs.batch_size;
            example_idx++) {
@@ -763,7 +789,9 @@ class SemiFastGenericInferenceEngine : public AbstractInferenceEngine {
     // Update the vertical dataset with the input tensors.
     auto* cache = dynamic_cast<Cache*>(abstract_cache);
     if (cache == nullptr) {
-      return tf::Status(tf::error::INTERNAL, "Unexpected cache type.");
+      return tf::Status(
+          static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
+          "Unexpected cache type.");
     }
     TF_RETURN_IF_ERROR(SetInputFeatures(inputs, feature_index, cache));
 
@@ -1049,7 +1077,7 @@ class YggdrasilModelResource : public tf::ResourceBase {
 
       if (!allow_slow_inference) {
         return ::tensorflow::Status(
-            tensorflow::error::Code::UNKNOWN,
+            static_cast<tf::errors::Code>(absl::StatusCode::kUnknown),
             "No compatible fast inference engine found for the model. Options: "
             "1) Make sure this binary is compiled with support with compatible "
             "fast inference engines. 2) Allow for the model to run with the "

@@ -84,7 +84,8 @@ class SimpleMLFileModelLoader : public tf::OpKernel {
     const tf::Tensor& model_path_tensor = ctx->input(0);
     const auto model_paths = model_path_tensor.flat<tf::tstring>();
     if (model_paths.size() != 1) {
-      OP_REQUIRES_OK(ctx, tf::Status(tf::error::INVALID_ARGUMENT,
+      OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
+                                         absl::StatusCode::kInvalidArgument),
                                      "Wrong number of models"));
     }
     const std::string model_path = model_paths(0);
@@ -189,9 +190,10 @@ tf::Status FeatureSet::Link(
     } else if (hash_feature) {
       hash_features_.push_back({feature_idx, hash_feature});
     } else {
-      return tf::Status(tf::error::Code::INVALID_ARGUMENT,
-                        absl::StrCat("Unsupported type for feature \"",
-                                     feature->feature_name(), "\""));
+      return tf::Status(
+          static_cast<tf::errors::Code>(absl::StatusCode::kInvalidArgument),
+          absl::StrCat("Unsupported type for feature \"",
+                       feature->feature_name(), "\""));
     }
   }
 
@@ -296,7 +298,7 @@ tf::Status FeatureSet::InitializeDatasetFromFeatures(
     }
     if (num_examples != observed_num_examples) {
       return tf::Status(
-          tf::error::Code::INVALID_ARGUMENT,
+          static_cast<tf::errors::Code>(absl::StatusCode::kInvalidArgument),
           absl::Substitute("Inconsistent number of training examples for the "
                            "different input features $0 != $1.",
                            num_examples, observed_num_examples));
@@ -392,8 +394,9 @@ tf::Status FeatureSet::InitializeDatasetFromFeatures(
   YDF_LOG(INFO) << "Number of examples: " << num_examples;
 
   if (num_examples <= 0) {
-    return tf::Status(tf::error::Code::INVALID_ARGUMENT,
-                      "No training examples available.");
+    return tf::Status(
+        static_cast<tf::errors::Code>(absl::StatusCode::kInvalidArgument),
+        "No training examples available.");
   }
 
   TF_RETURN_IF_ERROR_FROM_ABSL_STATUS(dataset->CreateColumnsFromDataspec());
@@ -485,7 +488,7 @@ tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
       dataset->set_nrow(num_rows);
     } else if (dataset->nrow() != num_rows) {
       return tf::Status(
-          tf::error::Code::INVALID_ARGUMENT,
+          static_cast<tf::errors::Code>(absl::StatusCode::kInvalidArgument),
           absl::Substitute(
               "Inconsistent number of observations "
               "between features for feature $0 != $1. For feature $2.",
@@ -635,12 +638,15 @@ tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
           for (int value_idx = begin_value_idx; value_idx < end_value_idx;
                value_idx++) {
             if (value_idx < 0 || value_idx >= feature->values().size()) {
-              return tf::Status(tf::error::Code::INTERNAL, "Internal error");
+              return tf::Status(
+                  static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
+                  "Internal error");
             }
             auto value = feature->values()[value_idx];
             if (value < dataset::VerticalDataset::CategoricalColumn::kNaValue) {
               return tf::Status(
-                  tf::error::Code::INVALID_ARGUMENT,
+                  static_cast<tf::errors::Code>(
+                      absl::StatusCode::kInvalidArgument),
                   absl::StrCat("Integer categorical value should "
                                "be >= -1. Found  value",
                                value, " for feature", feature->feature_name()));
@@ -698,21 +704,24 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("node_format", &node_format_));
 
     if (model_id_.empty()) {
-      OP_REQUIRES_OK(
-          ctx, tf::Status(tf::error::INVALID_ARGUMENT, "Model id is empty"));
+      OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
+                                         absl::StatusCode::kInvalidArgument),
+                                     "Model id is empty"));
     }
 
     std::string serialized_guide;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("guide", &serialized_guide));
     if (!guide_.ParseFromString(serialized_guide)) {
-      OP_REQUIRES_OK(ctx, tf::Status(tf::error::INVALID_ARGUMENT,
+      OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
+                                         absl::StatusCode::kInvalidArgument),
                                      "Cannot de-serialize guide proto."));
     }
 
     std::string hparams;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("hparams", &hparams));
     if (!hparams_.ParseFromString(hparams)) {
-      OP_REQUIRES_OK(ctx, tf::Status(tf::error::INVALID_ARGUMENT,
+      OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
+                                         absl::StatusCode::kInvalidArgument),
                                      "Cannot de-serialize hparams proto."));
     }
     {
@@ -721,20 +730,24 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
           ctx, ctx->GetAttr("training_config", &serialized_training_config));
       if (!training_config_.MergeFromString(serialized_training_config)) {
         OP_REQUIRES_OK(
-            ctx, tf::Status(tf::error::INVALID_ARGUMENT,
+            ctx, tf::Status(static_cast<tf::errors::Code>(
+                                absl::StatusCode::kInvalidArgument),
                             "Cannot de-serialize training_config proto."));
       }
       if (!training_config_.has_task()) {
-        OP_REQUIRES_OK(
-            ctx, tf::Status(tf::error::INVALID_ARGUMENT, "\"task\" not set"));
+        OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
+                                           absl::StatusCode::kInvalidArgument),
+                                       "\"task\" not set"));
       }
       if (!training_config_.has_learner()) {
-        OP_REQUIRES_OK(ctx, tf::Status(tf::error::INVALID_ARGUMENT,
+        OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
+                                           absl::StatusCode::kInvalidArgument),
                                        "\"learner\" not set"));
       }
       if (!training_config_.has_label()) {
-        OP_REQUIRES_OK(
-            ctx, tf::Status(tf::error::INVALID_ARGUMENT, "\"label\" not set"));
+        OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
+                                           absl::StatusCode::kInvalidArgument),
+                                       "\"label\" not set"));
       }
     }
 
@@ -744,7 +757,8 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
                                        &serialized_deployment_config));
       if (!deployment_config_.MergeFromString(serialized_deployment_config)) {
         OP_REQUIRES_OK(
-            ctx, tf::Status(tf::error::INVALID_ARGUMENT,
+            ctx, tf::Status(static_cast<tf::errors::Code>(
+                                absl::StatusCode::kInvalidArgument),
                             "Cannot de-serialize deployment_config proto."));
       }
     }
@@ -1010,7 +1024,8 @@ class SimpleMLCheckTrainingConfiguration : public tensorflow::OpKernel {
     std::string hparams;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("hparams", &hparams));
     if (!hparams_.ParseFromString(hparams)) {
-      OP_REQUIRES_OK(ctx, tf::Status(tf::error::INVALID_ARGUMENT,
+      OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
+                                         absl::StatusCode::kInvalidArgument),
                                      "Cannot de-serialize hparams proto."));
     }
 
@@ -1020,7 +1035,8 @@ class SimpleMLCheckTrainingConfiguration : public tensorflow::OpKernel {
           ctx, ctx->GetAttr("training_config", &serialized_training_config));
       if (!training_config_.MergeFromString(serialized_training_config)) {
         OP_REQUIRES_OK(
-            ctx, tf::Status(tf::error::INVALID_ARGUMENT,
+            ctx, tf::Status(static_cast<tf::errors::Code>(
+                                absl::StatusCode::kInvalidArgument),
                             "Cannot de-serialize training_config proto."));
       }
     }
@@ -1030,16 +1046,19 @@ class SimpleMLCheckTrainingConfiguration : public tensorflow::OpKernel {
 
   void Compute(tf::OpKernelContext* ctx) override {
     if (!training_config_.has_task()) {
-      OP_REQUIRES_OK(
-          ctx, tf::Status(tf::error::INVALID_ARGUMENT, "\"task\" not set"));
+      OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
+                                         absl::StatusCode::kInvalidArgument),
+                                     "\"task\" not set"));
     }
     if (!training_config_.has_learner()) {
-      OP_REQUIRES_OK(
-          ctx, tf::Status(tf::error::INVALID_ARGUMENT, "\"learner\" not set"));
+      OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
+                                         absl::StatusCode::kInvalidArgument),
+                                     "\"learner\" not set"));
     }
     if (!training_config_.has_label()) {
-      OP_REQUIRES_OK(
-          ctx, tf::Status(tf::error::INVALID_ARGUMENT, "\"label\" not set"));
+      OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
+                                         absl::StatusCode::kInvalidArgument),
+                                     "\"label\" not set"));
     }
 
     // Check the parameters by creating a learner.
@@ -1098,7 +1117,8 @@ class SimpleMLShowModel : public AbstractSimpleMLModelOp {
   void ComputeModel(tf::OpKernelContext* ctx,
                     const model::AbstractModel* const model) override {
     if (!model) {
-      OP_REQUIRES_OK(ctx, tf::Status(tf::error::INVALID_ARGUMENT,
+      OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
+                                         absl::StatusCode::kInvalidArgument),
                                      "The model does not exist."));
     }
 
@@ -1168,8 +1188,9 @@ tf::Status EnableUserInterruption() {
     stop_training = false;
     previous_signal_handler = std::signal(SIGINT, StopTrainingSignalHandler);
     if (previous_signal_handler == SIG_ERR) {
-      TF_RETURN_IF_ERROR(tf::Status(tf::error::INVALID_ARGUMENT,
-                                    "Cannot change the std::signal handler."));
+      TF_RETURN_IF_ERROR(tf::Status(
+          static_cast<tf::errors::Code>(absl::StatusCode::kInvalidArgument),
+          "Cannot change the std::signal handler."));
     }
   }
   return tf::OkStatus();
@@ -1180,8 +1201,9 @@ tf::Status DisableUserInterruption() {
   if (restore_signal_handler) {
     // Restore the previous signal handler.
     if (std::signal(SIGINT, previous_signal_handler) == SIG_ERR) {
-      TF_RETURN_IF_ERROR(tf::Status(tf::error::INVALID_ARGUMENT,
-                                    "Cannot restore the std::signal handler."));
+      TF_RETURN_IF_ERROR(tf::Status(
+          static_cast<tf::errors::Code>(absl::StatusCode::kInvalidArgument),
+          "Cannot restore the std::signal handler."));
     }
   }
   return tf::OkStatus();
