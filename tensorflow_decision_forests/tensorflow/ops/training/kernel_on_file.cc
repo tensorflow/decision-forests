@@ -82,21 +82,24 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("node_format", &node_format_));
 
     if (model_id_.empty()) {
-      OP_REQUIRES_OK(
-          ctx, tf::Status(tf::error::INVALID_ARGUMENT, "Model id is empty"));
+      OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
+                                         absl::StatusCode::kInvalidArgument),
+                                     "Model id is empty"));
     }
 
     std::string serialized_guide;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("guide", &serialized_guide));
     if (!guide_.ParseFromString(serialized_guide)) {
-      OP_REQUIRES_OK(ctx, tf::Status(tf::error::INVALID_ARGUMENT,
+      OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
+                                         absl::StatusCode::kInvalidArgument),
                                      "Cannot de-serialize guide proto."));
     }
 
     std::string hparams;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("hparams", &hparams));
     if (!hparams_.ParseFromString(hparams)) {
-      OP_REQUIRES_OK(ctx, tf::Status(tf::error::INVALID_ARGUMENT,
+      OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
+                                         absl::StatusCode::kInvalidArgument),
                                      "Cannot de-serialize hparams proto."));
     }
 
@@ -106,7 +109,8 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
           ctx, ctx->GetAttr("training_config", &serialized_training_config));
       if (!training_config_.MergeFromString(serialized_training_config)) {
         OP_REQUIRES_OK(
-            ctx, tf::Status(tf::error::INVALID_ARGUMENT,
+            ctx, tf::Status(static_cast<tf::errors::Code>(
+                                absl::StatusCode::kInvalidArgument),
                             "Cannot de-serialize training_config proto."));
       }
     }
@@ -117,7 +121,8 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
                                        &serialized_deployment_config));
       if (!deployment_config_.MergeFromString(serialized_deployment_config)) {
         OP_REQUIRES_OK(
-            ctx, tf::Status(tf::error::INVALID_ARGUMENT,
+            ctx, tf::Status(static_cast<tf::errors::Code>(
+                                absl::StatusCode::kInvalidArgument),
                             "Cannot de-serialize deployment_config proto."));
       }
     }
