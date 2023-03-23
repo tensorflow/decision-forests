@@ -272,27 +272,27 @@ elif [ ${ARG} == "ALL_VERSIONS" ]; then
   e2e_pyenv 3.9.12
   e2e_pyenv 3.8.13
   e2e_pyenv 3.10.4
-  e2e_pyenv 3.11.2
+  e2e_pyenv 3.11.1
 elif [ ${ARG} == "ALL_VERSIONS_ALREADY_ASSEMBLED" ]; then
   eval "$(pyenv init -)"
   e2e_pyenv 3.9.12
   e2e_pyenv 3.8.13
   e2e_pyenv 3.10.4
-  e2e_pyenv 3.11.2
+  e2e_pyenv 3.11.1
 elif [ ${ARG} == "ALL_VERSIONS_MAC_ARM64" ]; then
   eval "$(pyenv init -)"
   assemble_files
   e2e_pyenv 3.9.12
   e2e_pyenv 3.8.13
   e2e_pyenv 3.10.4
-  e2e_pyenv 3.11.2
+  e2e_pyenv 3.11.1
 elif [ ${ARG} == "ALL_VERSIONS_MAC_INTEL_CROSSCOMPILE" ]; then
   eval "$(pyenv init -)"
   assemble_files
   e2e_pyenv 3.9.12
   e2e_pyenv 3.8.13
   e2e_pyenv 3.10.4
-  e2e_pyenv 3.11.2
+  e2e_pyenv 3.11.1
 else
   # Compile with a specific version of python provided in the call arguments.
   assemble_files
