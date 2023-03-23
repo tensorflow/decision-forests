@@ -10,7 +10,8 @@
 -   Fix discretized numerical features for regression task.
 -   Allow for float32 values to be fed as categorical features.
 -   Add new / improved tutorials for ranking and visualization.
--   Compatibility with Tensorflow 2.12.0.
+-   Compatibility with Tensorflow 2.12.0. Unfortunately, this means dropping
+    support for Python 3.7.
 
 ### Fix
 

@@ -269,30 +269,30 @@ elif [ ${ARG} == "ALL_VERSIONS" ]; then
   # Compile with all the version of python using pyenv.
   assemble_files
   eval "$(pyenv init -)"
-  e2e_pyenv 3.7.13
   e2e_pyenv 3.9.12
   e2e_pyenv 3.8.13
   e2e_pyenv 3.10.4
+  e2e_pyenv 3.11.2
 elif [ ${ARG} == "ALL_VERSIONS_ALREADY_ASSEMBLED" ]; then
   eval "$(pyenv init -)"
-  e2e_pyenv 3.7.13
   e2e_pyenv 3.9.12
   e2e_pyenv 3.8.13
   e2e_pyenv 3.10.4
+  e2e_pyenv 3.11.2
 elif [ ${ARG} == "ALL_VERSIONS_MAC_ARM64" ]; then
   eval "$(pyenv init -)"
   assemble_files
-  # Python 3.7 not supported for Mac ARM64
   e2e_pyenv 3.9.12
   e2e_pyenv 3.8.13
   e2e_pyenv 3.10.4
+  e2e_pyenv 3.11.2
 elif [ ${ARG} == "ALL_VERSIONS_MAC_INTEL_CROSSCOMPILE" ]; then
   eval "$(pyenv init -)"
   assemble_files
-  # Python 3.7 not supported for Mac ARM64
   e2e_pyenv 3.9.12
   e2e_pyenv 3.8.13
   e2e_pyenv 3.10.4
+  e2e_pyenv 3.11.2
 else
   # Compile with a specific version of python provided in the call arguments.
   assemble_files
