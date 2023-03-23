@@ -2,10 +2,21 @@
 
 ## HEAD
 
+## 1.3.0 - 2023-03-23
+
 ### Features
 
 -   Check learner parameters during the model construction.
 -   Fix discretized numerical features for regression task.
+-   Allow for float32 values to be fed as categorical features.
+-   Add new / improved tutorials for ranking and visualization.
+-   Compatibility with Tensorflow 2.12.0.
+
+### Fix
+
+-   Fix crashes when using ranking with very large groups.
+-   Add option to set the port used by YDF in TF-DF distributed training.
+-   Improve logging robustness.
 
 ## 1.2.0 - 2023-01-24
 
