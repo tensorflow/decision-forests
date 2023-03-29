@@ -2544,7 +2544,93 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     loaded_predictions = loaded_model.predict(test_dataset)
     logging.info("loaded predictions: %s", loaded_predictions)
 
-    self.assertAllClose(predictions, loaded_predictions)
+    self.assertEqual(predictions, loaded_predictions)
+
+  def test_multi_task_primary_secondary(self):
+    num_features = 5
+
+    def make_dataset(num_examples):
+      features = np.random.uniform(size=(num_examples, num_features))
+      hidden = 0.05 * np.random.uniform(size=num_examples)
+
+      # Binary classification.
+      label_1 = (hidden >= features[:, 1]).astype(int) + (
+          hidden >= features[:, 2]
+      ).astype(int)
+
+      # Regression
+      label_2 = hidden + features[:, 2] + 2 * features[:, 3]
+
+      # Multi-class classification.
+      label_3 = (
+          (np.random.uniform(size=num_examples) + features[:, 3]) * 4 / 2
+      ).astype(int)
+
+      labels = {
+          "label_1": label_1,
+          "label_2": label_2,
+          "label_3": label_3,
+      }
+      return tf.data.Dataset.from_tensor_slices((features, labels)).batch(3)
+
+    train_dataset = make_dataset(1000)
+    test_dataset = make_dataset(10)
+
+    model = keras.GradientBoostedTreesModel(
+        multitask=[
+            keras.MultiTaskItem(
+                label="label_1",
+                task=keras.Task.CLASSIFICATION,
+                primary=False,
+            ),
+            keras.MultiTaskItem(
+                label="label_2", task=keras.Task.REGRESSION, primary=False
+            ),
+            keras.MultiTaskItem(
+                label="label_3", task=keras.Task.CLASSIFICATION
+            ),
+        ],
+        verbose=2,
+    )
+    model.fit(train_dataset)
+
+    logging.info("model:")
+    model.summary()
+
+    # Check model
+    inspector_0 = model.make_inspector(0)
+    inspector_1 = model.make_inspector(1)
+    inspector_2 = model.make_inspector(2)
+
+    self.assertEqual(inspector_0.model_type(), "GRADIENT_BOOSTED_TREES")
+    self.assertEqual(inspector_0.label().name, "label_1")
+
+    self.assertEqual(inspector_1.model_type(), "GRADIENT_BOOSTED_TREES")
+    self.assertEqual(inspector_1.label().name, "label_2")
+
+    self.assertEqual(inspector_2.model_type(), "GRADIENT_BOOSTED_TREES")
+    self.assertEqual(inspector_2.label().name, "label_3")
+
+    # Check predictions
+    predictions = model.predict(test_dataset)
+    logging.info("predictions: %s", predictions)
+    self.assertSetEqual(set(predictions.keys()), set(["label_3"]))
+    self.assertTupleEqual(predictions["label_3"].shape, (10, 4))
+
+    # Export / import model
+    saved_model_path = os.path.join(self.get_temp_dir(), "saved_model")
+    logging.info("Saving model to %s", saved_model_path)
+    model.save(saved_model_path)
+
+    logging.info("Loading model from %s", saved_model_path)
+    loaded_model = models.load_model(saved_model_path)
+    loaded_model.summary()
+
+    # Check exported / imported model predictions
+    loaded_predictions = loaded_model.predict(test_dataset)
+    logging.info("loaded predictions: %s", loaded_predictions)
+
+    self.assertEqual(predictions, loaded_predictions)
 
   def test_multitask_adult_from_file(self):
     # Path to dataset.

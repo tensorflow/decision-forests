@@ -192,10 +192,16 @@ class AdvancedArguments(object):
 
 
 class MultiTaskItem(NamedTuple):
-  """A single task in a multi-task configuration."""
+  """A single task in a multi-task configuration.
+
+  Models trained to predict label with primary=False are used to help the
+  training of models with primary=True. If primary is true for all the tasks,
+  each task will be trained independently.
+  """
 
   label: str
   task: TaskType = Task.CLASSIFICATION
+  primary: bool = True
 
 
 class InferenceCoreModel(models.Model):
@@ -266,6 +272,7 @@ class InferenceCoreModel(models.Model):
             sub_task.label, False
         )
         multitasker_task.train_config.task = sub_task.task
+        multitasker_task.primary = sub_task.primary
     else:
       training_config.learner = learner
 
@@ -643,8 +650,30 @@ class InferenceCoreModel(models.Model):
 
     normalized_inputs = self._build_normalized_inputs(inputs)
 
+    has_secondary_tasks = any([not t.primary for t in self._multitask])
+    if has_secondary_tasks:
+      # The model contains two "layers" of DF models. The output of the first
+      # layer is used as input for the second layer.
+      secondary_outputs = {}
+      for item_idx, multitask_item in enumerate(self._multitask):
+        if multitask_item.primary:
+          continue
+        sub_pred = self._models[item_idx].apply(normalized_inputs)
+        sub_pred = self._finalize_predictions(
+            multitask_item.task, sub_pred, like_engine=True
+        )
+        for pred_idx in range(sub_pred.shape[1]):
+          secondary_outputs[f"{multitask_item.label}:{pred_idx}"] = sub_pred[
+              :, pred_idx
+          ]
+      # Add the output of the first layer (the secondary models) to the global
+      # input pool.
+      normalized_inputs = {**normalized_inputs, **secondary_outputs}
+
     predictions = {}
     for item_idx, multitask_item in enumerate(self._multitask):
+      if not multitask_item.primary:
+        continue
       sub_pred = self._models[item_idx].apply(normalized_inputs)
       sub_pred = self._finalize_predictions(multitask_item.task, sub_pred)
       predictions[multitask_item.label] = sub_pred
@@ -658,10 +687,19 @@ class InferenceCoreModel(models.Model):
     return predictions
 
   @tf.function(reduce_retracing=True)
-  def _finalize_predictions(self, task: TaskType, predictions):
-    """Finalizes the predictions before beeing send back to the user."""
+  def _finalize_predictions(
+      self, task: TaskType, predictions, like_engine: bool = False
+  ):
+    """Finalizes the predictions before being sent back to the user.
 
-    if (
+    Args:
+      task: The task of the predictions.
+      predictions: The model output.
+      like_engine: If set, ignore the model configuration and finalize the
+        predictions so they have the same shape as Yggdrasil engine output.
+    """
+
+    if not like_engine and (
         self._advanced_arguments.predict_single_probability_for_binary_classification
         and task == Task.CLASSIFICATION
         and predictions.dense_predictions.shape[1] == 2
