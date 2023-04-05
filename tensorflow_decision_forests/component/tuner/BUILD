@@ -33,7 +33,9 @@ py_test(
         # absl/flags dep,
         # absl/logging dep,
         # absl/testing:parameterized dep,
+        # pandas dep,
         # TensorFlow Python,
+        "//tensorflow_decision_forests/keras",
         "@ydf//yggdrasil_decision_forests/learner:abstract_learner_py_proto",
     ],
 )
