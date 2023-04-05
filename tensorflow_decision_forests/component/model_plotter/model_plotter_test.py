@@ -48,18 +48,26 @@ class ModelPlotterTest(parameterized.TestCase, tf.test.TestCase):
         node_lib.NonLeafNode(
             condition=condition_lib.NumericalHigherThanCondition(
                 feature=dataspec_lib.SimpleColumnSpec(
-                    name="f1", type=dataspec_lib.ColumnType.NUMERICAL),
+                    name="f1", type=dataspec_lib.ColumnType.NUMERICAL
+                ),
                 threshold=1.5,
-                missing_evaluation=False),
+                missing_evaluation=False,
+            ),
             pos_child=node_lib.LeafNode(
                 value=value_lib.RegressionValue(
-                    value=5.0, num_examples=10, standard_deviation=1.0)),
+                    value=5.0, num_examples=10, standard_deviation=1.0
+                )
+            ),
             neg_child=node_lib.LeafNode(
                 value=value_lib.ProbabilityValue(
-                    probability=[0.5, 0.4, 0.1], num_examples=10))))
+                    probability=[0.5, 0.4, 0.1], num_examples=10
+                )
+            ),
+        )
+    )
     plot = model_plotter.plot_tree(
-        tree=tree,
-        display_options=model_plotter.DisplayOptions(node_x_size=150))
+        tree=tree, display_options=model_plotter.DisplayOptions(node_x_size=150)
+    )
     self._save_plot(plot)
 
   def test_basic_tree_with_label_classes(self):
@@ -67,16 +75,35 @@ class ModelPlotterTest(parameterized.TestCase, tf.test.TestCase):
         node_lib.NonLeafNode(
             condition=condition_lib.NumericalHigherThanCondition(
                 feature=dataspec_lib.SimpleColumnSpec(
-                    name="f1", type=dataspec_lib.ColumnType.NUMERICAL),
+                    name="f1", type=dataspec_lib.ColumnType.NUMERICAL
+                ),
                 threshold=1.5,
-                missing_evaluation=False),
+                missing_evaluation=False,
+            ),
             pos_child=node_lib.LeafNode(
                 value=value_lib.RegressionValue(
-                    value=5.0, num_examples=10, standard_deviation=1.0)),
+                    value=5.0, num_examples=10, standard_deviation=1.0
+                )
+            ),
             neg_child=node_lib.LeafNode(
                 value=value_lib.ProbabilityValue(
-                    probability=[0.5, 0.4, 0.1], num_examples=10))),
-        label_classes=["x", "y", "z"])
+                    probability=[0.5, 0.4, 0.1], num_examples=10
+                )
+            ),
+        ),
+        label_classes=["x", "y", "z"],
+    )
+    plot = model_plotter.plot_tree(tree=tree)
+    self._save_plot(plot)
+
+  def test_basic_tree_with_uplift(self):
+    tree = tree_lib.Tree(
+        node_lib.LeafNode(
+            value=value_lib.UpliftValue(
+                treatment_effect=[0.5, 0.4], num_examples=10
+            )
+        )
+    )
     plot = model_plotter.plot_tree(tree=tree)
     self._save_plot(plot)
 

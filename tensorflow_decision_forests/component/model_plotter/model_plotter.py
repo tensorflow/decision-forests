@@ -94,12 +94,15 @@ def plot_model_in_colab(model: InferenceCoreModel, **kwargs):
   """
 
   from IPython.display import HTML  # pylint: disable=g-import-not-at-top # pytype: disable=import-error
+
   return HTML(plot_model(model, **kwargs))
 
 
-def plot_model(model: InferenceCoreModel,
-               tree_idx: Optional[int] = 0,
-               max_depth: Optional[int] = 3):
+def plot_model(
+    model: InferenceCoreModel,
+    tree_idx: Optional[int] = 0,
+    max_depth: Optional[int] = 3,
+):
   """Plots the model structure and its correlation with a dataset.
 
   Args:
@@ -114,7 +117,8 @@ def plot_model(model: InferenceCoreModel,
   # What method is available in the model (depend on how keras serialize it).
   has_make_inspector = callable(getattr(model, "make_inspector", None))
   has_yggdrasil_model_path_tensor = callable(
-      getattr(model, "yggdrasil_model_path_tensor", None))
+      getattr(model, "yggdrasil_model_path_tensor", None)
+  )
 
   if has_make_inspector:
     inspector = model.make_inspector()
@@ -127,15 +131,18 @@ def plot_model(model: InferenceCoreModel,
     raise ValueError(
         "The model does not have a 'make_inspector' or"
         "'get_yggdrasil_model_path' method. Make sure this is a valid"
-        "TensorFlow Decision Forest model")
+        "TensorFlow Decision Forest model"
+    )
 
   tree = inspector.extract_tree(tree_idx)
   return plot_tree(tree=tree, max_depth=max_depth)
 
 
-def plot_tree(tree: tree_lib.Tree,
-              max_depth: Optional[int] = None,
-              display_options: Optional[DisplayOptions] = None) -> str:
+def plot_tree(
+    tree: tree_lib.Tree,
+    max_depth: Optional[int] = None,
+    display_options: Optional[DisplayOptions] = None,
+) -> str:
   """Plots a decision tree.
 
   Args:
@@ -150,7 +157,8 @@ def plot_tree(tree: tree_lib.Tree,
 
   # Plotting library.
   plotter_js_path = tf.compat.v1.resource_loader.get_path_to_datafile(
-      "plotter.js")
+      "plotter.js"
+  )
   with open(plotter_js_path) as f:
     plotter_js_content = f.read()
 
@@ -175,16 +183,18 @@ ${plotter_js_content}
 display_tree(${options}, ${json_tree_content}, "#${container_id}")
 </script>
 """).substitute(
-    options=json.dumps(options),
-    plotter_js_content=plotter_js_content,
-    container_id=container_id,
-    json_tree_content=json.dumps(json_tree))
+      options=json.dumps(options),
+      plotter_js_content=plotter_js_content,
+      container_id=container_id,
+      json_tree_content=json.dumps(json_tree),
+  )
 
   return html_content
 
 
-def _tree_to_json(src: tree_lib.Tree,
-                  max_depth: Optional[int]) -> Dict[str, Any]:
+def _tree_to_json(
+    src: tree_lib.Tree, max_depth: Optional[int]
+) -> Dict[str, Any]:
   """Converts a tree into a json object compatible with the plotter."""
 
   if src.root is None:
@@ -193,8 +203,9 @@ def _tree_to_json(src: tree_lib.Tree,
   return _node_to_json(src.root, max_depth, 0)
 
 
-def _node_to_json(src: node_lib.AbstractNode, max_depth: Optional[int],
-                  depth: int) -> Dict[str, Any]:
+def _node_to_json(
+    src: node_lib.AbstractNode, max_depth: Optional[int], depth: int
+) -> Dict[str, Any]:
   """Converts a node into a json object compatible with the plotter."""
 
   dst = {}
@@ -209,7 +220,7 @@ def _node_to_json(src: node_lib.AbstractNode, max_depth: Optional[int],
     if max_depth is not None and depth < max_depth:
       dst["children"] = [
           _node_to_json(src.pos_child, max_depth, depth + 1),
-          _node_to_json(src.neg_child, max_depth, depth + 1)
+          _node_to_json(src.neg_child, max_depth, depth + 1),
       ]
 
   else:
@@ -231,21 +242,21 @@ def _condition_to_json(src: condition_lib.AbstractCondition) -> Dict[str, Any]:
     return {
         "type": "NUMERICAL_IS_HIGHER_THAN",
         "attribute": src.feature.name,
-        "threshold": src.threshold
+        "threshold": src.threshold,
     }
 
   if isinstance(src, condition_lib.CategoricalIsInCondition):
     return {
         "type": "CATEGORICAL_IS_IN",
         "attribute": src.feature.name,
-        "mask": src.mask
+        "mask": src.mask,
     }
 
   if isinstance(src, condition_lib.CategoricalSetContainsCondition):
     return {
         "type": "CATEGORICAL_SET_CONTAINS",
         "attribute": src.feature.name,
-        "mask": src.mask
+        "mask": src.mask,
     }
 
   if isinstance(src, condition_lib.NumericalSparseObliqueCondition):
@@ -253,7 +264,7 @@ def _condition_to_json(src: condition_lib.AbstractCondition) -> Dict[str, Any]:
         "type": "NUMERICAL_SPARSE_OBLIQUE",
         "attributes": [f.name for f in src.features()],
         "weights": src.weights,
-        "threshold": src.threshold
+        "threshold": src.threshold,
     }
 
   raise ValueError(f"Non supported condition type {src}")
@@ -266,17 +277,24 @@ def _value_to_json(src: value_lib.AbstractValue) -> Dict[str, Any]:
     return {
         "type": "PROBABILITY",
         "distribution": src.probability,
-        "num_examples": src.num_examples
+        "num_examples": src.num_examples,
     }
 
   elif isinstance(src, value_lib.RegressionValue):
     value = {
         "type": "REGRESSION",
         "value": src.value,
-        "num_examples": src.num_examples
+        "num_examples": src.num_examples,
     }
     if src.standard_deviation is not None:
       value["standard_deviation"] = src.standard_deviation
     return value
+
+  elif isinstance(src, value_lib.UpliftValue):
+    return {
+        "type": "UPLIFT",
+        "treatment_effect": src.treatment_effect,
+        "num_examples": src.num_examples,
+    }
 
   raise ValueError(f"Non supported value type {src}")

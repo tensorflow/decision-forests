@@ -372,6 +372,15 @@ function display_value(options, value, output) {
     return;
   }
 
+  if (value.type === 'UPLIFT') {
+    display_node_text(
+        options,
+        'effect: ' + d3.format('r')(value.treatment_effect) + ` (` +
+            d3.format('.6')(value.num_examples) + `)`,
+        output);
+    return;
+  }
+
   display_node_text(options, `Non supported value ${value.type}`, output);
 }
 

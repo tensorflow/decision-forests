@@ -28,12 +28,18 @@ class ValueTest(parameterized.TestCase, tf.test.TestCase):
 
   def test_regression(self):
     value = value_lib.RegressionValue(
-        value=5.0, num_examples=10, standard_deviation=1.0)
+        value=5.0, num_examples=10, standard_deviation=1.0
+    )
     logging.info("value:\n%s", value)
 
   def test_probability(self):
     value = value_lib.ProbabilityValue(
-        probability=[0.5, 0.4, 0.1], num_examples=10)
+        probability=[0.5, 0.4, 0.1], num_examples=10
+    )
+    logging.info("value:\n%s", value)
+
+  def test_uplift(self):
+    value = value_lib.UpliftValue(treatment_effect=[1, 2], num_examples=10)
     logging.info("value:\n%s", value)
 
   def test_core_value_to_value_classifier(self):
@@ -42,7 +48,8 @@ class ValueTest(parameterized.TestCase, tf.test.TestCase):
     core_node.classifier.distribution.sum = 10.0
     self.assertEqual(
         value_lib.core_value_to_value(core_node),
-        value_lib.ProbabilityValue(probability=[0.8, 0.2], num_examples=10))
+        value_lib.ProbabilityValue(probability=[0.8, 0.2], num_examples=10),
+    )
 
   def test_core_value_to_value_regressor(self):
     core_node = decision_tree_pb2.Node()
@@ -53,7 +60,20 @@ class ValueTest(parameterized.TestCase, tf.test.TestCase):
     self.assertEqual(
         value_lib.core_value_to_value(core_node),
         value_lib.RegressionValue(
-            value=1.0, num_examples=10, standard_deviation=1.0))
+            value=1.0, num_examples=10, standard_deviation=1.0
+        ),
+    )
+
+  def test_core_value_to_value_uplift(self):
+    core_node = decision_tree_pb2.Node()
+    core_node.uplift.treatment_effect[:] = [0.0, 8.0, 2.0]
+    core_node.uplift.sum_weights = 10.0
+    self.assertEqual(
+        value_lib.core_value_to_value(core_node),
+        value_lib.UpliftValue(
+            treatment_effect=[0.0, 8.0, 2.0], num_examples=10.0
+        ),
+    )
 
 
 if __name__ == "__main__":

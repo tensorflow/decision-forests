@@ -1964,6 +1964,9 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     predictions = model.predict(test_ds)
     logging.info("Predictions: %s", predictions)
 
+    _ = repr(model.make_inspector().extract_tree(0))
+    _ = model_plotter.plot_model(model)
+
     # TODO: Evaluate with the Uplift framework.
 
   def test_uplift_regression_sim_pte(self):
@@ -2005,6 +2008,9 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
       predictions = model.predict(test_ds)
       logging.info("Predictions: %s", predictions)
+
+      _ = repr(model.make_inspector().extract_tree(0))
+      _ = model_plotter.plot_model(model)
 
       # TODO: Evaluate with the Uplift framework.
 

@@ -30,6 +30,7 @@ from yggdrasil_decision_forests.model.decision_tree import decision_tree_pb2
 @six.add_metaclass(abc.ABCMeta)
 class AbstractValue(object):
   """A generic value/prediction/output."""
+
   pass
 
 
@@ -45,9 +46,9 @@ class ProbabilityValue(AbstractValue):
     num_examples: Number of example in the node.
   """
 
-  def __init__(self,
-               probability: List[float],
-               num_examples: Optional[float] = 1.0):
+  def __init__(
+      self, probability: List[float], num_examples: Optional[float] = 1.0
+  ):
     self._probability = probability
     self._num_examples = num_examples
 
@@ -65,8 +66,10 @@ class ProbabilityValue(AbstractValue):
   def __eq__(self, other):
     if not isinstance(other, ProbabilityValue):
       return False
-    return (self._probability == other._probability and
-            self._num_examples == other._num_examples)
+    return (
+        self._probability == other._probability
+        and self._num_examples == other._num_examples
+    )
 
 
 class RegressionValue(AbstractValue):
@@ -82,10 +85,12 @@ class RegressionValue(AbstractValue):
     num_examples: Number of example in the node.
   """
 
-  def __init__(self,
-               value: float,
-               num_examples: Optional[float] = 1.0,
-               standard_deviation: Optional[float] = None):
+  def __init__(
+      self,
+      value: float,
+      num_examples: Optional[float] = 1.0,
+      standard_deviation: Optional[float] = None,
+  ):
     self._value = value
     self._standard_deviation = standard_deviation
     self._num_examples = num_examples
@@ -112,13 +117,55 @@ class RegressionValue(AbstractValue):
   def __eq__(self, other):
     if not isinstance(other, RegressionValue):
       return False
-    return (self._value == other._value and
-            self._standard_deviation == other._standard_deviation and
-            self._num_examples == other._num_examples)
+    return (
+        self._value == other._value
+        and self._standard_deviation == other._standard_deviation
+        and self._num_examples == other._num_examples
+    )
+
+
+class UpliftValue(AbstractValue):
+  """The uplift value of a classification or regression uplift tree.
+
+  Attrs:
+    treatment_effect: Effect of the "i+1"-th treatment compared to the control
+      group.
+    num_examples: Number of example in the node.
+  """
+
+  def __init__(
+      self,
+      treatment_effect: List[float],
+      num_examples: Optional[float] = 1.0,
+  ):
+    self._treatment_effect = treatment_effect
+    self._num_examples = num_examples
+
+  @property
+  def treatment_effect(self):
+    return self._treatment_effect
+
+  @property
+  def num_examples(self):
+    return self._num_examples
+
+  def __repr__(self):
+    text = f"UpliftValue(treatment_effect={self._treatment_effect}"
+    text += f",n={self._num_examples})"
+    return text
+
+  def __eq__(self, other):
+    if not isinstance(other, UpliftValue):
+      return False
+    return (
+        self._treatment_effect == other._treatment_effect
+        and self._num_examples == other._num_examples
+    )
 
 
 def core_value_to_value(
-    core_node: decision_tree_pb2.Node) -> Optional[AbstractValue]:
+    core_node: decision_tree_pb2.Node,
+) -> Optional[AbstractValue]:
   """Converts a core value (proto format) into a python value."""
 
   if core_node.HasField("classifier"):
@@ -130,13 +177,19 @@ def core_value_to_value(
     dist = core_node.regressor.distribution
     standard_deviation = None
     if dist.HasField("sum_squares") and dist.count > 0:
-      variance = (
-          dist.sum_squares / dist.count - (dist.sum * dist.sum) /
-          (dist.count * dist.count))
+      variance = dist.sum_squares / dist.count - (dist.sum * dist.sum) / (
+          dist.count * dist.count
+      )
       if variance >= 0:
         standard_deviation = math.sqrt(variance)
-    return RegressionValue(core_node.regressor.top_value, dist.count,
-                           standard_deviation)
+    return RegressionValue(
+        core_node.regressor.top_value, dist.count, standard_deviation
+    )
+
+  if core_node.HasField("uplift"):
+    return UpliftValue(
+        core_node.uplift.treatment_effect[:], core_node.uplift.sum_weights
+    )
 
   return None
 
