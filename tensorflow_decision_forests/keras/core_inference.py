@@ -1251,7 +1251,7 @@ def yggdrasil_model_to_keras_model(
       input_model_signature_fn=input_model_signature_fn,
   )
 
-  model.save(dst_path)
+  tf.keras.models.save_model(model, dst_path)
   return
 
 
