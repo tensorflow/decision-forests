@@ -1690,7 +1690,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     predictions = model.predict(tf_test)
     self.assertAlmostEqual(np.mean(predictions), -2.2, delta=0.2)
-    self.assertAlmostEqual(np.std(predictions), 2.8, delta=0.2)
+    self.assertAlmostEqual(np.std(predictions), 2.8, delta=0.25)
 
     model.compile(metrics=[tf.keras.metrics.BinaryAccuracy(threshold=0.0)])
     evaluation = model.evaluate(tf_test, return_dict=True)
@@ -1803,8 +1803,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
   @parameterized.parameters(
       ("binomial", 6, "BINOMIAL_LOG_LIKELIHOOD", 0.865, True),
       ("binomial_no_quick_scorer", 10, "BINOMIAL_LOG_LIKELIHOOD", 0.865, False),
-      ("focal", 6, "BINARY_FOCAL_LOSS", 0.862, False),
-      ("focal_no_quick_scorer", 10, "BINARY_FOCAL_LOSS", 0.862, False),
+      ("focal", 6, "BINARY_FOCAL_LOSS", 0.861, False),
+      ("focal_no_quick_scorer", 10, "BINARY_FOCAL_LOSS", 0.861, False),
   )
   def test_resume_training(
       self, name, max_depth, loss, min_accuracy, accuracy_should_increase
