@@ -801,7 +801,7 @@ class InferenceCoreModel(models.Model):
           )
       ]
 
-  def compile(self, metrics=None, weighted_metrics=None):
+  def compile(self, metrics=None, weighted_metrics=None, **kwargs):
     """Configure the model for training.
 
     Unlike for most Keras model, calling "compile" is optional before calling
@@ -812,13 +812,14 @@ class InferenceCoreModel(models.Model):
         testing.
       weighted_metrics: List of metrics to be evaluated and weighted by
         `sample_weight` or `class_weight` during training and testing.
+      **kwargs: Other arguments passed to compile.
 
     Raises:
       ValueError: Invalid arguments.
     """
 
     super(InferenceCoreModel, self).compile(
-        metrics=metrics, weighted_metrics=weighted_metrics
+        metrics=metrics, weighted_metrics=weighted_metrics, **kwargs
     )
 
   def summary(self, line_length=None, positions=None, print_fn=None):
