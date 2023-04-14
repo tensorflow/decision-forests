@@ -2674,6 +2674,76 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     self.assertEqual(inspector_2.model_type(), "GRADIENT_BOOSTED_TREES")
     self.assertEqual(inspector_2.label().name, "sex")
 
+  def test_multi_task_custom_output_dict(self):
+    def make_dataset():
+      features = np.random.uniform(size=(100, 5))
+      hidden = 0.05 * np.random.uniform(size=100)
+
+      label_1 = hidden + features[:, 0] + 2 * features[:, 1]
+      label_2 = hidden + features[:, 1] + 2 * features[:, 2]
+
+      labels = {
+          "label_1": label_1,
+          "label_2": label_2,
+      }
+      return tf.data.Dataset.from_tensor_slices((features, labels)).batch(3)
+
+    dataset = make_dataset()
+
+    model = keras.GradientBoostedTreesModel(
+        multitask=[
+            keras.MultiTaskItem(
+                label="label_1", task=keras.Task.REGRESSION, output="output_1"
+            ),
+            keras.MultiTaskItem(
+                label="label_2", task=keras.Task.REGRESSION, output="output_2"
+            ),
+        ],
+        verbose=2,
+    )
+    model.fit(dataset)
+    predictions = model.predict(dataset)
+    self.assertSetEqual(set(predictions.keys()), set(["output_1", "output_2"]))
+
+  def test_multi_task_output_secondary_predictions(self):
+    def make_dataset():
+      features = np.random.uniform(size=(100, 5))
+      hidden = 0.05 * np.random.uniform(size=100)
+
+      label_1 = hidden + features[:, 0] + 2 * features[:, 1]
+      label_2 = hidden + features[:, 1] + 2 * features[:, 2]
+
+      labels = {
+          "primary_label": label_1,
+          "secondary_label": label_2,
+      }
+      return tf.data.Dataset.from_tensor_slices((features, labels)).batch(3)
+
+    dataset = make_dataset()
+
+    model = keras.GradientBoostedTreesModel(
+        multitask=[
+            keras.MultiTaskItem(
+                label="secondary_label",
+                task=keras.Task.REGRESSION,
+                primary=False,
+            ),
+            keras.MultiTaskItem(
+                label="primary_label",
+                task=keras.Task.REGRESSION,
+            ),
+        ],
+        advanced_arguments=keras.AdvancedArguments(
+            output_secondary_class_predictions=True
+        ),
+        verbose=2,
+    )
+    model.fit(dataset)
+    predictions = model.predict(dataset)
+    self.assertSetEqual(
+        set(predictions.keys()), set(["secondary_label", "primary_label"])
+    )
+
   def test_gbt_fails_train_on_batch(self):
     model = keras.GradientBoostedTreesModel()
     with self.assertRaises(NotImplementedError):

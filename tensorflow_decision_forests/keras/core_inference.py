@@ -146,6 +146,10 @@ class AdvancedArguments(object):
       in addition to the TF GRPC. The chief and the workers should be able to
       communicate thought this port. If not set, an available port is
       automatically selected.
+    output_secondary_class_predictions: If true, in the case of a multi-task
+      model, the predictions of secondary tasks are exported in the model
+      predictions. If false, the model only outputs the primary tasks
+      predictions.
   """
 
   def __init__(
@@ -164,6 +168,7 @@ class AdvancedArguments(object):
       node_format: Optional[NodeFormat] = None,
       allow_slow_inference: bool = True,
       force_ydf_port: Optional[int] = None,
+      output_secondary_class_predictions: bool = False,
   ):
     self.infer_prediction_signature = infer_prediction_signature
     self.yggdrasil_training_config = (
@@ -189,6 +194,7 @@ class AdvancedArguments(object):
     self.node_format = node_format
     self.allow_slow_inference = allow_slow_inference
     self.force_ydf_port = force_ydf_port
+    self.output_secondary_class_predictions = output_secondary_class_predictions
 
 
 class MultiTaskItem(NamedTuple):
@@ -197,11 +203,26 @@ class MultiTaskItem(NamedTuple):
   Models trained to predict label with primary=False are used to help the
   training of models with primary=True. If primary is true for all the tasks,
   each task will be trained independently.
+
+  Args:
+    label: Key of the label.
+    task: Task for the label.
+    primary: The predictions of primary tasks are returned by "model.predict()",
+      the output of non-primary tasks are not returned by "model.predict()".
+      Non-primary tasks can be used to improve the primary task quality.
+    output: If None, "model.predict" returns a dictionary of prediction indexed
+      by "label" values. If set, "model.predict" returns a dictionary of
+      predictions indexed by "output".
   """
 
   label: str
   task: TaskType = Task.CLASSIFICATION
   primary: bool = True
+  output: Optional[str] = None
+
+  @property
+  def prediction_key(self) -> str:
+    return self.output if self.output else self.label
 
 
 class InferenceCoreModel(models.Model):
@@ -650,6 +671,8 @@ class InferenceCoreModel(models.Model):
 
     normalized_inputs = self._build_normalized_inputs(inputs)
 
+    predictions = {}
+
     has_secondary_tasks = any([not t.primary for t in self._multitask])
     if has_secondary_tasks:
       # The model contains two "layers" of DF models. The output of the first
@@ -659,24 +682,31 @@ class InferenceCoreModel(models.Model):
         if multitask_item.primary:
           continue
         sub_pred = self._models[item_idx].apply(normalized_inputs)
-        sub_pred = self._finalize_predictions(
+        finalized_pred = self._finalize_predictions(
             multitask_item.task, sub_pred, like_engine=True
         )
-        for pred_idx in range(sub_pred.shape[1]):
-          secondary_outputs[f"{multitask_item.label}:{pred_idx}"] = sub_pred[
-              :, pred_idx
-          ]
+        for pred_idx in range(finalized_pred.shape[1]):
+          secondary_outputs[f"{multitask_item.label}:{pred_idx}"] = (
+              finalized_pred[:, pred_idx]
+          )
+
+        if self._advanced_arguments.output_secondary_class_predictions:
+          predictions[multitask_item.prediction_key] = (
+              self._finalize_predictions(multitask_item.task, sub_pred)
+          )
+
       # Add the output of the first layer (the secondary models) to the global
       # input pool.
       normalized_inputs = {**normalized_inputs, **secondary_outputs}
 
-    predictions = {}
     for item_idx, multitask_item in enumerate(self._multitask):
       if not multitask_item.primary:
         continue
       sub_pred = self._models[item_idx].apply(normalized_inputs)
-      sub_pred = self._finalize_predictions(multitask_item.task, sub_pred)
-      predictions[multitask_item.label] = sub_pred
+
+      predictions[multitask_item.prediction_key] = self._finalize_predictions(
+          multitask_item.task, sub_pred
+      )
 
     if not self._is_multitask:
       predictions = predictions[self._multitask[0].label]
