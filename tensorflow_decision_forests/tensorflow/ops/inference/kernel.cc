@@ -59,6 +59,7 @@
 #include "absl/strings/substitute.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/resource_mgr.h"
+#include "tensorflow/core/public/version.h"
 #include "yggdrasil_decision_forests/dataset/data_spec.h"
 #include "yggdrasil_decision_forests/dataset/data_spec.pb.h"
 #include "yggdrasil_decision_forests/model/abstract_model.h"
@@ -1350,7 +1351,11 @@ class SimpleMLInferenceOp : public OpKernel {
     if (!lookup_status.ok()) {
       return tf::Status(
           lookup_status.code(),
+#if TF_GRAPH_DEF_VERSION < 1467
           absl::StrCat(lookup_status.error_message(),
+#else
+          absl::StrCat(lookup_status.message(),
+#endif
                        ". This error caused the simpleML model not to be "
                        "available for inference. This error is likely due to "
                        "the \"LoadModel*\" not having been run before."));
