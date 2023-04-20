@@ -1,25 +1,26 @@
 # Distributed Training
 
 **Distributed training** is a type of model training where the computing
-resources requirements (e.g., cpu, ram) are distributed among multiple
+resources requirements (e.g., CPU, RAM) are distributed among multiple
 computers. Distributed training allows to train faster and on larger datasets
-(up to a few billions examples).
+(up to a few billion examples).
 
 Distributed training is also useful for **automated hyper-parameter
 optimization** where multiple models are trained in parallel.
 
 In this document you will learn how to:
 
--   Train a model using distributed training.
--   Tune the hyper-parameters of a model using distributed training.
+-   Train a TF-DF model using distributed training.
+-   Tune the hyper-parameters of a TF-DF model using distributed training.
 
 ## Limitations
 
-As of now distributed training is supported by:
+As of now, distributed training is supported for:
 
--   Distributed Gradient Boosted Trees model. This model is equivalent to the
-    non-distributed Gradient Boosted Trees model.
--   Any model using the automated hyper-parameter tuner
+-   Training Gradient Boosted Trees models with
+    `tfdf.keras.DistributedGradientBoostedTreesModel`. Distributed Gradient
+    Boosted Trees models are equivalent to their non-distributed counterparts.
+-   Hyper-parameter search for any TF-DF model type.
 
 ## How to enable distributed training
 
@@ -56,12 +57,12 @@ dataset reading efficiently.
 
 ### Setup workers
 
-A chief process is the program running the python code that defines the
+A **chief process** is the program running the python code that defines the
 TensorFlow model. This process is not running any heavy computation. The
-effective training computation is done by *workers*. Workers are processes
+effective training computation is done by **workers**. Workers are processes
 running a TensorFlow Parameter Server.
 
-The chief should be configured with the ip address of the workers. This can be
+The chief should be configured with the IP address of the workers. This can be
 done using the `TF_CONFIG` environment variable, or by creating a
 `ClusterResolver`. See
 [Parameter server training with ParameterServerStrategy](https://www.tensorflow.org/tutorials/distribute/parameter_server_training)
@@ -69,9 +70,9 @@ for more details.
 
 TensorFlow's ParameterServerStrategy defines two type of workers: "workers" and
 "parameter server". TensorFlow requires at least one of each type of worker to
-be instantiated. TF-DF only uses "workers". So, one "parameter server" needs to
-be instantiated but will not be used by TF-DF. For example, the configuration of
-a TF-DF training looks as follows:
+be instantiated. However, TF-DF only uses "workers". So, one "parameter server"
+needs to be instantiated but will not be used by TF-DF. For example, the
+configuration of a TF-DF training might look as follows:
 
 -   1 Chief
 -   50 Workers
@@ -80,8 +81,8 @@ a TF-DF training looks as follows:
 Note: If you use TFX, the configuration of chief/workers/parameter server is
 done automatically.
 
-The workers has access to TensorFlow Decision Forests' custom training ops. For
-that, you have two options:
+The workers require access to TensorFlow Decision Forests' custom training ops.
+There are two options to enable access:
 
 1.  Use the pre-configured TF-DF C++ Parameter Server
     `//third_party/tensorflow_decision_forests/tensorflow/distribute:tensorflow_std_server`.
@@ -99,9 +100,7 @@ more examples, check the
 Divide your dataset into a set of sharded files using one of
 [the compatible dataset formats](https://ydf.readthedocs.io/en/latest/cli_user_manual.html#dataset-path-and-format).
 It is recommended to names the files as follows: `/path/to/dataset/train-<5
-digit index>-of-<total files>`.
-
-For examples:
+digit index>-of-<total files>`, for example
 
 ```
 /path/to/dataset/train-00000-of-00100
@@ -142,12 +141,12 @@ model.summary()
 
 ### Example: Distributed training on a finite TensorFlow distributed dataset
 
-TF-DF expect a distributed finite worker-sharded TensorFlow dataset:
+TF-DF expects a distributed finite worker-sharded TensorFlow dataset:
 
 -   **Distributed** : A non-distributed dataset is wrapped in
     `strategy.distribute_datasets_from_function`.
--   **finite**: The dataset should read the examples only once. The dataset
-    should should not contain any `repeat` instructions.
+-   **finite**: The dataset should read each example exactly once. The dataset
+    should should **not** contain any `repeat` instructions.
 -   **worker-sharded**: Each worker should read a separate part of the dataset.
 
 Here is an example:
@@ -239,7 +238,7 @@ print("Trained model")
 model.summary()
 ```
 
-## Example: Distributed hyper-parameter tuning on a dataset path
+### Example: Distributed hyper-parameter tuning on a dataset path
 
 Distributed hyper-parameter tuning on a dataset path is similar to distributed
 training. The only difference is that this option is compatible with
@@ -261,8 +260,9 @@ logging.info("Trained model:")
 model.summary()
 ```
 
-## Example: Unit testing
+### Example: Unit testing
 
-To unit test distributed training, you can create mock worker process. See the
+To unit test distributed training, you can create mock worker processes. See the
 method `_create_in_process_tf_ps_cluster` in
 [TF-DF unit tests](https://github.com/tensorflow/decision-forests/blob/main/tensorflow_decision_forests/keras/keras_distributed_test.py)
+for more information.
