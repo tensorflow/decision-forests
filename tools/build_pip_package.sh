@@ -237,7 +237,7 @@ shift | true
 if [ ${INSTALL_PYENV} == "INSTALL_PYENV" ]; then 
   if ! [ -x "$(command -v pyenv)" ]; then
     echo "Pyenv not found."
-    echo "Installing build deps, pyenv 2.3.5 and pyenv virtualenv 1.1.5"
+    echo "Installing build deps, pyenv 2.3.7 and pyenv virtualenv 1.2.1"
     # Install python dependencies.
     sudo apt-get update
     sudo apt-get install -qq make build-essential libssl-dev zlib1g-dev \
@@ -246,13 +246,16 @@ if [ ${INSTALL_PYENV} == "INSTALL_PYENV" ]; then
               libffi-dev liblzma-dev patchelf
     git clone https://github.com/pyenv/pyenv.git
     (
-      cd pyenv && git checkout bb0f2ae1a7867a06c1692e00efd3abe2113b8f83
+      cd pyenv && git checkout 74f923b5fca82054b3c579f9eb936338c7f5a394
     )
     PYENV_ROOT="$(pwd)/pyenv"
     export PATH="$PYENV_ROOT/bin:$PATH"
     eval "$(pyenv init --path)"
     eval "$(pyenv init -)"
-    git clone --branch v1.1.5 https://github.com/pyenv/pyenv-virtualenv.git $(pyenv root)/plugins/pyenv-virtualenv
+    git clone https://github.com/pyenv/pyenv-virtualenv.git $(pyenv root)/plugins/pyenv-virtualenv
+    (
+      cd $(pyenv root)/plugins/pyenv-virtualenv && git checkout 13bc1877ef06ed038c65dcab4e901da6ea6c67ae
+    )
     eval "$(pyenv init --path)"
     eval "$(pyenv init -)"
     eval "$(pyenv virtualenv-init -)"
@@ -272,23 +275,27 @@ elif [ ${ARG} == "ALL_VERSIONS" ]; then
   e2e_pyenv 3.9.12
   e2e_pyenv 3.8.13
   e2e_pyenv 3.10.4
+  e2e_pyenv 3.11.0
 elif [ ${ARG} == "ALL_VERSIONS_ALREADY_ASSEMBLED" ]; then
   eval "$(pyenv init -)"
   e2e_pyenv 3.9.12
   e2e_pyenv 3.8.13
   e2e_pyenv 3.10.4
+  e2e_pyenv 3.11.0
 elif [ ${ARG} == "ALL_VERSIONS_MAC_ARM64" ]; then
   eval "$(pyenv init -)"
   assemble_files
   e2e_pyenv 3.9.12
   e2e_pyenv 3.8.13
   e2e_pyenv 3.10.4
+  e2e_pyenv 3.11.0
 elif [ ${ARG} == "ALL_VERSIONS_MAC_INTEL_CROSSCOMPILE" ]; then
   eval "$(pyenv init -)"
   assemble_files
   e2e_pyenv 3.9.12
   e2e_pyenv 3.8.13
   e2e_pyenv 3.10.4
+  e2e_pyenv 3.11.0
 else
   # Compile with a specific version of python provided in the call arguments.
   assemble_files
