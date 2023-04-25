@@ -70,7 +70,12 @@ from yggdrasil_decision_forests.learner import abstract_learner_pb2
 from yggdrasil_decision_forests.model import abstract_model_pb2  # pylint: disable=unused-import
 from yggdrasil_decision_forests.utils.distribute.implementations.grpc import grpc_pb2  # pylint: disable=unused-import
 
-import keras.engine.data_adapter as data_adapter
+try:
+  # tf>1.12
+  import keras.src.engine.data_adapter as data_adapter
+except ImportError:
+  # tf<=1.12
+  import keras.engine.data_adapter as data_adapter
 get_data_handler = data_adapter.get_data_handler
 
 layers = tf.keras.layers
