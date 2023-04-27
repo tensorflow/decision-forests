@@ -454,7 +454,7 @@ class InferenceCoreModel(models.Model):
 
     return self._models[index]._compiled_model._model_loader.get_model_prefix()  # pylint: disable=protected-access
 
-  def make_predict_function(self):
+  def make_predict_function(self):  # pytype: disable=signature-mismatch  # overriding-parameter-count-checks
     """Prediction of the model (!= evaluation)."""
 
     @tf.function(reduce_retracing=True)
@@ -496,7 +496,7 @@ class InferenceCoreModel(models.Model):
     else:
       return predict_function_not_trained
 
-  def make_test_function(self):
+  def make_test_function(self):  # pytype: disable=signature-mismatch  # overriding-parameter-count-checks
     """Predictions for evaluation."""
 
     @tf.function(reduce_retracing=True)
@@ -852,7 +852,7 @@ class InferenceCoreModel(models.Model):
         metrics=metrics, weighted_metrics=weighted_metrics, **kwargs
     )
 
-  def summary(self, line_length=None, positions=None, print_fn=None):
+  def summary(self, line_length=None, positions=None, print_fn=None):  # pytype: disable=signature-mismatch  # overriding-parameter-count-checks
     """Shows information about the model."""
 
     super(InferenceCoreModel, self).summary(
