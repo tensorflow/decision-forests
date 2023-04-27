@@ -110,7 +110,7 @@ if [ ${TF_VERSION} == "mac-arm64" ]; then
   # Find the path to the pre-compiled version of TensorFlow installed in the
   # "tensorflow" pip package.
   SHARED_LIBRARY_DIR=$(readlink -f $TFDF_TMPDIR/tensorflow)
-  SHARED_LIBRARY_NAME="libtensorflow_framework.dylib"
+  SHARED_LIBRARY_NAME="libtensorflow_framework.2.dylib"
 
   HEADER_DIR=$(readlink -f $TFDF_TMPDIR/tensorflow/include)
 elif [ ${TF_VERSION} == "mac-intel-crosscompile" ]; then
@@ -118,37 +118,37 @@ elif [ ${TF_VERSION} == "mac-intel-crosscompile" ]; then
   rm -rf ${TFDF_TMPDIR}
   mkdir -p ${TFDF_TMPDIR}
   # Download the Intel CPU Tensorflow package
-  pip download --no-deps --platform=macosx_10_14_x86_64 --dest=$TFDF_TMPDIR tensorflow
+  pip download --no-deps --platform=macosx_10_15_x86_64 --dest=$TFDF_TMPDIR tensorflow
   unzip -q $TFDF_TMPDIR/tensorflow* -d $TFDF_TMPDIR
 
   # Find the path to the pre-compiled version of TensorFlow installed in the
   # "tensorflow" pip package.
   SHARED_LIBRARY_DIR=$(readlink -f $TFDF_TMPDIR/tensorflow)
-  SHARED_LIBRARY_NAME="libtensorflow_framework.dylib"
+  SHARED_LIBRARY_NAME="libtensorflow_cc.2.dylib"
 
   HEADER_DIR=$(readlink -f $TFDF_TMPDIR/tensorflow/include)
 else
-# Find the path to the pre-compiled version of TensorFlow installed in the
-# "tensorflow" pip package.
-TF_CFLAGS="$(${PYTHON} -c 'import tensorflow as tf; print(tf.sysconfig.get_compile_flags()[0])')"
-TF_LFLAGS="$(${PYTHON} -c 'import tensorflow as tf; print(tf.sysconfig.get_link_flags()[0])')"
+  # Find the path to the pre-compiled version of TensorFlow installed in the
+  # "tensorflow" pip package.
+  TF_CFLAGS="$(${PYTHON} -c 'import tensorflow as tf; print(tf.sysconfig.get_compile_flags()[0])')"
+  TF_LFLAGS="$(${PYTHON} -c 'import tensorflow as tf; print(tf.sysconfig.get_link_flags()[0])')"
 
-HEADER_DIR=${TF_CFLAGS:2}
-if is_macos; then
-  SHARED_LIBRARY_NAME="libtensorflow_framework.dylib"
-  SHARED_LIBRARY_DIR=${TF_LFLAGS:2}
-elif is_windows; then
- # Use pywrap_tensorflow's import library on Windows. It is in the same dir as the dll/pyd.
-  SHARED_LIBRARY_NAME="_pywrap_tensorflow_internal.lib"
-  SHARED_LIBRARY_DIR=${TF_CFLAGS:2:-7}"python"
+  HEADER_DIR=${TF_CFLAGS:2}
+  if is_macos; then
+    SHARED_LIBRARY_NAME="libtensorflow_framework.2.dylib"
+    SHARED_LIBRARY_DIR=${TF_LFLAGS:2}
+  elif is_windows; then
+  # Use pywrap_tensorflow's import library on Windows. It is in the same dir as the dll/pyd.
+    SHARED_LIBRARY_NAME="_pywrap_tensorflow_internal.lib"
+    SHARED_LIBRARY_DIR=${TF_CFLAGS:2:-7}"python"
 
-  SHARED_LIBRARY_NAME=${SHARED_LIBRARY_NAME//\\//}
-  SHARED_LIBRARY_DIR=${SHARED_LIBRARY_DIR//\\//}
-  HEADER_DIR=${HEADER_DIR//\\//}
-else
-  SHARED_LIBRARY_DIR=${TF_LFLAGS:2}
-  SHARED_LIBRARY_NAME="libtensorflow_framework.so.2"
-fi
+    SHARED_LIBRARY_NAME=${SHARED_LIBRARY_NAME//\\//}
+    SHARED_LIBRARY_DIR=${SHARED_LIBRARY_DIR//\\//}
+    HEADER_DIR=${HEADER_DIR//\\//}
+  else
+    SHARED_LIBRARY_DIR=${TF_LFLAGS:2}
+    SHARED_LIBRARY_NAME="libtensorflow_framework.so.2"
+  fi
 fi
 
 FLAGS="${FLAGS} --action_env TF_HEADER_DIR=${HEADER_DIR}"

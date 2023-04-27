@@ -168,6 +168,9 @@ instructions.
     perl -0777 -i.original -pe 's/    new_git_repository\(\n        name = "org_boost",\n        branch = branch,\n        build_file_content = build_file_content,\n        init_submodules = True,\n        recursive_init_submodules = True,\n        remote = "https:\/\/github.com\/boostorg\/boost",\n    \)/    native.new_local_repository\(\n        name = "org_boost",\n        path = "..\/boost",\n        build_file_content = build_file_content,\n    \)/igs' yggdrasil-decision-forests/third_party/boost/workspace.bzl
     ```
 
+    You may need to adjust the test_bazel.sh script manually to fix the
+    Tensorflow commit hash, since it is sometimes broken for MacOS builds.
+
 1.  (Optional) Create a fresh virtual environment and activate it
 
     ```
@@ -206,6 +209,8 @@ If you have a MacOS machine with Apple CPU, cross-compile TF-DF for MacOS
 machines with Intel CPUs as follows.
 
 1.  Follow Steps 1-3 and 5 of the guide for Apple CPUs, **skip Step 4**.
+    You may need to run `bazel --bazelrc=tensorflow_bazelrc clean --expunge` to
+    clean your build directory.
 
 1.  Decide which Python version you want to use and run
 
