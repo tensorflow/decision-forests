@@ -62,6 +62,9 @@ upper_tabs:
         path: /decision_forests/tutorials/automatic_tuning_colab
       - title: Proximities and Prototypes
         path: /decision_forests/tutorials/proximities_colab
+      - title: Run TF-DF models with TensorFlow.js
+        path: /decision_forests/tf_df_in_tf_js
+        status: external
       - heading: Developer
       - title: Developer manual
         path: /decision_forests/developer_manual
