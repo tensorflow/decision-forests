@@ -26,6 +26,10 @@ build --nocheck_visibility
 # Yggdrasil uses tensorflow for IO.
 build --define=use_tensorflow_io=1
 
+# Tensorflow Nightly uses absl::anyInvocable which is unsupported by the
+# absl used by TF 2.12
+build --define=use_absl_anyinvocable=1
+
 # If 1, use the pre-compiled wrappers.
 build --define=use_precompiled_wrappers=0
 

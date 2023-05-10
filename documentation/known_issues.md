@@ -1,9 +1,8 @@
 # Known Issues
 
 The underlying engine behind the decision forests algorithms used by TensorFlow
-Decision Forests have been extensively production-tested. But this API to
-TensorFlow and Keras is new, and some issues are expected -- we are trying to
-fix them as quickly as possible.
+Decision Forests have been extensively production-tested. This file lists some
+of the known issues.
 
 See also the
 [known issues of Yggdrasil Decision Forests](https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/known_issues.md)
