@@ -58,7 +58,7 @@ pip list
 # Get the commit SHA
 short_commit_sha=$(${PYTHON} -c 'import tensorflow as tf; print(tf.__git_version__)' | tail -1 | grep -o "\-g[0-9a-f]*" | cut -c 3-)
 # Grep will close the pipe before curl is finished, which creates an error we ignore.
-commit_sha=$(curl -SsL https://github.com/tensorflow/tensorflow/commit/${short_commit_sha} 2>/dev/null |  grep -o -m 1 $short_commit_sha'\([0-9]\|[a-f]\)\{29\}')
+commit_sha=$(curl -SsL https://github.com/tensorflow/tensorflow/commit/${short_commit_sha} 2>/dev/null |  grep -m1 -oE $short_commit_sha'[a-f0-9]{10,}')
 # Update TF dependency to the chosen version
 sed -i'.bak' -e "s/strip_prefix = \"tensorflow-2\.[0-9]\+\.[0-9]\+\(-rc[0-9]\+\)\?\",/strip_prefix = \"tensorflow-${commit_sha}\",/" WORKSPACE
 sed -i'.bak' -e "s|\"https://github.com/tensorflow/tensorflow/archive/v.\+\.zip\"|\"https://github.com/tensorflow/tensorflow/archive/${commit_sha}.zip\"|" WORKSPACE
