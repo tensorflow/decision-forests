@@ -48,7 +48,7 @@ model.evaluate(test_ds)
 model.save("project/model")
 ```
 
-## Google IO Presentation
+## Google I/O Presentation
 
 <div align="center">
     <a href="https://youtu.be/5qgk9QJ4rdQ">
