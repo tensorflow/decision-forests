@@ -143,7 +143,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         # TensorFlow Python,
-        # TensorFlow :trackable,
+        # TensorFlow /trackable,
     ],
 )
 
