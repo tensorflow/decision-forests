@@ -871,11 +871,7 @@ class InferenceCoreModel(models.Model):
     """Clear the @tf.function cache and force re-tracing."""
 
     # pylint: disable=protected-access
-    # TODO: Use _variable_creation_fn directly.
-    if hasattr(self.call, "_stateful_fn"):
-      fn = self.call._stateful_fn
-    else:
-      fn = self.call._variable_creation_fn
+    fn = self.call._variable_creation_fn
 
     if fn:
       if hasattr(fn._function_cache, "primary"):
