@@ -869,16 +869,7 @@ class InferenceCoreModel(models.Model):
   # clearing the cache.
   def _clear_function_cache(self):
     """Clear the @tf.function cache and force re-tracing."""
-
-    # pylint: disable=protected-access
-    fn = self.call._variable_creation_fn
-
-    if fn:
-      if hasattr(fn._function_cache, "primary"):
-        fn._function_cache.primary.clear()
-      else:
-        fn._function_cache.clear()
-    # pylint: enable=protected-access
+    self.call = tf.function(self.call._python_function, reduce_retracing=True)
 
   def _extract_sample(self, x):
     """Extracts a sample (e.g.
