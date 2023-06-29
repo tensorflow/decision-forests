@@ -72,13 +72,19 @@ def _create_in_process_tf_ps_cluster(num_workers, num_ps):
   worker_config = tf.compat.v1.ConfigProto()
 
   for i in range(num_workers):
-    tf.distribute.Server(
-        cluster_spec,
-        job_name="worker",
-        task_index=i,
-        config=worker_config,
-        protocol="grpc",
-    )
+    try:
+      tf.distribute.Server(
+          cluster_spec,
+          job_name="worker",
+          task_index=i,
+          config=worker_config,
+          protocol="grpc",
+      )
+    except tf.errors.UnknownError as e:
+      if "Could not start gRPC server" in e.message:
+        raise unittest.SkipTest("Cannot start std servers.")
+      else:
+        raise
 
   for i in range(num_ps):
     tf.distribute.Server(
