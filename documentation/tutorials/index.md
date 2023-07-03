@@ -12,6 +12,8 @@ The following notebooks are available:
     combine decision forest with neural networks.
 -   [Advanced Colab](advanced_colab.ipynb): How to inspect and create model
     structures directly.
+-   [Uplifting Colab](uplift_colab.ipynb): Learn about uplift modeling with
+    decision forests.
 -   [Model composition Colab](model_composition_colab.ipynb): How to compose
     decision forests and neural networks together.
 -   [Proximities and Prototypes with Random Forests](proximities_colab.ipynb):

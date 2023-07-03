@@ -62,7 +62,7 @@ upper_tabs:
         path: /decision_forests/tutorials/automatic_tuning_colab
       - title: Proximities and Prototypes
         path: /decision_forests/tutorials/proximities_colab
-      - title: Uplift modelling
+      - title: Uplift modeling
         path: /decision_forests/tutorials/uplift_colab
       - title: Run TF-DF models with TensorFlow.js
         path: /decision_forests/tf_df_in_tf_js
