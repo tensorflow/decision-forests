@@ -2,6 +2,23 @@
 
 ## HEAD
 
+## 1.4.0 - 2023-07-03
+
+### Features
+
+-   Support for multi-task learning.
+-   New tutorial for TF-DF <--> TF.js
+-   Support for uplift modeling in the model inspector.
+-   New tutorial for Uplift modeling.
+-   Bump Bazel version to 6.1.0.
+
+### Fix
+
+-   Regex to generate Bazel workspace.
+-   Remove warning when converting Keras -> YDF.
+-   Fixed default hyperparameter issue Github #172.
+-   Various documentation issues fixed.
+
 ## 1.3.0 - 2023-03-23
 
 ### Features

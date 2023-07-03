@@ -177,8 +177,6 @@ else
   TEST_RULES="//tensorflow_decision_forests/component/...:all //tensorflow_decision_forests/contrib/...:all //tensorflow_decision_forests/keras/...:all"
 fi
 
-ls -l -a
-
 # Build library
 time ${BAZEL} ${STARTUP_FLAGS} build ${BUILD_RULES} ${FLAGS}
 
