@@ -11,9 +11,9 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 # absl used by tensorflow.
 http_archive(
     name = "org_tensorflow",
-    strip_prefix = "tensorflow-2.12.0",
-    sha256 = "f67d5fdc15c38a50eb95d8788125ed7758e946b6c7313c188fe1d2fc9a9dfa1e",
-    urls = ["https://github.com/tensorflow/tensorflow/archive/v2.12.0.zip"],
+    strip_prefix = "tensorflow-2.13.0",
+    sha256 = "447cdb65c80c86d6c6cf1388684f157612392723eaea832e6392d219098b49de",
+    urls = ["https://github.com/tensorflow/tensorflow/archive/v2.13.0.zip"],
 )
 
 # Inject tensorflow dependencies.

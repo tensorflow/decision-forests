@@ -2,6 +2,12 @@
 
 ## HEAD
 
+## 1.5.0 - 2023-07-06
+
+### Features
+
+-   Compatibility with Tensorflow 2.13.0
+
 ## 1.4.0 - 2023-07-03
 
 ### Features

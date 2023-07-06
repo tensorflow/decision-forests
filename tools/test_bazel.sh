@@ -25,15 +25,16 @@
 #              and use "mac-intel-crosscompile" to build for Intel CPUs on an Apple Silicon machine.
 #              Tests will not work when cross-compiling (obviously).
 # FULL_COMPILATION: If 1, compile all parts of TF-DF. This may take a long time.
+# SHORT_COMMIT_SHA: Commit sha of Tensorfow. If empty, will try to retrieve automatically.
 #
 # Usage example
 #
-#   RUN_TESTS=1 PY_VERSION=3.8 TF_VERSION=2.12.0 ./tools/test_bazel.sh
+#   RUN_TESTS=1 PY_VERSION=3.8 TF_VERSION=2.13.0 ./tools/test_bazel.sh
 
 set -vex
 
 # Version of Python
-# Needs to be >=python3.7 (3.8 on MacOS systems)
+# Needs to be >=python3.8
 PYTHON=python${PY_VERSION}
 
 # Install Pip dependencies
@@ -56,9 +57,16 @@ echo -e "pip installed packages: \n"
 pip list
 
 # Get the commit SHA
-short_commit_sha=$(${PYTHON} -c 'import tensorflow as tf; print(tf.__git_version__)' | tail -1 | grep -o "\-g[0-9a-f]*" | cut -c 3-)
+if [ -z "${SHORT_COMMIT_SHA}" ]; then
+  SHORT_COMMIT_SHA=$(${PYTHON} -c 'import tensorflow as tf; print(tf.__git_version__)' | tail -1 | grep -o "\-g[0-9a-f]*" | cut -c 3-)
+  if [ -z "${SHORT_COMMIT_SHA}" ]; then
+    echo "Could not automatically get commit SHA from Tensorflow. Please manually set variable SHORT_COMMIT_SHA to the right value."
+    exit 1
+  fi
+fi
+
 # Grep will close the pipe before curl is finished, which creates an error we ignore.
-commit_sha=$(curl -SsL https://github.com/tensorflow/tensorflow/commit/${short_commit_sha} 2>/dev/null |  grep -m1 -oE $short_commit_sha'[a-f0-9]{10,}')
+commit_sha=$(curl -SsL https://github.com/tensorflow/tensorflow/commit/${SHORT_COMMIT_SHA} 2>/dev/null |  grep -m1 -oE $SHORT_COMMIT_SHA'[a-f0-9]{10,}')
 # Update TF dependency to the chosen version
 sed -i'.bak' -e "s/strip_prefix = \"tensorflow-2\.[0-9]\+\.[0-9]\+\(-rc[0-9]\+\)\?\",/strip_prefix = \"tensorflow-${commit_sha}\",/" WORKSPACE
 sed -i'.bak' -e "s|\"https://github.com/tensorflow/tensorflow/archive/v.\+\.zip\"|\"https://github.com/tensorflow/tensorflow/archive/${commit_sha}.zip\"|" WORKSPACE
