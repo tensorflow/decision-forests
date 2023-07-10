@@ -15,6 +15,7 @@
 
 #include "tensorflow_decision_forests/tensorflow/ops/training/feature_on_file.h"
 
+#include "yggdrasil_decision_forests/learner/distributed_decision_tree/dataset_cache/dataset_cache_common.h"
 #include "yggdrasil_decision_forests/utils/logging.h"
 
 namespace tensorflow_decision_forests {

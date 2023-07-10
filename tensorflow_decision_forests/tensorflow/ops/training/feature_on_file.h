@@ -38,7 +38,6 @@
 #include "tensorflow_decision_forests/tensorflow/ops/training/features.h"
 #include "yggdrasil_decision_forests/learner/distributed_decision_tree/dataset_cache/column_cache.h"
 #include "yggdrasil_decision_forests/learner/distributed_decision_tree/dataset_cache/dataset_cache.pb.h"
-#include "yggdrasil_decision_forests/learner/distributed_decision_tree/dataset_cache/dataset_cache_common.h"
 #include "yggdrasil_decision_forests/model/abstract_model.h"
 #include "yggdrasil_decision_forests/utils/tensorflow.h"
 
@@ -54,16 +53,6 @@ constexpr char kFilenameDone[] = "partial_done";
 
 // Checks is a done file exist in "dataset_path".
 bool HasDoneFile(const std::string& dataset_path);
-
-// Checks that the files expected to be created by the worker are present in the
-// cache directory.
-//
-// This method is used when using the TensorFlow distribution library to
-// double check that a worker returning a successful work has effectively done
-// the work.
-//
-// This function does not check the validity of the content of the files.
-bool HasAllRequiredFiles(const std::string& dataset_path);
 
 // Receive features values (as Tensor) and export them to file (in the partial
 // dataset cache format).
