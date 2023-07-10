@@ -19,7 +19,7 @@ import logging
 import os
 import threading
 import time
-from typing import Any, Dict, List, NamedTuple, Optional, Union, Sequence, Tuple
+from typing import Any, Dict, List, NamedTuple, Optional, Sequence, Tuple, Union
 import uuid
 
 import tensorflow as tf
@@ -419,6 +419,7 @@ def collect_distributed_training_examples(
   for feature_idx, (feature_name, semantic_tensor) in enumerate(
       in_order_inputs
   ):
+
     def raise_non_supported():
       # pylint: disable=cell-var-from-loop
       raise Exception(
@@ -808,12 +809,19 @@ def finalize_distributed_dataset_collection(
     training_op.SimpleMLWorkerFinalizeFeatureOnFile(
         feature_resource_ids=resource_ids, dataset_path=dataset_path
     )
+    return 1
 
-  execute_function_on_each_worker(cluster_coordinator, worker_fn)
+  logging.info("Finalize worker features")
+  check_result = execute_function_on_each_worker(cluster_coordinator, worker_fn)
+  num_workers = len(cluster_coordinator._cluster.workers)  # pylint: disable=protected-access
+  assert (
+      check_result == num_workers
+  ), f"Worker check:{check_result}, expected worker check:{num_workers}"
 
+  logging.info("Finalize chief features")
   training_op.SimpleMLChiefFinalizeFeatureOnFile(
       feature_names=feature_names,
-      num_shards=len(cluster_coordinator._cluster.workers),  # pylint: disable=protected-access
+      num_shards=num_workers,
       dataset_path=dataset_path,
   )
 
@@ -844,6 +852,8 @@ def execute_function_on_each_worker(
     reduce_results=False).
   """
   # pylint: disable=protected-access
+
+  logging.info("Execution of a function on each worker exactly once")
 
   args = args or ()
 

@@ -27,13 +27,13 @@ namespace dist_dt =
     ::yggdrasil_decision_forests::model::distributed_decision_tree;
 
 using dist_dt::dataset_cache::FloatColumnWriter;
+using dist_dt::dataset_cache::HasAllRequiredFiles;
 using dist_dt::dataset_cache::IntegerColumnWriter;
 using dist_dt::dataset_cache::kFilenameMetaDataPostfix;
 using dist_dt::dataset_cache::kFilenamePartialMetaData;
 using dist_dt::dataset_cache::PartialRawColumnFileDirectory;
 using dist_dt::dataset_cache::PartialRawColumnFilePath;
 using dist_dt::dataset_cache::proto::PartialDatasetMetadata;
-
 }  // namespace
 
 tf::Status CreateDoneFile(const std::string& dataset_path) {
@@ -229,8 +229,20 @@ void SimpleMLWorkerFinalizeFeatureOnFile::Compute(
     const auto lookup_status = ctx->resource_manager()->Lookup(
         kModelContainer, feature_resource_id, &abstract_resource);
     if (!lookup_status.ok()) {
-      YDF_LOG(INFO) << "Resource "
-                    << " not found on " << ctx->device()->name();
+      OP_REQUIRES_OK(
+          ctx,
+          tf::Status(
+              static_cast<tf::errors::Code>(absl::StatusCode::kInvalidArgument),
+              absl::StrCat(
+                  "Feature resource not found on worker ",
+                  ctx->device()->name(),
+                  ". This situation can be caused by the following situation: "
+                  "(1) The worker did not receive any training data because of "
+                  "an incorrect sharding of the data among the worker. For "
+                  "best training speed, make sure each worker receives "
+                  "approximatively the same number of examples. (2) The worker "
+                  "got prehempted between data aquisition and cache "
+                  "finalization.")));
       return;
     }
     OP_REQUIRES_OK(ctx, utils::FromUtilStatus(abstract_resource->End()));
@@ -245,6 +257,14 @@ void SimpleMLChiefFinalizeFeatureOnFile::Compute(
 
   if (HasDoneFile(dataset_path_)) {
     return;
+  }
+
+  if (!HasAllRequiredFiles(dataset_path_, feature_names_.size(), num_shards_)) {
+    OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
+                                       absl::StatusCode::kInvalidArgument),
+                                   "The cache is missing content expected to "
+                                   "be created by workers. At least one worker "
+                                   "did not complete it work."));
   }
 
   YDF_LOG(INFO) << "Finalizing dataset";
