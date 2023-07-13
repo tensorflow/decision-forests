@@ -2417,7 +2417,7 @@ def _check_dataset(ds: tf.data.Dataset):
     error(
         "The dataset contains a 'shuffle' operation. For maximum quality, "
         "TF-DF models should be trained without shuffle operations to make the "
-        "algorithm deterministic. To make the the algorithm non deterministic, "
+        "algorithm deterministic. To make the algorithm non deterministic, "
         "change the `random_seed` constructor argument instead. Remove the "
         "shuffle operations to solve this issue."
     )
