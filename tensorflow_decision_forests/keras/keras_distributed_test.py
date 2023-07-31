@@ -20,6 +20,7 @@ import os
 import subprocess
 import time
 from typing import List, Tuple
+import unittest
 
 from absl import flags
 from absl import logging
@@ -87,9 +88,15 @@ def _create_in_process_tf_ps_cluster(num_workers, num_ps):
         raise
 
   for i in range(num_ps):
-    tf.distribute.Server(
-        cluster_spec, job_name="ps", task_index=i, protocol="grpc"
-    )
+    try:
+      tf.distribute.Server(
+          cluster_spec, job_name="ps", task_index=i, protocol="grpc"
+      )
+    except tf.errors.UnknownError as e:
+      if "Could not start gRPC server" in e.message:
+        raise unittest.SkipTest("Cannot start std servers.")
+      else:
+        raise
 
   os.environ["GRPC_FAIL_FAST"] = "use_caller"
 
