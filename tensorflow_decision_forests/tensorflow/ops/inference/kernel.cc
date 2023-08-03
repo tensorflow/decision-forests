@@ -54,12 +54,10 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/resource_mgr.h"
-#include "tensorflow/core/public/version.h"
 #include "yggdrasil_decision_forests/dataset/data_spec.h"
 #include "yggdrasil_decision_forests/dataset/data_spec.pb.h"
 #include "yggdrasil_decision_forests/model/abstract_model.h"
@@ -73,6 +71,7 @@
 namespace tensorflow_decision_forests {
 namespace ops {
 
+// Aliases
 namespace tf = ::tensorflow;
 namespace model = ::yggdrasil_decision_forests::model;
 namespace utils = ::yggdrasil_decision_forests::utils;
@@ -87,12 +86,18 @@ using OpKernelContext = tf::OpKernelContext;
 using TensorShape = tf::TensorShape;
 using Tensor = tf::Tensor;
 
-// The different types of model output.
-enum class OutputType { kPredictions, kLeaves };
+// Outputs of a model.
+enum class OutputType {
+  kPredictions,  // e.g. probabilities, logits
+  kLeaves,       // Index of the active leaves
+};
 
-// Possible values for the "output_type" attribute.
+// String representation of enum "OutputType" when configured in the op's
+// "output_type" field. Note: "kPredictions" does not have a string
+// representation.
 constexpr char kOutputTypeLeaves[] = "LEAVES";
 
+// Internal configuration of the model output.
 struct OutputTypesBitmap {
   bool leaves = false;
 };
@@ -104,26 +109,27 @@ constexpr char kModelContainer[] = "simple_ml_model_serving";
 constexpr char kAttributeModelIdentifier[] = "model_identifier";
 constexpr char kAttributeDenseOutputDim[] = "dense_output_dim";
 
+// Keys of the op's inputs and outputs.
 constexpr char kInputPath[] = "path";
-constexpr char kInputNumericalFeatures[] = "numerical_features";
-constexpr char kInputBooleanFeatures[] = "boolean_features";
-constexpr char kInputCategoricalIntFeatures[] = "categorical_int_features";
-constexpr char kInputCategoricalSetIntFeaturesValues[] =
-    "categorical_set_int_features_values";
-constexpr char kInputCategoricalSetIntFeaturesRowSplitsDim1[] =
-    "categorical_set_int_features_row_splits_dim_1";
-constexpr char kInputCategoricalSetIntFeaturesRowSplitsDim2[] =
-    "categorical_set_int_features_row_splits_dim_2";
 constexpr char kInputModelHandle[] = "model_handle";
 constexpr char kInputOutputTypes[] = "output_types";
 constexpr char kInputFilePrefix[] = "file_prefix";
 constexpr char kInputAllowSlowInference[] = "allow_slow_inference";
 
-constexpr char kOutputDensePredictions[] = "dense_predictions";
-constexpr char kOutputDenseColRepresentation[] = "dense_col_representation";
-constexpr char kOutputLeaves[] = "leaves";
+constexpr int kInputNumericalFeatures = 0;
+constexpr int kInputBooleanFeatures = 1;
+constexpr int kInputCategoricalIntFeatures = 2;
+constexpr int kInputCategoricalSetIntFeaturesValues = 3;
+constexpr int kInputCategoricalSetIntFeaturesRowSplitsDim1 = 4;
+constexpr int kInputCategoricalSetIntFeaturesRowSplitsDim2 = 5;
 
-// Input tensor values of the model. Does not own the data.
+constexpr int kOutputDensePredictions = 0;
+constexpr int kOutputDenseColRepresentation = 1;
+
+constexpr int kOutputLeaves = 0;
+
+// Utility wrapper around the input features tensor during inference. Does not
+// own pointed the data.
 struct InputTensors {
   InputTensors(
       const Tensor* numerical_features_tensor,
@@ -160,7 +166,8 @@ struct InputTensors {
   int batch_size = -1;
 };
 
-// Output tensor values of the model. Does not own the data.
+// Utility wrapper around the output tensor the model. Does not
+// own pointed the data.
 struct OutputTensors {
   OutputTensors(Tensor* dense_predictions_tensor,
                 Tensor* dense_col_representation_tensor, const int output_dim)
@@ -174,7 +181,7 @@ struct OutputTensors {
   const int output_dim;
 };
 
-// Output tensor values when returning the leaves.
+// Output tensor values when returning leaves.
 struct OutputLeavesTensors {
   OutputLeavesTensors(Tensor* leaves_tensor, const int num_trees)
       : leaves(leaves_tensor->matrix<int32_t>()), num_trees(num_trees) {}
@@ -182,10 +189,21 @@ struct OutputLeavesTensors {
   const int num_trees;
 };
 
-tf::Status TfStatusInvalidArgument(const absl::string_view message) {
-  return tf::Status(
-      static_cast<tf::errors::Code>(absl::StatusCode::kInvalidArgument),
-      message);
+// Creates a failed tf::Status.
+tf::Status TFStatus(absl::StatusCode code, const absl::string_view message) {
+  return tf::Status(static_cast<tf::errors::Code>(code), message);
+}
+
+tf::Status TFStatusInvalidArgument(const absl::string_view message) {
+  return TFStatus(absl::StatusCode::kInvalidArgument, message);
+}
+
+tf::Status TFStatusUnimplemented(const absl::string_view message) {
+  return TFStatus(absl::StatusCode::kUnimplemented, message);
+}
+
+tf::Status TFStatusInternal(const absl::string_view message) {
+  return TFStatus(absl::StatusCode::kInternal, message);
 }
 
 // Converts the vector of item to bitmap representation of the output types.
@@ -196,7 +214,7 @@ tf::Status GetOutputTypesBitmap(const std::vector<std::string>& src_types,
     if (src_type == kOutputTypeLeaves) {
       dst_types->leaves = true;
     } else {
-      return TfStatusInvalidArgument(
+      return TFStatusInvalidArgument(
           absl::StrCat("Unknown output types: ", src_type));
     }
   }
@@ -236,12 +254,10 @@ class FeatureIndex {
           categorical_set_int_features_.push_back(feature_idx);
           break;
         default:
-          return tf::Status(
-              static_cast<tf::errors::Code>(absl::StatusCode::kUnimplemented),
-              absl::Substitute(
-                  "Non supported feature type \"$0\" for feature \"$1\".",
-                  dataset::proto::ColumnType_Name(feature_spec.type()),
-                  feature_spec.name()));
+          return TFStatusUnimplemented(absl::Substitute(
+              "Non supported feature type \"$0\" for feature \"$1\".",
+              dataset::proto::ColumnType_Name(feature_spec.type()),
+              feature_spec.name()));
       }
     }
     return tf::OkStatus();
@@ -290,9 +306,7 @@ tf::Status ExtractCategoricalSetInt(const InputTensors& inputs,
                                     std::vector<int32_t>* values) {
   if (inputs.categorical_set_int_features_row_splits_dim_2(example_idx) !=
       example_idx * feature_index.categorical_set_int_features().size()) {
-    return tf::Status(
-        static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
-        "Unexpected features_row_splits_dim_2 size.");
+    return TFStatusInternal("Unexpected features_row_splits_dim_2 size.");
   }
 
   const int d1_cell =
@@ -300,9 +314,7 @@ tf::Status ExtractCategoricalSetInt(const InputTensors& inputs,
       tensor_col_idx;
   if (d1_cell + 1 >=
       inputs.categorical_set_int_features_row_splits_dim_1.size()) {
-    return tf::Status(
-        static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
-        "Unexpected features_row_splits_dim_1 size.");
+    return TFStatusInternal("Unexpected features_row_splits_dim_1 size.");
   }
 
   const int begin_idx =
@@ -392,9 +404,7 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
     // Update the vertical dataset with the input tensors.
     auto* cache = dynamic_cast<Cache*>(abstract_cache);
     if (cache == nullptr) {
-      return tf::Status(
-          static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
-          "Unexpected cache type.");
+      return TFStatusInternal("Unexpected cache type.");
     }
     TF_RETURN_IF_ERROR(SetVerticalDataset(inputs, feature_index, cache));
 
@@ -419,9 +429,7 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
           if (outputs->output_dim == 1 && !output_is_proba) {
             // Output the logit of the positive class.
             if (pred.distribution().counts().size() != 3) {
-              return tf::Status(
-                  static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
-                  "Wrong \"distribution\" shape.");
+              return TFStatusInternal("Wrong \"distribution\" shape.");
             }
             const float logit =
                 prediction.classification().distribution().counts(2) /
@@ -431,9 +439,7 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
             // Output the logit or probabilities.
             if (outputs->dense_predictions.dimension(1) !=
                 pred.distribution().counts().size() - 1) {
-              return tf::Status(
-                  static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
-                  "Wrong \"distribution\" shape.");
+              return TFStatusInternal("Wrong \"distribution\" shape.");
             }
             for (int class_idx = 0; class_idx < outputs->output_dim;
                  class_idx++) {
@@ -468,9 +474,7 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
           const auto& pred = prediction.uplift();
           if (outputs->dense_predictions.dimension(1) !=
               pred.treatment_effect_size()) {
-            return tf::Status(
-                static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
-                "Wrong \"distribution\" shape.");
+            return TFStatusInternal("Wrong \"distribution\" shape.");
           }
           for (int uplift_idx = 0; uplift_idx < outputs->output_dim;
                uplift_idx++) {
@@ -497,9 +501,7 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
     // Update the vertical dataset with the input tensors.
     auto* cache = dynamic_cast<Cache*>(abstract_cache);
     if (cache == nullptr) {
-      return tf::Status(
-          static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
-          "Unexpected cache type.");
+      return TFStatusInternal("Unexpected cache type.");
     }
     TF_RETURN_IF_ERROR(SetVerticalDataset(inputs, feature_index, cache));
 
@@ -514,7 +516,7 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
     auto* df_model =
         dynamic_cast<model::DecisionForestInterface*>(model_.get());
     if (df_model == nullptr) {
-      return TfStatusInvalidArgument("The model is not a decision forest");
+      return TFStatusInvalidArgument("The model is not a decision forest");
     }
 
     // Run the model.
@@ -562,9 +564,7 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
               dataset::NumericalToDiscretizedNumerical(col_spec, value);
         }
       } else {
-        return tf::Status(
-            static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
-            "Unexpected column type.");
+        return TFStatusInternal("Unexpected column type.");
       }
     }
 
@@ -575,9 +575,7 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
       auto* col = cache->dataset_.MutableColumnWithCastOrNull<
           dataset::VerticalDataset::BooleanColumn>(feature_idx);
       if (col == nullptr) {
-        return tf::Status(
-            static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
-            "Unexpected column type.");
+        return TFStatusInternal("Unexpected column type.");
       }
       col->Resize(inputs.batch_size);
       auto& dst = *col->mutable_values();
@@ -603,9 +601,7 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
       auto* col = cache->dataset_.MutableColumnWithCastOrNull<
           dataset::VerticalDataset::CategoricalColumn>(feature_idx);
       if (col == nullptr) {
-        return tf::Status(
-            static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
-            "Unexpected column type.");
+        return TFStatusInternal("Unexpected column type.");
       }
       col->Resize(inputs.batch_size);
       const int max_value = cache->dataset_.data_spec()
@@ -640,9 +636,7 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
       auto* col = cache->dataset_.MutableColumnWithCastOrNull<
           dataset::VerticalDataset::CategoricalSetColumn>(feature_idx);
       if (col == nullptr) {
-        return tf::Status(
-            static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
-            "Unexpected column type.");
+        return TFStatusInternal("Unexpected column type.");
       }
       col->Resize(inputs.batch_size);
 
@@ -737,9 +731,7 @@ class SemiFastGenericInferenceEngine : public AbstractInferenceEngine {
     // Update the vertical dataset with the input tensors.
     auto* cache = dynamic_cast<Cache*>(abstract_cache);
     if (cache == nullptr) {
-      return tf::Status(
-          static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
-          "Unexpected cache type.");
+      return TFStatusInternal("Unexpected cache type.");
     }
 
     TF_RETURN_IF_ERROR(SetInputFeatures(inputs, feature_index, cache));
@@ -752,9 +744,7 @@ class SemiFastGenericInferenceEngine : public AbstractInferenceEngine {
     if (decompact_probability_) {
       DCHECK_EQ(outputs->output_dim, 2);
       if (engine_->NumPredictionDimension() != 1) {
-        return tf::Status(
-            static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
-            "Wrong NumPredictionDimension");
+        return TFStatusInternal("Wrong NumPredictionDimension");
       }
       for (int example_idx = 0; example_idx < inputs.batch_size;
            example_idx++) {
@@ -766,9 +756,7 @@ class SemiFastGenericInferenceEngine : public AbstractInferenceEngine {
 
     } else {
       if (engine_->NumPredictionDimension() != outputs->output_dim) {
-        return tf::Status(
-            static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
-            "Wrong NumPredictionDimension");
+        return TFStatusInternal("Wrong NumPredictionDimension");
       }
       for (int example_idx = 0; example_idx < inputs.batch_size;
            example_idx++) {
@@ -790,9 +778,7 @@ class SemiFastGenericInferenceEngine : public AbstractInferenceEngine {
     // Update the vertical dataset with the input tensors.
     auto* cache = dynamic_cast<Cache*>(abstract_cache);
     if (cache == nullptr) {
-      return tf::Status(
-          static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
-          "Unexpected cache type.");
+      return TFStatusInternal("Unexpected cache type.");
     }
     TF_RETURN_IF_ERROR(SetInputFeatures(inputs, feature_index, cache));
 
@@ -1030,7 +1016,7 @@ class YggdrasilModelResource : public tf::ResourceBase {
       auto* df_model =
           dynamic_cast<model::DecisionForestInterface*>(model.get());
       if (df_model == nullptr) {
-        return TfStatusInvalidArgument("The model is not a decision forest");
+        return TFStatusInvalidArgument("The model is not a decision forest");
       }
       num_trees_ = df_model->num_trees();
     }
@@ -1143,8 +1129,10 @@ class YggdrasilModelResource : public tf::ResourceBase {
   int num_trees_ = -1;
 };
 
-tf::Status GetModel(OpKernelContext* ctx,
-                    YggdrasilModelResource** model_resource) {
+// Gets an existing model resource from a resource handle. Increases ref on the
+// resource. Returns a failed status if the resource does not exist.
+tf::Status GetModelResourceFromResourceHandle(
+    OpKernelContext* ctx, YggdrasilModelResource** model_resource) {
   const Tensor* handle_tensor;
   TF_RETURN_IF_ERROR(ctx->input(kInputModelHandle, &handle_tensor));
   const tf::ResourceHandle& handle =
@@ -1183,6 +1171,7 @@ class SimpleMLLoadModelFromPath : public OpKernel {
       // Skip loading the model if a model with the target identifier is already
       // loaded in the session's resource set.
       YggdrasilModelResource* maybe_resource;
+      // Note: Lookup increases resource ref by 1 if successful.
       if (ctx->resource_manager()
               ->Lookup(kModelContainer, model_identifier_, &maybe_resource)
               .ok()) {
@@ -1237,7 +1226,8 @@ class SimpleMLLoadModelFromPathWithHandle : public OpKernel {
     OP_REQUIRES_OK(ctx, GetModelPath(ctx, &model_path));
 
     YggdrasilModelResource* model_container;
-    OP_REQUIRES_OK(ctx, GetModel(ctx, &model_container));
+    OP_REQUIRES_OK(ctx,
+                   GetModelResourceFromResourceHandle(ctx, &model_container));
     tf::core::ScopedUnref unref_me(model_container);
 
     YDF_LOG(INFO) << "Loading model from path " << model_path << " with prefix "
@@ -1285,17 +1275,18 @@ class SimpleMLInferenceOp : public OpKernel {
 
   void Compute(OpKernelContext* ctx) override {
     // Make sure the model is available.
-    if (!model_container_) {
-      OP_REQUIRES_OK(ctx, LinkModelResource(ctx));
-    }
+    tf::StatusOr<YggdrasilModelResource*> model_resource_or =
+        GetModelResource(ctx);
+    OP_REQUIRES_OK(ctx, model_resource_or.status());
+    YggdrasilModelResource* model_resource = model_resource_or.value();
 
     // Collect the input signals.
-    tf::Status io_status;
-    const auto input_tensors =
-        LinkInputTensors(ctx, model_container_->feature_index(), &io_status);
-    OP_REQUIRES_OK(ctx, io_status);
+    const auto input_tensors_or =
+        LinkInputTensors(ctx, model_resource->feature_index());
+    OP_REQUIRES_OK(ctx, input_tensors_or.status());
+    const auto& input_tensors = input_tensors_or.value();
 
-    auto engine_cache_or_status = GetEngineCache();
+    auto engine_cache_or_status = GetEngineCache(model_resource);
     if (!engine_cache_or_status.ok()) {
       OP_REQUIRES_OK(ctx,
                      utils::FromUtilStatus(engine_cache_or_status.status()));
@@ -1303,26 +1294,25 @@ class SimpleMLInferenceOp : public OpKernel {
 
     if (output_type_ == OutputType::kLeaves) {
       // Allocate the output predictions memory.
-      auto output_tensors =
-          LinkOutputLeavesTensors(ctx, input_tensors.batch_size,
-                                  model_container_->num_trees(), &io_status);
-      OP_REQUIRES_OK(ctx, io_status);
+      auto output_tensors_or = LinkOutputLeavesTensors(
+          ctx, input_tensors.batch_size, model_resource->num_trees());
+      OP_REQUIRES_OK(ctx, output_tensors_or.status());
 
-      OP_REQUIRES_OK(
-          ctx, model_container_->engine()->RunInferenceGetLeaves(
-                   input_tensors, model_container_->feature_index(),
-                   &output_tensors, engine_cache_or_status.value().get()));
+      OP_REQUIRES_OK(ctx, model_resource->engine()->RunInferenceGetLeaves(
+                              input_tensors, model_resource->feature_index(),
+                              &output_tensors_or.value(),
+                              engine_cache_or_status.value().get()));
     } else if (output_type_ == OutputType::kPredictions) {
       // Allocate the output predictions memory.
-      auto output_tensors =
-          LinkOutputTensors(ctx, input_tensors.batch_size, &io_status);
-      OP_REQUIRES_OK(ctx, io_status);
+      auto output_tensors_or = LinkOutputTensors(ctx, input_tensors.batch_size);
+      OP_REQUIRES_OK(ctx, output_tensors_or.status());
+      const auto& output_tensors = output_tensors_or.value();
 
       // Set the output representation.
-      const auto& reps = model_container_->dense_col_representation();
+      const auto& reps = model_resource->dense_col_representation();
       if (reps.size() != dense_output_dim_) {
         OP_REQUIRES_OK(
-            ctx, TfStatusInvalidArgument(absl::StrCat(
+            ctx, TFStatusInvalidArgument(absl::StrCat(
                      "The \"dense_output_dim\"=", dense_output_dim_,
                      " attribute does not match the model output dimension=",
                      reps.size())));
@@ -1331,37 +1321,66 @@ class SimpleMLInferenceOp : public OpKernel {
         output_tensors.dense_col_representation(rep_idx) = reps[rep_idx];
       }
 
-      OP_REQUIRES_OK(
-          ctx, model_container_->engine()->RunInference(
-                   input_tensors, model_container_->feature_index(),
-                   &output_tensors, engine_cache_or_status.value().get()));
+      OP_REQUIRES_OK(ctx, model_resource->engine()->RunInference(
+                              input_tensors, model_resource->feature_index(),
+                              &output_tensors_or.value(),
+                              engine_cache_or_status.value().get()));
     } else {
       OP_REQUIRES_OK(ctx,
-                     TfStatusInvalidArgument("Not implemented output type"));
+                     TFStatusInvalidArgument("Not implemented output type"));
     }
 
     ReturnEngineCache(std::move(engine_cache_or_status).value());
   }
 
+  // Gets the model resource.
+  //
+  // The returned resource IS NOT tracked with ref count (i.e. you don't need to
+  // call unref when you are done using it). The life of the returned
+  // YggdrasilModelResource* is possibly tied to the life of the
+  // "SimpleMLInferenceOp" class.
+  //
+  // This method is thread safe.
+  tf::StatusOr<YggdrasilModelResource*> GetModelResource(OpKernelContext* ctx) {
+    {
+      tf::tf_shared_lock l(model_container_mutex_);
+      if (model_container_) {
+        return model_container_;
+      }
+    }
+    // There is no locks at this point.
+    {
+      // The resource might exist but is not tracked in the class.
+      // This case is only met during the initialization.
+      tf::mutex_lock l(model_container_mutex_);
+      if (model_container_ == nullptr) {
+        ASSIGN_OR_RETURN(model_container_, ImportModelResource(ctx));
+      }
+      return model_container_;
+    }
+  }
+
  protected:
-  // Links the model and set "model_container_" accordingly.
-  virtual tf::Status LinkModelResource(OpKernelContext* ctx) {
+  // Imports the model resource.
+  //
+  // The returned resource IS tracked with ref count.
+  virtual tf::StatusOr<YggdrasilModelResource*> ImportModelResource(
+      OpKernelContext* ctx) {
+    // The resource exists but is not tracked in the class.
+    //
+    // Note: Lookup increases resource ref by 1 if successful.
+    YggdrasilModelResource* res;
     const auto lookup_status = ctx->resource_manager()->Lookup(
-        kModelContainer, model_identifier_, &model_container_);
+        kModelContainer, model_identifier_, &res);
     if (!lookup_status.ok()) {
       return tf::Status(
           lookup_status.code(),
-#if TF_GRAPH_DEF_VERSION < 1467
-          absl::StrCat(lookup_status.error_message(),
-#else
           absl::StrCat(lookup_status.message(),
-#endif
                        ". This error caused the simpleML model not to be "
                        "available for inference. This error is likely due to "
                        "the \"LoadModel*\" not having been run before."));
     }
-
-    return tf::OkStatus();
+    return res;
   }
 
   // Computes the batch size from the input feature tensors. Returns an error if
@@ -1383,7 +1402,7 @@ class SimpleMLInferenceOp : public OpKernel {
         if (max_size == 0) {
           max_size = size;
         } else if (max_size != size) {
-          return TfStatusInvalidArgument(absl::StrCat(
+          return TFStatusInvalidArgument(absl::StrCat(
               "The batch size of the input features are inconsistent: ",
               max_size, " vs ", size, "."));
         }
@@ -1395,9 +1414,8 @@ class SimpleMLInferenceOp : public OpKernel {
 
   // Gets the c++ references on all the input tensor values of the inference op.
   // In other words, get the input tensor and cast them to the expected type.
-  InputTensors LinkInputTensors(OpKernelContext* ctx,
-                                const FeatureIndex& feature_index,
-                                tf::Status* status) {
+  tf::StatusOr<InputTensors> LinkInputTensors(
+      OpKernelContext* ctx, const FeatureIndex& feature_index) {
     const Tensor* numerical_features_tensor = nullptr;
     const Tensor* boolean_features_tensor = nullptr;
     const Tensor* categorical_int_features_tensor = nullptr;
@@ -1407,63 +1425,45 @@ class SimpleMLInferenceOp : public OpKernel {
     const Tensor* categorical_set_int_features_row_splits_dim_2_tensor =
         nullptr;
 
-    auto build_return = [&]() -> InputTensors {
-      return {numerical_features_tensor,
-              boolean_features_tensor,
-              categorical_int_features_tensor,
-              categorical_set_int_features_values_tensor,
-              categorical_set_int_features_row_splits_dim_1_tensor,
-              categorical_set_int_features_row_splits_dim_2_tensor};
-    };
+    numerical_features_tensor = &ctx->input(kInputNumericalFeatures);
+    boolean_features_tensor = &ctx->input(kInputBooleanFeatures);
+    categorical_int_features_tensor = &ctx->input(kInputCategoricalIntFeatures);
+    categorical_set_int_features_values_tensor =
+        &ctx->input(kInputCategoricalSetIntFeaturesValues);
+    categorical_set_int_features_row_splits_dim_1_tensor =
+        &ctx->input(kInputCategoricalSetIntFeaturesRowSplitsDim1);
+    categorical_set_int_features_row_splits_dim_2_tensor =
+        &ctx->input(kInputCategoricalSetIntFeaturesRowSplitsDim2);
 
-    for (const auto& tensor_def :
-         std::vector<std::pair<const char*, const Tensor**>>{
-             {kInputNumericalFeatures, &numerical_features_tensor},
-
-             {kInputBooleanFeatures, &boolean_features_tensor},
-
-             {kInputCategoricalIntFeatures, &categorical_int_features_tensor},
-
-             {kInputCategoricalSetIntFeaturesValues,
-              &categorical_set_int_features_values_tensor},
-
-             {kInputCategoricalSetIntFeaturesRowSplitsDim1,
-              &categorical_set_int_features_row_splits_dim_1_tensor},
-
-             {kInputCategoricalSetIntFeaturesRowSplitsDim2,
-              &categorical_set_int_features_row_splits_dim_2_tensor},
-         }) {
-      *status = ctx->input(tensor_def.first, tensor_def.second);
-      if (!status->ok()) {
-        return build_return();
-      }
-    }
+    auto tensors =
+        InputTensors{numerical_features_tensor,
+                     boolean_features_tensor,
+                     categorical_int_features_tensor,
+                     categorical_set_int_features_values_tensor,
+                     categorical_set_int_features_row_splits_dim_1_tensor,
+                     categorical_set_int_features_row_splits_dim_2_tensor};
 
     // Set the batch size from the tensors.
-    auto tensors = build_return();
-    *status = ComputeBatchSize(tensors, &tensors.batch_size);
+    TF_RETURN_IF_ERROR(ComputeBatchSize(tensors, &tensors.batch_size));
 
     // Check number of dimensions of inputs.
     // Note: The user cannot impact those if using the wrapper.
     if (tensors.numerical_features.dimension(1) !=
         feature_index.numerical_features().size()) {
-      *status = TfStatusInvalidArgument(
+      return TFStatusInvalidArgument(
           "Unexpected dimension of numerical_features bank.");
-      return build_return();
     }
 
     if (tensors.boolean_features.dimension(1) !=
         feature_index.boolean_features().size()) {
-      *status = TfStatusInvalidArgument(
+      return TFStatusInvalidArgument(
           "Unexpected dimension of boolean_features bank.");
-      return build_return();
     }
 
     if (tensors.categorical_int_features.dimension(1) !=
         feature_index.categorical_int_features().size()) {
-      *status = TfStatusInvalidArgument(
+      return TFStatusInvalidArgument(
           "Unexpected dimension of categorical_int_features bank.");
-      return build_return();
     }
 
     return tensors;
@@ -1471,54 +1471,41 @@ class SimpleMLInferenceOp : public OpKernel {
 
   // Allocates and gets the c++ references to all the output tensor values of
   // the inference op.
-  OutputTensors LinkOutputTensors(OpKernelContext* ctx, const int batch_size,
-                                  tf::Status* status) {
+  tf::StatusOr<OutputTensors> LinkOutputTensors(OpKernelContext* ctx,
+                                                const int batch_size) {
     Tensor* dense_predictions_tensor = nullptr;
     Tensor* dense_col_representation_tensor = nullptr;
 
-    *status = ctx->allocate_output(kOutputDensePredictions,
-                                   TensorShape({batch_size, dense_output_dim_}),
-                                   &dense_predictions_tensor);
-    if (!status->ok()) {
-      return {dense_predictions_tensor, dense_col_representation_tensor,
-              dense_output_dim_};  // Eigen maps cannot be empty.
-    }
-    *status = ctx->allocate_output(kOutputDenseColRepresentation,
-                                   TensorShape({dense_output_dim_}),
-                                   &dense_col_representation_tensor);
-    if (!status->ok()) {
-      return {dense_predictions_tensor, dense_col_representation_tensor,
-              dense_output_dim_};  // Eigen maps cannot be empty.
-    }
-    return {dense_predictions_tensor, dense_col_representation_tensor,
-            dense_output_dim_};
+    TF_RETURN_IF_ERROR(ctx->allocate_output(
+        kOutputDensePredictions, TensorShape({batch_size, dense_output_dim_}),
+        &dense_predictions_tensor));
+
+    TF_RETURN_IF_ERROR(ctx->allocate_output(kOutputDenseColRepresentation,
+                                            TensorShape({dense_output_dim_}),
+                                            &dense_col_representation_tensor));
+
+    return OutputTensors{dense_predictions_tensor,
+                         dense_col_representation_tensor, dense_output_dim_};
   }
 
   // Allocates and gets the c++ references to the output leaves.
-  OutputLeavesTensors LinkOutputLeavesTensors(OpKernelContext* ctx,
-                                              const int batch_size,
-                                              const int num_trees,
-                                              tf::Status* status) {
+  tf::StatusOr<OutputLeavesTensors> LinkOutputLeavesTensors(
+      OpKernelContext* ctx, const int batch_size, const int num_trees) {
     Tensor* leaves_tensor = nullptr;
-
-    *status = ctx->allocate_output(
-        kOutputLeaves, TensorShape({batch_size, num_trees}), &leaves_tensor);
-    if (!status->ok()) {
-      return {leaves_tensor, num_trees};  // Eigen maps cannot be empty.
-    }
-
-    return {leaves_tensor, num_trees};
+    TF_RETURN_IF_ERROR(ctx->allocate_output(
+        kOutputLeaves, TensorShape({batch_size, num_trees}), &leaves_tensor));
+    return OutputLeavesTensors{leaves_tensor, num_trees};
   }
 
   // Get an engine cache (i.e. a block of working memory necessary for the
   // inference). This engine cache should be returned after usage with
   // "ReturnEngineCache".
   absl::StatusOr<std::unique_ptr<AbstractInferenceEngine::AbstractCache>>
-  GetEngineCache() {
+  GetEngineCache(YggdrasilModelResource* model_resource) {
     tf::mutex_lock lock_engine_mutex(engine_cache_mutex_);
     if (engine_caches_.empty()) {
       // Allocate a new engine cache.
-      return model_container_->engine()->CreateCache();
+      return model_resource->engine()->CreateCache();
     }
     auto cache = std::move(engine_caches_.back());
     engine_caches_.pop_back();
@@ -1553,9 +1540,15 @@ class SimpleMLInferenceOp : public OpKernel {
   // Identifier of the model. Copy of the "model_identifier" attribute.
   std::string model_identifier_;
 
-  // Possibly shared, non-owning pointer to the model. Is set during the first
-  // call to the OP.
-  YggdrasilModelResource* model_container_ = nullptr;
+  // Possibly null, possibly shared among several ops, non-owning pointer to the
+  // model. "model_container_" is tracked with ref count (i.e., unref should be
+  // called when "model_container_" is released).
+  //
+  // Don't access "model_container_" directly. Instead, use "GetModelResource".
+  YggdrasilModelResource* model_container_ GUARDED_BY(model_container_mutex_) =
+      nullptr;
+
+  tensorflow::mutex model_container_mutex_;
 
   // List of pre-allocated working memory to re-use in between inference calls.
   std::vector<std::unique_ptr<AbstractInferenceEngine::AbstractCache>>
@@ -1581,9 +1574,11 @@ class SimpleMLInferenceOpWithHandle : public SimpleMLInferenceOp {
 
   ~SimpleMLInferenceOpWithHandle() override {}
 
-  tf::Status LinkModelResource(OpKernelContext* ctx) override {
-    TF_RETURN_IF_ERROR(GetModel(ctx, &model_container_));
-    return tf::OkStatus();
+  tf::StatusOr<YggdrasilModelResource*> ImportModelResource(
+      OpKernelContext* ctx) override {
+    YggdrasilModelResource* res;
+    TF_RETURN_IF_ERROR(GetModelResourceFromResourceHandle(ctx, &res));
+    return res;
   }
 };
 
@@ -1599,9 +1594,11 @@ class SimpleMLInferenceLeafIndexOpWithHandle : public SimpleMLInferenceOp {
 
   ~SimpleMLInferenceLeafIndexOpWithHandle() override {}
 
-  tf::Status LinkModelResource(OpKernelContext* ctx) override {
-    TF_RETURN_IF_ERROR(GetModel(ctx, &model_container_));
-    return tf::OkStatus();
+  tf::StatusOr<YggdrasilModelResource*> ImportModelResource(
+      OpKernelContext* ctx) override {
+    YggdrasilModelResource* res;
+    TF_RETURN_IF_ERROR(GetModelResourceFromResourceHandle(ctx, &res));
+    return res;
   }
 };
 
@@ -1656,6 +1653,10 @@ class SimpleMLCreateModelResource : public OpKernel {
               return tf::OkStatus();
             };
 
+    // Creates the model resource.
+    //
+    // Note: "LookupOrCreate" increase the ref by 1 if the resource already
+    // exist.
     YggdrasilModelResource* model = nullptr;
     OP_REQUIRES_OK(ctx,
                    cinfo_.resource_manager()
