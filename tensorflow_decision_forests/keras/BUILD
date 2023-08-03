@@ -1,5 +1,3 @@
-load("@rules_python//python:py_library.bzl", "py_library")
-load("@rules_python//python:py_binary.bzl", "py_binary")
 load("//tensorflow_decision_forests/keras/wrapper:wrapper.bzl", "py_wrap_yggdrasil_learners")
 load("@org_tensorflow//tensorflow:tensorflow.bzl", "tf_cc_binary")
 
