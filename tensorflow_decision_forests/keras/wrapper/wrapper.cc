@@ -466,6 +466,8 @@ class $0(core.CoreModel):
       models on top of each other. Unlike preprocessing done in the tf.dataset,
       the operation in "preprocessing" are serialized with the model.
     postprocessing: Like "preprocessing" but applied on the model output.
+    training_preprocessing: Functional keras model or `@tf.function` to apply on
+      the input feature, labels, and sample_weight before model training.
     ranking_group: Only for `task=Task.RANKING`. Name of a tf.string feature that
       identifies queries in a query/document ranking task. The ranking group
       is not added automatically for the set of features if
@@ -550,6 +552,7 @@ $2
       exclude_non_specified_features: Optional[bool] = False,
       preprocessing: Optional["tf.keras.models.Functional"] = None,
       postprocessing: Optional["tf.keras.models.Functional"] = None,
+      training_preprocessing: Optional["tf.keras.models.Functional"] = None,
       ranking_group: Optional[str] = None,
       uplift_treatment: Optional[str] = None,
       temp_directory: Optional[str] = None,
@@ -584,6 +587,7 @@ $4
       exclude_non_specified_features=exclude_non_specified_features,
       preprocessing=preprocessing,
       postprocessing=postprocessing,
+      training_preprocessing=training_preprocessing,
       ranking_group=ranking_group,
       uplift_treatment=uplift_treatment,
       temp_directory=temp_directory,

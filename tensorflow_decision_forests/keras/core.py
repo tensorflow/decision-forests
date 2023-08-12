@@ -367,6 +367,8 @@ class CoreModel(InferenceCoreModel):
       models on top of each other. Unlike preprocessing done in the tf.dataset,
       the operation in "preprocessing" are serialized with the model.
     postprocessing: Like "preprocessing" but applied on the model output.
+    training_preprocessing: Functional keras model or `@tf.function` to apply on
+      the input feature, labels, and sample_weight before model training.
     ranking_group: Only for `task=Task.RANKING`. Name of a `tf.string` feature
       that identifies queries in a query/document ranking task. The ranking
       group is not added automatically for the set of features if
@@ -440,6 +442,7 @@ class CoreModel(InferenceCoreModel):
       exclude_non_specified_features: Optional[bool] = False,
       preprocessing: Optional["models.Functional"] = None,
       postprocessing: Optional["models.Functional"] = None,
+      training_preprocessing: Optional["models.Functional"] = None,
       ranking_group: Optional[str] = None,
       uplift_treatment: Optional[str] = None,
       temp_directory: Optional[str] = None,
@@ -481,6 +484,7 @@ class CoreModel(InferenceCoreModel):
     self._tuner = tuner
     self._discretize_numerical_features = discretize_numerical_features
     self._num_discretized_numerical_bins = num_discretized_numerical_bins
+    self._training_preprocessing = training_preprocessing
 
     # Number of examples. Populated during training
     self._num_training_examples = None
@@ -666,6 +670,13 @@ class CoreModel(InferenceCoreModel):
             "is not recommended. Use a pre-processing stage that returns a "
             "dictionary instead."
         )
+
+    if self._training_preprocessing:
+      tf_logging.info("Applying training preprocessing.")
+      train_x, train_y, train_weights = self._training_preprocessing(
+          train_x, train_y, train_weights
+      )
+      tf_logging.info("Finished applying training preprocessing.")
 
     if isinstance(train_x, dict):
       # Native format

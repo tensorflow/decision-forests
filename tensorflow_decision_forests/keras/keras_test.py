@@ -22,7 +22,7 @@ import functools
 import os
 import shutil
 import subprocess
-from typing import List, Tuple, Any, Optional, Type
+from typing import Any, List, Optional, Tuple, Type
 import unittest
 
 from absl import flags
