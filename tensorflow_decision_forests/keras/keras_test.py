@@ -2815,6 +2815,13 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     )
     self.assertIn(expected_tree_start, tree_plot)
 
+  def test_no_active_features(self):
+    pd_dataset = pd.DataFrame({"f": [0, 0, 1, 1], "l": [1, 1, 1, 1]})
+    tf_dataset = keras.pd_dataframe_to_tf_dataset(pd_dataset, label="l")
+    model = keras.CartModel()
+    model.fit(tf_dataset)
+    self.assertAllEqual(model.predict(tf_dataset), [[1], [1], [1], [1]])
+
 
 if __name__ == "__main__":
   tf.test.main()
