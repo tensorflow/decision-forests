@@ -4,9 +4,7 @@ The underlying engine behind the decision forests algorithms used by TensorFlow
 Decision Forests have been extensively production-tested. This file lists some
 of the known issues.
 
-See also the
-[known issues of Yggdrasil Decision Forests](https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/known_issues.md)
-and the [migration guide](migration.md) for behavior that is different from
+See also the [migration guide](migration.md) for behavior that is different from
 other algorithms.
 
 ## Windows Pip package is not available

@@ -350,7 +350,7 @@ class CoreModel(InferenceCoreModel):
       include (but at not limited to) "LEARNER_*".
     learner_params: Hyper-parameters for the learner. The list of available
       hyper-parameters is available at
-      https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/learners.md.
+      https://ydf.readthedocs.io/en/latest/hyper_parameters.html.
     features: Specify the list and semantic of the input features of the model.
       If not specified, all the available features will be used. If specified
       and if `exclude_non_specified_features=True`, only the features in
@@ -1725,7 +1725,7 @@ class CoreModel(InferenceCoreModel):
         `valid_path` is ignored.
       dataset_format: Format of the dataset. Should be one of the registered
         dataset format (see [User
-        Manual](https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/user_manual.md#dataset-path-and-format)
+        Manual](https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/rtd/cli_user_manual.md#dataset-path-and-format)
         for more details). The format "csv" is always available but it is
         generally only suited for small datasets.
       max_num_scanned_rows_to_accumulate_statistics: Maximum number of examples

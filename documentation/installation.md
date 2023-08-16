@@ -236,9 +236,3 @@ machines with Intel CPUs as follows.
 Compiling TF-DF relies on the TensorFlow Pip package *and* the TensorFlow Bazel
 dependency. Only a small part of TensorFlow will be compiled.
 Compiling TF-DF on a single powerful workstation takes ~10 minutes.
-
-## Troubleshooting
-
-**Note:** Check also Yggdrasil's
-[Troubleshooting](https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/installation.md#troubleshooting)
-page.
