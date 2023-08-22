@@ -601,8 +601,8 @@ tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
             const auto& value_str = feature->values()[value_idx];
             TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
                 const int32_t value,
-                dataset::CategoricalStringToValueWithStatus(
-                    absl::string_view{value_str}, col_spec));
+                dataset::CategoricalStringToValueWithStatus(value_str,
+                                                            col_spec));
             tmp_value.push_back(value);
           }
 
