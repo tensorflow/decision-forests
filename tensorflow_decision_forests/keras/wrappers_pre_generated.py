@@ -102,6 +102,8 @@ class CartModel(core.CoreModel):
       models on top of each other. Unlike preprocessing done in the tf.dataset,
       the operation in "preprocessing" are serialized with the model.
     postprocessing: Like "preprocessing" but applied on the model output.
+    training_preprocessing: Functional keras model or `@tf.function` to apply on
+      the input feature, labels, and sample_weight before model training.
     ranking_group: Only for `task=Task.RANKING`. Name of a tf.string feature
       that identifies queries in a query/document ranking task. The ranking
       group is not added automatically for the set of features if
@@ -341,6 +343,7 @@ class CartModel(core.CoreModel):
       exclude_non_specified_features: Optional[bool] = False,
       preprocessing: Optional["tf.keras.models.Functional"] = None,
       postprocessing: Optional["tf.keras.models.Functional"] = None,
+      training_preprocessing: Optional["tf.keras.models.Functional"] = None,
       ranking_group: Optional[str] = None,
       uplift_treatment: Optional[str] = None,
       temp_directory: Optional[str] = None,
@@ -449,6 +452,7 @@ class CartModel(core.CoreModel):
         exclude_non_specified_features=exclude_non_specified_features,
         preprocessing=preprocessing,
         postprocessing=postprocessing,
+        training_preprocessing=training_preprocessing,
         ranking_group=ranking_group,
         uplift_treatment=uplift_treatment,
         temp_directory=temp_directory,
@@ -537,6 +541,8 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
       models on top of each other. Unlike preprocessing done in the tf.dataset,
       the operation in "preprocessing" are serialized with the model.
     postprocessing: Like "preprocessing" but applied on the model output.
+    training_preprocessing: Functional keras model or `@tf.function` to apply on
+      the input feature, labels, and sample_weight before model training.
     ranking_group: Only for `task=Task.RANKING`. Name of a tf.string feature
       that identifies queries in a query/document ranking task. The ranking
       group is not added automatically for the set of features if
@@ -678,6 +684,7 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
       exclude_non_specified_features: Optional[bool] = False,
       preprocessing: Optional["tf.keras.models.Functional"] = None,
       postprocessing: Optional["tf.keras.models.Functional"] = None,
+      training_preprocessing: Optional["tf.keras.models.Functional"] = None,
       ranking_group: Optional[str] = None,
       uplift_treatment: Optional[str] = None,
       temp_directory: Optional[str] = None,
@@ -748,6 +755,7 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
         exclude_non_specified_features=exclude_non_specified_features,
         preprocessing=preprocessing,
         postprocessing=postprocessing,
+        training_preprocessing=training_preprocessing,
         ranking_group=ranking_group,
         uplift_treatment=uplift_treatment,
         temp_directory=temp_directory,
@@ -840,7 +848,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       the operation in "preprocessing" are serialized with the model.
     postprocessing: Like "preprocessing" but applied on the model output.
     training_preprocessing: Functional keras model or `@tf.function` to apply on
-      the input feature, labels, and sample_weight before for model training.
+      the input feature, labels, and sample_weight before model training.
     ranking_group: Only for `task=Task.RANKING`. Name of a tf.string feature
       that identifies queries in a query/document ranking task. The ranking
       group is not added automatically for the set of features if
@@ -973,7 +981,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       halts it training using the validation dataset controlled by
       `validation_ratio`. - `NONE`: No early stopping. The model is trained
       entirely. - `MIN_LOSS_FINAL`: No early stopping. However, the model is
-      then truncated to maximize the validation loss. - `LOSS_INCREASE`: Stop
+      then truncated to minimize the validation loss. - `LOSS_INCREASE`: Stop
       the training when the validation does not decrease for
       `early_stopping_num_trees_look_ahead` trees. Default: "LOSS_INCREASE".
     early_stopping_initial_iteration: 0-based index of the first iteration
@@ -1466,6 +1474,8 @@ class HyperparameterOptimizerModel(core.CoreModel):
       models on top of each other. Unlike preprocessing done in the tf.dataset,
       the operation in "preprocessing" are serialized with the model.
     postprocessing: Like "preprocessing" but applied on the model output.
+    training_preprocessing: Functional keras model or `@tf.function` to apply on
+      the input feature, labels, and sample_weight before model training.
     ranking_group: Only for `task=Task.RANKING`. Name of a tf.string feature
       that identifies queries in a query/document ranking task. The ranking
       group is not added automatically for the set of features if
@@ -1564,6 +1574,7 @@ class HyperparameterOptimizerModel(core.CoreModel):
       exclude_non_specified_features: Optional[bool] = False,
       preprocessing: Optional["tf.keras.models.Functional"] = None,
       postprocessing: Optional["tf.keras.models.Functional"] = None,
+      training_preprocessing: Optional["tf.keras.models.Functional"] = None,
       ranking_group: Optional[str] = None,
       uplift_treatment: Optional[str] = None,
       temp_directory: Optional[str] = None,
@@ -1610,6 +1621,7 @@ class HyperparameterOptimizerModel(core.CoreModel):
         exclude_non_specified_features=exclude_non_specified_features,
         preprocessing=preprocessing,
         postprocessing=postprocessing,
+        training_preprocessing=training_preprocessing,
         ranking_group=ranking_group,
         uplift_treatment=uplift_treatment,
         temp_directory=temp_directory,
@@ -1694,6 +1706,8 @@ class MultitaskerModel(core.CoreModel):
       models on top of each other. Unlike preprocessing done in the tf.dataset,
       the operation in "preprocessing" are serialized with the model.
     postprocessing: Like "preprocessing" but applied on the model output.
+    training_preprocessing: Functional keras model or `@tf.function` to apply on
+      the input feature, labels, and sample_weight before model training.
     ranking_group: Only for `task=Task.RANKING`. Name of a tf.string feature
       that identifies queries in a query/document ranking task. The ranking
       group is not added automatically for the set of features if
@@ -1792,6 +1806,7 @@ class MultitaskerModel(core.CoreModel):
       exclude_non_specified_features: Optional[bool] = False,
       preprocessing: Optional["tf.keras.models.Functional"] = None,
       postprocessing: Optional["tf.keras.models.Functional"] = None,
+      training_preprocessing: Optional["tf.keras.models.Functional"] = None,
       ranking_group: Optional[str] = None,
       uplift_treatment: Optional[str] = None,
       temp_directory: Optional[str] = None,
@@ -1838,6 +1853,7 @@ class MultitaskerModel(core.CoreModel):
         exclude_non_specified_features=exclude_non_specified_features,
         preprocessing=preprocessing,
         postprocessing=postprocessing,
+        training_preprocessing=training_preprocessing,
         ranking_group=ranking_group,
         uplift_treatment=uplift_treatment,
         temp_directory=temp_directory,
@@ -1934,7 +1950,7 @@ class RandomForestModel(core.CoreModel):
       the operation in "preprocessing" are serialized with the model.
     postprocessing: Like "preprocessing" but applied on the model output.
     training_preprocessing: Functional keras model or `@tf.function` to apply on
-      the input feature, labels, and sample_weight before for model training.
+      the input feature, labels, and sample_weight before model training.
     ranking_group: Only for `task=Task.RANKING`. Name of a tf.string feature
       that identifies queries in a query/document ranking task. The ranking
       group is not added automatically for the set of features if

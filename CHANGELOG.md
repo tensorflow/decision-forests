@@ -1,6 +1,17 @@
 # Changelog
 
-## HEAD
+## 1.6.0 - rc0 2023-08-22
+
+### Features
+
+-   Compatibility with Tensorflow 2.14.0 rc0
+-   Contrib: Training preprocessing jointly on the input features, labels and 
+    weights
+
+### Fix
+
+-   Incorrect model predictions for models without features
+-   Data race for model resources
 
 ## 1.5.0 - 2023-07-06
 
