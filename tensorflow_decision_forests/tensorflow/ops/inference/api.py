@@ -359,6 +359,7 @@ class ModelV2(AutoTrackable):
 
     return leaves
 
+  @tf.autograph.experimental.do_not_convert
   def apply(self, features: Dict[Text, Tensor]) -> ModelOutput:
     """Applies the model.
 
