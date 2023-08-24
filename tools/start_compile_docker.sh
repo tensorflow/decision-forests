@@ -25,17 +25,16 @@
 #  ./tools/start_compile_docker.sh
 #
 #  # Compile and test TF-DF.
-#  RUN_TESTS=1 PY_VERSION=3.8 TF_VERSION=2.12.0 ./tools/test_bazel.sh
+#  RUN_TESTS=1 PY_VERSION=3.9 TF_VERSION=2.12.0 ./tools/test_bazel.sh
 #
 #  # Create a Pip package for a specific version of python.
-#  ./tools/build_pip_package.sh python3.8
+#  ./tools/build_pip_package.sh python3.9
 #
 #  # Install the other versions of python (the docker only has py3.8).
 #  sudo apt-get update
-#  sudo apt-get install python3.7 python3.9 python3-pip python3.10
+#  sudo apt-get install python3.9 python3-pip python3.10
 #
 #  # Create the Pip package for the other version of python
-#  ./tools/build_pip_package.sh python3.7
 #  ./tools/build_pip_package.sh python3.9
 #  ./tools/build_pip_package.sh python3.10
 #
@@ -59,7 +58,7 @@
 #  ./tools/build_pip_package.sh ALL_VERSIONS_ALREADY_ASSEMBLED
 #
 # https://hub.docker.com/r/tensorflow/build/tags?page=1
-DOCKER=tensorflow/build:2.14-python3.8
+DOCKER=tensorflow/build:2.14-python3.9
 
 # Current directory
 # Useful if Yggdrasil Decision Forests is available locally in a neighbor

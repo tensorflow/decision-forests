@@ -2,6 +2,10 @@
 
 ## 1.6.0 - rc0 2023-08-22
 
+### Breaking Changes
+
+-   TF-DF no longer supports Python 3.8 since Tensorflow dropped its support.
+
 ### Features
 
 -   Compatibility with Tensorflow 2.14.0 rc0

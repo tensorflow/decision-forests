@@ -111,7 +111,7 @@ mentioned above.
 
 ```shell
 # Build and test a Pip package.
-./tools/build_pip_package.sh python3.8
+./tools/build_pip_package.sh python3.9
 ```
 
 This command will install the TF-DF pip package and run the example in
@@ -121,11 +121,10 @@ If you want to create a Pip package for the other compatible version of Python,
 run:
 
 ```shell
-# Install the other versions of python (assume only python3.8 is installed; this is the case in the build docker).
-sudo apt-get update && sudo apt-get install python3.7 python3.9 python3-pip
+# Install the other versions of python (assume only python3.9 is installed; this is the case in the build docker).
+sudo apt-get update && sudo apt-get install python3.9 python3-pip
 
 # Create the Pip package for the other version of python
-./tools/build_pip_package.sh python3.7
 ./tools/build_pip_package.sh python3.9
 ```
 
@@ -146,7 +145,7 @@ of python using pyenv by running the following command. See the header of
 
 -   XCode command line tools
 -   Bazel (recommended [Bazelisk](https://github.com/bazelbuild/bazelisk))
--   Python >= 3.8
+-   Python >= 3.9
 -   Git
 -   Pyenv (for building the Pip packages with multiple Python versions)
 
