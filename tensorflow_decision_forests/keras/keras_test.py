@@ -82,6 +82,22 @@ def tmp_path() -> str:
   return flags.FLAGS.test_tmpdir
 
 
+def synthetic_pd_dataset(num_examples, num_numerical_features):
+  """Creates a toy synthetic dataset."""
+
+  d = {}
+  accumulator = (
+      np.random.uniform(size=num_examples) * num_numerical_features / 2
+  )
+  for i in range(num_numerical_features):
+    values = np.random.uniform(size=num_examples)
+    d[f"num_{i}"] = values
+    accumulator += values * i
+
+  d["label"] = accumulator >= np.median(accumulator)
+  return pd.DataFrame(d)
+
+
 def prepare_dataset(train, test, label, num_classes) -> Dataset:
   """Prepares a dataset object."""
 
@@ -196,9 +212,7 @@ def build_feature_usages(
         for key, semantic in dataset.semantics.items()
     ]
   else:
-    return [
-        keras.FeatureUsage(key) for key, semantic in dataset.semantics.items()
-    ]
+    return [keras.FeatureUsage(key) for key in dataset.semantics.keys()]
 
 
 def build_feature_columns(dataset: Dataset, dense: bool) -> List[FeatureColumn]:
@@ -412,7 +426,7 @@ def build_model(signature: Signature, dataset: Dataset, **args) -> models.Model:
     model = keras.RandomForestModel(preprocessing=preprocessing, **args)
 
   else:
-    assert False
+    raise ValueError("Non initialized model")
 
   return model
 
@@ -1150,7 +1164,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
       )
       compare = None
     else:
-      assert False
+      raise ValueError("Non initialized model")
 
     class _TestEvalCallback(tf.keras.callbacks.Callback):
 
@@ -1809,6 +1823,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
   def test_resume_training(
       self, name, max_depth, loss, min_accuracy, accuracy_should_increase
   ):
+    logging.info("Running %s", name)
     # Path to dataset.
     dataset_directory = os.path.join(ydf_test_data_path(), "dataset")
     train_path = os.path.join(dataset_directory, "adult_train.csv")
@@ -1845,6 +1860,57 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     if accuracy_should_increase:
       self.assertGreater(eval_model_100t["accuracy"], min_accuracy)
+
+  def test_gbt_resume_training_on_other_dataset(self):
+    """Test resuming training on a different dataset.
+
+    This test train 20 trees of GBT model on one dataset, and the remaining 10
+    trees on another dataset. The property of be able to resume training on
+    another dataset is not generally guaranteed in TF-DF. However, it is
+    guaranteed for non-distributed GBT (and this test ensure that this is not
+    broken).
+    """
+
+    ds_train_1 = keras.pd_dataframe_to_tf_dataset(
+        synthetic_pd_dataset(num_examples=1000, num_numerical_features=5),
+        label="label",
+    )
+    ds_train_2 = keras.pd_dataframe_to_tf_dataset(
+        synthetic_pd_dataset(num_examples=1000, num_numerical_features=5),
+        label="label",
+    )
+    ds_test = keras.pd_dataframe_to_tf_dataset(
+        synthetic_pd_dataset(num_examples=5000, num_numerical_features=5),
+        label="label",
+    )
+
+    # Train 20 trees on the "ds_train_1" dataset.
+    model = keras.GradientBoostedTreesModel(
+        num_trees=20, try_resume_training=True, early_stopping="NONE"
+    )
+    self.assertEqual(model.learner_params["num_trees"], 20)
+    model.compile("accuracy")
+
+    model.fit(ds_train_1)
+    self.assertEqual(model.make_inspector().num_trees(), 20)
+    eval_1 = model.evaluate(ds_test, return_dict=True)
+    last_loss_1 = model.make_inspector().training_logs()[-1].evaluation.loss
+    logging.info("Eval 1: %s", eval_1)
+
+    # Train 10 extra trees on the "ds_train_2" dataset.
+    model.learner_params["num_trees"] = 20 + 10  # Train an extra 10 trees
+    model.fit(ds_train_2)
+    self.assertEqual(model.make_inspector().num_trees(), 20 + 10)
+    eval_2 = model.evaluate(ds_test, return_dict=True)
+    last_loss_2 = model.make_inspector().training_logs()[-1].evaluation.loss
+    logging.info("Eval 2: %s", eval_2)
+
+    logging.info("Training logs")
+    for log in model.make_inspector().training_logs():
+      logging.info("tree: %s loss: %s", log.num_trees, log.evaluation.loss)
+
+    self.assertGreater(eval_2["accuracy"], eval_1["accuracy"])
+    self.assertLess(last_loss_2, last_loss_1)
 
   def test_contains_repeat(self):
     a = tf.data.Dataset.from_tensor_slices(range(10))
