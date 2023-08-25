@@ -58,6 +58,7 @@ if [ ${TF_VERSION} == "nightly" ]; then
   ${PYTHON} -m pip install tf-nightly --force-reinstall
 else
   ${PYTHON} -m pip install tensorflow==${TF_VERSION} --force-reinstall
+  TF_MINOR=$(echo $TF_VERSION | grep -oE '[0-9]+\.[0-9]*')
 fi
 
 pip list
@@ -77,8 +78,8 @@ fi
 echo "Found tensorflow commit sha: $short_commit_sha"
 commit_slug=$(curl -s "https://api.github.com/repos/tensorflow/tensorflow/commits/$short_commit_sha" | grep "sha" | head -n 1 | cut -d '"' -f 4)
 # Update TF dependency to the chosen version
-sed -E -i $ext "s/strip_prefix = \"tensorflow-2\.[0-9]\+\.[0-9]\+\(-rc[0-9]\+\)\?\",/strip_prefix = \"tensorflow-${commit_slug}\",/" WORKSPACE
-sed -E -i $ext "s|\"https://github.com/tensorflow/tensorflow/archive/v.\+\.zip\"|\"https://github.com/tensorflow/tensorflow/archive/${commit_slug}.zip\"|" WORKSPACE
+sed -E -i $ext "s/strip_prefix = \"tensorflow-2\.[0-9]+\.[0-9]+(-rc[0-9]+)?\",/strip_prefix = \"tensorflow-${commit_slug}\",/" WORKSPACE
+sed -E -i $ext "s|\"https://github.com/tensorflow/tensorflow/archive/v.+\.zip\"|\"https://github.com/tensorflow/tensorflow/archive/${commit_slug}.zip\"|" WORKSPACE
 prev_shasum=$(grep -A 1 -e "strip_prefix.*tensorflow-" WORKSPACE | tail -1 | awk -F '"' '{print $2}')
 sed -i $ext "s/sha256 = \"${prev_shasum}\",//" WORKSPACE
 
@@ -87,7 +88,6 @@ TENSORFLOW_BAZELRC="tensorflow_bazelrc"
 curl https://raw.githubusercontent.com/tensorflow/tensorflow/${commit_slug}/.bazelrc -o ${TENSORFLOW_BAZELRC}
 
 # For Tensorflow versions > 2.13, apply a patch to disable hermetic builds.
-TF_MINOR=$(echo $TF_VERSION | grep -oP '[0-9]+\.[0-9]*')
 if [[ ${TF_MINOR} != "2.13" ]]; then
   sed -i $ext "s/# patch_args = \[\"-p1\"\],/patch_args = \[\"-p1\"\],/" WORKSPACE
   sed -i $ext "s/# patches = \[\"\/\/third_party\/tensorflow:tf.patch\"\],/patches = \[\"\/\/third_party\/tensorflow:tf.patch\"\],/" WORKSPACE
