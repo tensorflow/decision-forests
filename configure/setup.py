@@ -29,7 +29,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 REQUIRED_PACKAGES = [
     "numpy",
     "pandas",
-    "tensorflow>=2.13,<3",
+    "tensorflow~=2.14.0rc0",
     "six",
     "absl_py",
     "wheel",
