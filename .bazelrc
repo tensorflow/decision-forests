@@ -60,13 +60,13 @@ build --strategy=Genrule=standalone
 build --action_env TF_NEED_CUDA="0"
 
 # Host specifics options.
-build:macos --config=release_cpu_macos
+build:macos --config=release_base
 build:macos --features=-supports_dynamic_linker
+# On Intel machines, AVX2 is available
+build:macos_intel --config=avx_linux
 # Absl synchronization primitives currently do not work on MacOS.
 # TODO
 build:macos --define std_synchronization_primitives=1
-# Enable cross-compilation between Apple CPUs and Intel CPUs.
-build:macos --distinct_host_configuration=true
 
 build:windows --config=release_cpu_windows
 

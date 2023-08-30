@@ -21,7 +21,7 @@ http_archive(
 
 # Inject tensorflow dependencies.
 # TensorFlow cannot anymore be injected from a sub-module.
-# Note: The other is important.
+# Note: The order is important.
 load("@org_tensorflow//tensorflow:workspace3.bzl", tf1 = "workspace")
 
 tf1()
@@ -74,6 +74,7 @@ ydf_load_deps(
         "zlib",
         "farmhash",
         "grpc",
+        "eigen",
     ],
     repo_name = "@ydf",
 )

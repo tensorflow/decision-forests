@@ -66,6 +66,10 @@ pip list
 ext=""
 if is_macos; then
   ext='""'
+  # Tensorflow requires the use of GNU realpath instead of MacOS realpath.
+  # See https://github.com/tensorflow/tensorflow/issues/60088#issuecomment-1499766349
+  # If missing, install coreutils via homebrew: `brew install coreutils`
+  export PATH="/opt/homebrew/opt/coreutils/libexec/gnubin:$PATH"
 fi
 
 # Get the commit SHA
@@ -100,6 +104,8 @@ if is_macos; then
   FLAGS="${FLAGS} --config=macos"
   if [[ $(uname -m) == 'arm64' ]]; then
     FLAGS="${FLAGS} --config=macos_arm64"
+  else
+    FLAGS="${FLAGS} --config=macos_intel"
   fi
 elif is_windows; then
   FLAGS="${FLAGS} --config=windows"
