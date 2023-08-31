@@ -51,7 +51,7 @@ function is_macos() {
 # Install Pip dependencies
 ${PYTHON} -m ensurepip --upgrade || true
 ${PYTHON} -m pip install pip setuptools --upgrade
-${PYTHON} -m pip install numpy pandas scikit-learn jax jaxlib --upgrade
+${PYTHON} -m pip install numpy pandas scikit-learn
 
 # Install Tensorflow at the chosen version.
 if [ ${TF_VERSION} == "nightly" ]; then
