@@ -239,11 +239,13 @@ if [ ${INSTALL_PYENV} == "INSTALL_PYENV" ]; then
     echo "Pyenv not found."
     echo "Installing build deps, pyenv 2.3.7 and pyenv virtualenv 1.2.1"
     # Install python dependencies.
-    sudo apt-get update
-    sudo apt-get install -qq make build-essential libssl-dev zlib1g-dev \
-              libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
-              libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev \
-              libffi-dev liblzma-dev patchelf
+    if ! is_macos; then
+      sudo apt-get update
+      sudo apt-get install -qq make build-essential libssl-dev zlib1g-dev \
+                libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
+                libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev \
+                libffi-dev liblzma-dev patchelf
+    fi
     git clone https://github.com/pyenv/pyenv.git
     (
       cd pyenv && git checkout 74f923b5fca82054b3c579f9eb936338c7f5a394
@@ -277,12 +279,6 @@ elif [ ${ARG} == "ALL_VERSIONS" ]; then
   e2e_pyenv 3.11.0
 elif [ ${ARG} == "ALL_VERSIONS_ALREADY_ASSEMBLED" ]; then
   eval "$(pyenv init -)"
-  e2e_pyenv 3.9.12
-  e2e_pyenv 3.10.4
-  e2e_pyenv 3.11.0
-elif [ ${ARG} == "ALL_VERSIONS_MAC_ARM64" ]; then
-  eval "$(pyenv init -)"
-  assemble_files
   e2e_pyenv 3.9.12
   e2e_pyenv 3.10.4
   e2e_pyenv 3.11.0
