@@ -1,6 +1,6 @@
 load("@rules_python//python:defs.bzl", "py_binary", "py_library")
-load("//tensorflow_decision_forests/keras/wrapper:wrapper.bzl", "py_wrap_yggdrasil_learners")
 load("@org_tensorflow//tensorflow:tensorflow.bzl", "tf_cc_binary")
+load("//tensorflow_decision_forests/keras/wrapper:wrapper.bzl", "py_wrap_yggdrasil_learners")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -186,7 +186,7 @@ py_test(
         # TensorFlow Python,
         # TensorFlow /distribute:distribute_lib,
         "//tensorflow_decision_forests",
-        "@ydf//yggdrasil_decision_forests/learner/distributed_gradient_boosted_trees:distributed_gradient_boosted_trees_py_proto",
+        "@ydf//yggdrasil_decision_forests/learner/distributed_gradient_boosted_trees:dgbt_py_proto",
     ],
 )
 

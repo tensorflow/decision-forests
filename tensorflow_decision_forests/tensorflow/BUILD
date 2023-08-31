@@ -25,7 +25,7 @@ cc_library(
     name = "canonical_learners",
     deps = [
         "@ydf//yggdrasil_decision_forests/learner/cart",
-        "@ydf//yggdrasil_decision_forests/learner/distributed_gradient_boosted_trees",
+        "@ydf//yggdrasil_decision_forests/learner/distributed_gradient_boosted_trees:dgbt",
         "@ydf//yggdrasil_decision_forests/learner/gradient_boosted_trees",
         "@ydf//yggdrasil_decision_forests/learner/hyperparameters_optimizer",
         "@ydf//yggdrasil_decision_forests/learner/multitasker",
