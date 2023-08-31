@@ -135,11 +135,7 @@ else
   HEADER_DIR=${TF_CFLAGS:2}
   if is_macos; then
     SHARED_LIBRARY_DIR=${TF_LFLAGS:2}
-    if [[ $(uname -m) == 'arm64' ]]; then
-      SHARED_LIBRARY_NAME="libtensorflow_framework.2.dylib"
-    else
-      SHARED_LIBRARY_NAME="libtensorflow_cc.2.dylib"
-    fi
+    SHARED_LIBRARY_NAME="libtensorflow_framework.2.dylib"
   elif is_windows; then
   # Use pywrap_tensorflow's import library on Windows. It is in the same dir as the dll/pyd.
     SHARED_LIBRARY_NAME="_pywrap_tensorflow_internal.lib"
