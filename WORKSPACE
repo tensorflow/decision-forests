@@ -75,6 +75,9 @@ ydf_load_deps(
         "farmhash",
         "grpc",
         "eigen",
+        "pybind11",
+        "pybind11_abseil",
+        "pybind11_protobuf",
     ],
     repo_name = "@ydf",
 )
