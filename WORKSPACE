@@ -78,6 +78,7 @@ ydf_load_deps(
         "pybind11",
         "pybind11_abseil",
         "pybind11_protobuf",
+        "tensorflow"
     ],
     repo_name = "@ydf",
 )
