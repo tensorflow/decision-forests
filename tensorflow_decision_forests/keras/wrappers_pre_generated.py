@@ -43,9 +43,9 @@ class CartModel(core.CoreModel):
   r"""Cart learning algorithm.
 
   A CART (Classification and Regression Trees) a decision tree. The non-leaf
-  nodes contains conditions (also known as splits) while the leaf nodes
-  contains prediction values. The training dataset is divided in two parts. The
-  first is used to grow the tree while the second is used to prune the tree.
+  nodes contains conditions (also known as splits) while the leaf nodes contain
+  prediction values. The training dataset is divided in two parts. The first is
+  used to grow the tree while the second is used to prune the tree.
 
   Usage example:
 
@@ -331,7 +331,7 @@ class CartModel(core.CoreModel):
       `CHI_SQUARED` or `CS`: (p-q)^2/q
         Default: "KULLBACK_LEIBLER".
     validation_ratio: Ratio of the training dataset used to create the
-      validation dataset used to prune the tree. If set to 0, the entire dataset
+      validation dataset for pruning the tree. If set to 0, the entire dataset
       is used for training, and the tree is not pruned. Default: 0.1.
   """
 

@@ -91,12 +91,6 @@ sed -i $ext "s/sha256 = \"${prev_shasum}\",//" WORKSPACE
 TENSORFLOW_BAZELRC="tensorflow_bazelrc"
 curl https://raw.githubusercontent.com/tensorflow/tensorflow/${commit_slug}/.bazelrc -o ${TENSORFLOW_BAZELRC}
 
-# For Tensorflow versions > 2.13, apply a patch to disable hermetic builds.
-if [[ ${TF_MINOR} != "2.13" ]]; then
-  sed -i $ext "s/# patch_args = \[\"-p1\"\],/patch_args = \[\"-p1\"\],/" WORKSPACE
-  sed -i $ext "s/# patches = \[\"\/\/third_party\/tensorflow:tf.patch\"\],/patches = \[\"\/\/third_party\/tensorflow:tf.patch\"\],/" WORKSPACE
-fi
-
 # Bazel common flags. Startup flags are already given through STARTUP_FLAGS
 FLAGS=
 

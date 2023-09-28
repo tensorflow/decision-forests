@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.6.0 - rc0 2023-08-22
+## 1.6.0 2023-09-27
 
 ### Breaking Changes
 
@@ -8,7 +8,7 @@
 
 ### Features
 
--   Compatibility with Tensorflow 2.14.0 rc0
+-   Compatibility with Tensorflow 2.14.0
 -   Contrib: Training preprocessing jointly on the input features, labels and 
     weights
 
