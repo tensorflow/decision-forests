@@ -134,8 +134,10 @@ py_test(
         "//tensorflow_decision_forests/component/model_plotter",
         "//tensorflow_decision_forests/tensorflow:core",
         "@ydf//yggdrasil_decision_forests/dataset:synthetic_dataset_py_proto",
+        "@ydf//yggdrasil_decision_forests/learner:abstract_learner_py_proto",
         "@ydf//yggdrasil_decision_forests/learner/decision_tree:decision_tree_py_proto",
         "@ydf//yggdrasil_decision_forests/learner/random_forest:random_forest_py_proto",
+        "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
     ],
 )
 

@@ -46,11 +46,12 @@ from __future__ import print_function
 
 import copy
 from datetime import datetime  # pylint: disable=g-importing-member
+import enum
 import functools
 import inspect
 import os
 import tempfile
-from typing import Optional, List, Dict, Any, Tuple, NamedTuple, Set, Union
+from typing import Optional, List, Dict, Any, Tuple, NamedTuple, Set, Union, Literal
 
 import tensorflow as tf
 
@@ -59,10 +60,10 @@ from tensorflow.python.data.ops import load_op
 from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
 from tensorflow_decision_forests.component.tuner import tuner as tuner_lib
 from tensorflow_decision_forests.keras import core_inference
+from tensorflow_decision_forests.tensorflow import cc_logging
 from tensorflow_decision_forests.tensorflow import core as tf_core
 from tensorflow_decision_forests.tensorflow import tf1_compatibility
 from tensorflow_decision_forests.tensorflow import tf_logging
-from tensorflow_decision_forests.tensorflow import cc_logging
 from tensorflow_decision_forests.tensorflow.ops.inference import api as tf_op
 from tensorflow_decision_forests.tensorflow.ops.training import op as training_op
 from yggdrasil_decision_forests.dataset import data_spec_pb2
@@ -125,6 +126,58 @@ NodeFormat = core_inference.NodeFormat
 # pylint: enable=protected-access
 
 
+class Monotonic(enum.Enum):
+  """Monotonic constraint between a feature and the model output."""
+
+  INCREASING = 1
+  DECREASING = 2
+
+
+# Map between integer monotonic constraints (as commonly used by decision
+# forests libraries) and Monotonic enum value.
+_INTEGER_MONOTONIC_MAP = {
+    0: None,
+    1: Monotonic.INCREASING,
+    -1: Monotonic.DECREASING,
+}
+
+# Various ways for a user to specify a monotonic constraint.
+MonotonicConstraint = Optional[Union[Monotonic, Literal[-1, 0, +1]]]
+
+
+def _normalize_monotonic_constraint(
+    constraint: MonotonicConstraint,
+) -> Optional[Monotonic]:
+  """Normalizes monotonic constraints provided by the user.
+
+  Args:
+    constraint: User monotonic constraints.
+
+  Returns:
+    Normalized monotonic constraint.
+
+  Raises:
+    ValueError: If the user input is not a valid monotonic constraint.
+  """
+
+  if isinstance(constraint, int):
+    if constraint not in _INTEGER_MONOTONIC_MAP:
+      raise ValueError(
+          "monotonic argument provided as integer should be one of"
+          f" {list(_INTEGER_MONOTONIC_MAP)!r}. Got {constraint!r} instead"
+      )
+    constraint = _INTEGER_MONOTONIC_MAP[constraint]
+
+  if constraint is None or isinstance(constraint, Monotonic):
+    return constraint
+
+  raise ValueError(
+      "Unexpected monotonic value. monotonic value can be 0, +1, -1, None,"
+      " Monotonic.INCREASING, or Monotonic.DECREASING. Got"
+      f" {constraint!r} instead"
+  )
+
+
 class FeatureUsage(object):
   """Semantic and hyper-parameters for a single feature.
 
@@ -184,6 +237,13 @@ class FeatureUsage(object):
       missing values in the training dataset. If the algorithm used to handle
       missing values is not "GLOBAL_IMPUTATION" (default algorithm), this value
       is ignored.
+    monotonic: Monotonic constraints between the feature and the model output.
+      Use `None` (default) for a non monotonic constrainted features.
+      `Monotonic.INCREASING` ensures the model is monotonically increasing with
+      the features. `Monotonic.DECREASING` ensures the model is monotonically
+      decreasing with the features. Alternatively, you can also use `0`, `+1`
+      and `-1` to respectively define a non-constrained, monotonically
+      increasing, and monotonically decreasing feature.
   """
 
   def __init__(
@@ -194,10 +254,19 @@ class FeatureUsage(object):
       max_vocab_count: Optional[int] = None,
       min_vocab_frequency: Optional[int] = None,
       override_global_imputation_value: Optional[str] = None,
+      monotonic: MonotonicConstraint = None,
   ):
     self._name = name
     self._semantic = semantic
     self._guide = data_spec_pb2.ColumnGuide()
+    self._monotonic = _normalize_monotonic_constraint(monotonic)
+
+    if monotonic and semantic and semantic != FeatureSemantic.NUMERICAL:
+      raise ValueError(
+          f"Feature {name!r} with monotonic constraint is expected to have"
+          " semantic=NUMERICAL or semantic=None (default). Got"
+          f" semantic={semantic!r} instead."
+      )
 
     # Check matching between hyper-parameters and semantic.
     if semantic != FeatureSemantic.DISCRETIZED_NUMERICAL:
@@ -272,6 +341,10 @@ class FeatureUsage(object):
   @property
   def name(self) -> str:
     return self._name
+
+  @property
+  def monotonic(self) -> Optional[Monotonic]:
+    return self._monotonic
 
 
 class HyperParameterTemplate(NamedTuple):
@@ -2056,17 +2129,8 @@ class CoreModel(InferenceCoreModel):
 
     return guide
 
-  def _train_model(self, cluster_coordinator=None):
-    """Effectively train the model."""
-
-    if self._normalized_input_feature_keys is None:
-      raise Exception("The training graph was not built.")
-
-    train_model_path = self._temp_directory
-    model_path = os.path.join(train_model_path, "model")
-
-    # Create the dataspec guide.
-    guide = self._build_guide()
+  def _effective_training_config(self) -> abstract_learner_pb2.TrainingConfig:
+    """Assembles the training config to use for training."""
 
     training_config = copy.deepcopy(
         self._advanced_arguments.yggdrasil_training_config
@@ -2080,6 +2144,39 @@ class CoreModel(InferenceCoreModel):
     for feature_key in self._normalized_input_feature_keys:
       feature_regex = tf_core.normalize_inputs_regexp(feature_key, False)
       training_config.features.append(feature_regex)
+
+    # Monotonic constraints
+    for feature in self._features:
+      if not feature.monotonic:
+        continue
+
+      proto_direction = (
+          abstract_learner_pb2.MonotonicConstraint.INCREASING
+          if feature.monotonic == Monotonic.INCREASING
+          else abstract_learner_pb2.MonotonicConstraint.DECREASING
+      )
+
+      training_config.monotonic_constraints.append(
+          abstract_learner_pb2.MonotonicConstraint(
+              feature=tf_core.normalize_inputs_regexp(feature.name, False),
+              direction=proto_direction,
+          )
+      )
+    return training_config
+
+  def _train_model(self, cluster_coordinator=None):
+    """Effectively train the model."""
+
+    if self._normalized_input_feature_keys is None:
+      raise Exception("The training graph was not built.")
+
+    train_model_path = self._temp_directory
+    model_path = os.path.join(train_model_path, "model")
+
+    # Create the dataspec guide.
+    guide = self._build_guide()
+
+    training_config = self._effective_training_config()
 
     # Deployment configuration
     deployment_config = copy.deepcopy(

@@ -60,6 +60,7 @@ Task = core.Task
 FeatureUsage = core.FeatureUsage
 AdvancedArguments = core.AdvancedArguments
 MultiTaskItem = core.MultiTaskItem
+Monotonic = core.Monotonic
 
 # Learning algorithm (called Models in Keras).
 

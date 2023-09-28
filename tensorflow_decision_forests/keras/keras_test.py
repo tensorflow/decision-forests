@@ -40,8 +40,10 @@ from tensorflow_decision_forests.component.model_plotter import model_plotter
 from tensorflow_decision_forests.keras import core
 from tensorflow_decision_forests.tensorflow import core as tf_core
 from yggdrasil_decision_forests.dataset import synthetic_dataset_pb2
+from yggdrasil_decision_forests.learner import abstract_learner_pb2
 from yggdrasil_decision_forests.learner.decision_tree import decision_tree_pb2
 from yggdrasil_decision_forests.learner.random_forest import random_forest_pb2
+from yggdrasil_decision_forests.model import abstract_model_pb2
 
 layers = tf.keras.layers
 models = tf.keras.models
@@ -2887,6 +2889,109 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     model = keras.CartModel()
     model.fit(tf_dataset)
     self.assertAllEqual(model.predict(tf_dataset), [[1], [1], [1], [1]])
+
+  def test_monotonic_constraints(self):
+    dataset = adult_dataset()
+    model = keras.GradientBoostedTreesModel(
+        features=[
+            keras.FeatureUsage("age", monotonic=+1),
+            keras.FeatureUsage("hours_per_week", monotonic=-1),
+            keras.FeatureUsage("education_num", monotonic=+1),
+        ],
+        exclude_non_specified_features=True,
+        use_hessian_gain=True,
+    )
+
+    self._check_adult_model(
+        model=model,
+        dataset=dataset,
+        minimum_accuracy=0.790,
+        check_serialization=True,
+    )
+
+    # Need to be called after dataset ingestion
+    self.assertProtoEquals(
+        model._effective_training_config(),
+        abstract_learner_pb2.TrainingConfig(
+            learner="GRADIENT_BOOSTED_TREES",
+            features=["^age$", "^education_num$", "^hours_per_week$"],
+            label="^__LABEL$",
+            task=abstract_model_pb2.Task.CLASSIFICATION,
+            metadata=abstract_model_pb2.Metadata(framework="TF Keras"),
+            monotonic_constraints=[
+                abstract_learner_pb2.MonotonicConstraint(
+                    feature="^age$",
+                    direction=abstract_learner_pb2.MonotonicConstraint.INCREASING,
+                ),
+                abstract_learner_pb2.MonotonicConstraint(
+                    feature="^hours_per_week$",
+                    direction=abstract_learner_pb2.MonotonicConstraint.DECREASING,
+                ),
+                abstract_learner_pb2.MonotonicConstraint(
+                    feature="^education_num$",
+                    direction=abstract_learner_pb2.MonotonicConstraint.INCREASING,
+                ),
+            ],
+        ),
+    )
+
+  def test_monotonic_normalize_value(self):
+    self.assertEqual(
+        keras.FeatureUsage("f", monotonic=+1).monotonic,
+        keras.Monotonic.INCREASING,
+    )
+    self.assertEqual(
+        keras.FeatureUsage("f", monotonic=-1).monotonic,
+        keras.Monotonic.DECREASING,
+    )
+    self.assertIsNone(keras.FeatureUsage("f", monotonic=0).monotonic)
+
+  def test_monotonic_bad_value(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        "monotonic argument provided as integer should be one of \\[0, 1,"
+        " -1\\]\\. Got 5 instead",
+    ):
+      keras.GradientBoostedTreesModel(
+          features=[keras.FeatureUsage("f1", monotonic=+5)]
+      )
+
+  def test_monotonic_bad_semantic(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        "Feature 'f1' with monotonic constraint is expected to have"
+        " semantic=NUMERICAL",
+    ):
+      keras.GradientBoostedTreesModel(
+          features=[
+              keras.FeatureUsage(
+                  "f1", keras.FeatureSemantic.CATEGORICAL, monotonic=+1
+              )
+          ]
+      )
+
+  def test_monotonic_non_compatible_learner(self):
+    model = keras.CartModel(features=[keras.FeatureUsage("f", monotonic=+1)])
+    pd_dataset = pd.DataFrame({"f": [0, 1], "l": [0, 1]})
+    tf_dataset = keras.pd_dataframe_to_tf_dataset(pd_dataset, label="l")
+    with self.assertRaisesRegex(
+        tf.errors.UnknownError,
+        "The learner CART does not support monotonic constraints",
+    ):
+      model.fit(tf_dataset)
+
+  def test_monotonic_non_compatible_options(self):
+    model = keras.GradientBoostedTreesModel(
+        features=[keras.FeatureUsage("f", monotonic=+1)]
+    )
+    pd_dataset = pd.DataFrame({"f": [0, 1], "l": [0, 1]})
+    tf_dataset = keras.pd_dataframe_to_tf_dataset(pd_dataset, label="l")
+    with self.assertRaisesRegex(
+        tf.errors.UnknownError,
+        "Gradient Boosted Trees does not support monotonic constraints with"
+        " use_hessian_gain=false",
+    ):
+      model.fit(tf_dataset)
 
 
 if __name__ == "__main__":

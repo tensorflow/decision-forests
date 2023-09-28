@@ -1,5 +1,11 @@
 # Changelog
 
+## Head
+
+### Features
+
+-   Add support for monotonic constraints.
+
 ## 1.6.0 2023-09-27
 
 ### Breaking Changes
@@ -9,7 +15,7 @@
 ### Features
 
 -   Compatibility with Tensorflow 2.14.0
--   Contrib: Training preprocessing jointly on the input features, labels and 
+-   Contrib: Training preprocessing jointly on the input features, labels and
     weights
 
 ### Fix
