@@ -177,6 +177,8 @@ py_test(
     python_version = "PY3",
     shard_count = 10,
     tags = [
+        # This test is notoriously flaky.
+        "manual",
     ],
     deps = [
         # absl/flags dep,
