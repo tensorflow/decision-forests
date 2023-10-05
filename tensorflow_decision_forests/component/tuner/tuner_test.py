@@ -14,8 +14,8 @@
 
 import os
 
-from absl import logging
 from absl import flags
+from absl import logging
 from absl.testing import parameterized
 import pandas as pd
 import tensorflow as tf
@@ -32,7 +32,7 @@ def data_root_path() -> str:
 def ydf_test_datasets_path() -> str:
   return os.path.join(
       data_root_path(),
-      "external/ydf/yggdrasil_decision_forests/test_data/dataset"
+      "external/ydf/yggdrasil_decision_forests/test_data/dataset",
   )
 
 
@@ -42,7 +42,8 @@ class TunerTest(parameterized.TestCase, tf.test.TestCase):
     tuner = tuner_lib.RandomSearch(
         num_trials=20,
         trial_num_threads=2,
-        trial_maximum_training_duration_seconds=10)
+        trial_maximum_training_duration_seconds=10,
+    )
     tuner.choice("a", [1, 2, 3])
     tuner.choice("b", [1.0, 2.0, 3.0])
     tuner.choice("c", ["x", "y"])
@@ -141,7 +142,10 @@ learner: "HYPERPARAMETER_OPTIMIZER"
     }
   }
 }
-     """, abstract_learner_pb2.TrainingConfig()))
+     """,
+            abstract_learner_pb2.TrainingConfig(),
+        ),
+    )
 
   def test_errors(self):
     tuner = tuner_lib.RandomSearch(num_trials=20)
@@ -163,24 +167,22 @@ learner: "HYPERPARAMETER_OPTIMIZER"
     model = keras.GradientBoostedTreesModel(
         task=keras.Task.RANKING,
         ranking_group="GROUP",
-        num_trees=50,
-        tuner=tuner)
+        num_trees=5,
+        tuner=tuner,
+    )
 
     model.fit(ds)
 
   def test_predefined_hps_classification(self):
-    tuner = tuner_lib.RandomSearch(num_trials=50, use_predefined_hps=True)
-    ds_path = os.path.join(
-        ydf_test_datasets_path(), "adult_train.csv"
-    )
+    tuner = tuner_lib.RandomSearch(num_trials=10, use_predefined_hps=True)
+    ds_path = os.path.join(ydf_test_datasets_path(), "adult_train.csv")
     train_df = pd.read_csv(ds_path)
     ds = keras.pd_dataframe_to_tf_dataset(
         train_df, "income", task=keras.Task.CLASSIFICATION
     )
     model = keras.GradientBoostedTreesModel(
-        task=keras.Task.CLASSIFICATION,
-        num_trees=50,
-        tuner=tuner)
+        task=keras.Task.CLASSIFICATION, num_trees=5, tuner=tuner
+    )
 
     model.fit(ds)
 

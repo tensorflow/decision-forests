@@ -26,7 +26,7 @@ py_test(
     srcs = ["tuner_test.py"],
     data = ["@ydf//yggdrasil_decision_forests/test_data"],
     python_version = "PY3",
-    shard_count = 10,
+    shard_count = 4,
     deps = [
         ":tuner",
         "@com_google_protobuf//:python_srcs",

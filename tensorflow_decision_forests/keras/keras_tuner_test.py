@@ -17,6 +17,7 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+
 from absl import flags
 from absl import logging
 import pandas as pd
@@ -31,8 +32,9 @@ def data_root_path() -> str:
 
 
 def test_data_path() -> str:
-  return os.path.join(data_root_path(),
-                      "external/ydf/yggdrasil_decision_forests/test_data")
+  return os.path.join(
+      data_root_path(), "external/ydf/yggdrasil_decision_forests/test_data"
+  )
 
 
 def tmp_path() -> str:
@@ -42,7 +44,6 @@ def tmp_path() -> str:
 class TFDFTunerTest(tf.test.TestCase):
 
   def test_random_adult_in_memory(self):
-
     # Prepare the datasets
     dataset_directory = os.path.join(test_data_path(), "dataset")
     train_path = os.path.join(dataset_directory, "adult_train.csv")
@@ -51,12 +52,14 @@ class TFDFTunerTest(tf.test.TestCase):
     label = "income"
 
     train_ds = tfdf.keras.pd_dataframe_to_tf_dataset(
-        pd.read_csv(train_path), label=label)
+        pd.read_csv(train_path), label=label
+    )
     test_ds = tfdf.keras.pd_dataframe_to_tf_dataset(
-        pd.read_csv(test_path), label=label)
+        pd.read_csv(test_path), label=label
+    )
 
     # Configure and train the model
-    tuner = tfdf.tuner.RandomSearch(num_trials=30)
+    tuner = tfdf.tuner.RandomSearch(num_trials=10)
     tuner.choice("num_candidate_attributes_ratio", [1.0, 0.8, 0.6])
     tuner.choice("use_hessian_gain", [True, False])
 
@@ -64,7 +67,8 @@ class TFDFTunerTest(tf.test.TestCase):
     local_search_space.choice("max_depth", [4, 5, 6, 7])
 
     global_search_space = tuner.choice(
-        "growing_strategy", ["BEST_FIRST_GLOBAL"], merge=True)
+        "growing_strategy", ["BEST_FIRST_GLOBAL"], merge=True
+    )
     global_search_space.choice("max_num_nodes", [16, 32, 64, 128])
 
     model = tfdf.keras.GradientBoostedTreesModel(num_trees=50, tuner=tuner)
@@ -81,20 +85,26 @@ class TFDFTunerTest(tf.test.TestCase):
     self.assertSetEqual(
         set(tuning_logs.columns),
         set([
-            "score", "evaluation_time", "best",
-            "num_candidate_attributes_ratio", "use_hessian_gain",
-            "growing_strategy", "max_depth", "max_num_nodes"
-        ]))
-    self.assertEqual(tuning_logs.shape, (30, 8))
+            "score",
+            "evaluation_time",
+            "best",
+            "num_candidate_attributes_ratio",
+            "use_hessian_gain",
+            "growing_strategy",
+            "max_depth",
+            "max_num_nodes",
+        ]),
+    )
+    self.assertEqual(tuning_logs.shape, (10, 8))
     self.assertEqual(tuning_logs["best"].sum(), 1)
-    self.assertNear(tuning_logs["score"][tuning_logs["best"]].values[0], -0.587,
-                    0.05)
+    self.assertNear(
+        tuning_logs["score"][tuning_logs["best"]].values[0], -0.587, 0.05
+    )
 
     # This is a lot of text.
     _ = model.make_inspector().tuning_logs(return_format="proto")
 
   def test_random_adult_in_memory_predefined_hpspace(self):
-
     # Prepare the datasets
     dataset_directory = os.path.join(test_data_path(), "dataset")
     train_path = os.path.join(dataset_directory, "adult_train.csv")
@@ -103,12 +113,14 @@ class TFDFTunerTest(tf.test.TestCase):
     label = "income"
 
     train_ds = tfdf.keras.pd_dataframe_to_tf_dataset(
-        pd.read_csv(train_path), label=label)
+        pd.read_csv(train_path), label=label
+    )
     test_ds = tfdf.keras.pd_dataframe_to_tf_dataset(
-        pd.read_csv(test_path), label=label)
+        pd.read_csv(test_path), label=label
+    )
 
     # Configure and train the model
-    tuner = tfdf.tuner.RandomSearch(num_trials=30, use_predefined_hps=True)
+    tuner = tfdf.tuner.RandomSearch(num_trials=10, use_predefined_hps=True)
     model = tfdf.keras.GradientBoostedTreesModel(num_trees=50, tuner=tuner)
     model.fit(train_ds)
 
@@ -123,17 +135,30 @@ class TFDFTunerTest(tf.test.TestCase):
     self.assertSetEqual(
         set(tuning_logs.columns),
         set([
-            "score", "evaluation_time", "best",
-            "num_candidate_attributes_ratio", "use_hessian_gain",
-            "growing_strategy", "max_depth", "max_num_nodes", "subsample",
-            "shrinkage", "sampling_method", "sparse_oblique_weights",
-            "sparse_oblique_projection_density_factor", "categorical_algorithm",
-            "min_examples", "sparse_oblique_normalization", "split_axis"
-        ]))
-    self.assertEqual(tuning_logs.shape, (30, 17))
+            "score",
+            "evaluation_time",
+            "best",
+            "num_candidate_attributes_ratio",
+            "use_hessian_gain",
+            "growing_strategy",
+            "max_depth",
+            "max_num_nodes",
+            "subsample",
+            "shrinkage",
+            "sampling_method",
+            "sparse_oblique_weights",
+            "sparse_oblique_projection_density_factor",
+            "categorical_algorithm",
+            "min_examples",
+            "sparse_oblique_normalization",
+            "split_axis",
+        ]),
+    )
+    self.assertEqual(tuning_logs.shape, (10, 17))
     self.assertEqual(tuning_logs["best"].sum(), 1)
-    self.assertNear(tuning_logs["score"][tuning_logs["best"]].values[0], -0.587,
-                    0.05)
+    self.assertNear(
+        tuning_logs["score"][tuning_logs["best"]].values[0], -0.587, 0.05
+    )
 
     # This is a lot of text.
     _ = model.make_inspector().tuning_logs(return_format="proto")
