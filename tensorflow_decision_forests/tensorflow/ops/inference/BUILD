@@ -1,5 +1,8 @@
 load("@rules_python//python:defs.bzl", "py_library")
-load("@org_tensorflow//tensorflow:tensorflow.bzl", "tf_gen_op_wrapper_py")
+load(
+    "@org_tensorflow//tensorflow:tensorflow.bzl",
+    "tf_gen_op_wrapper_py",
+)
 
 package(
     default_visibility = ["//visibility:public"],
@@ -94,17 +97,21 @@ cc_library(
 )
 
 # Declaration of the ops.
+OP_SRCS = ["op.cc"]
+
+OP_DEPS = select({
+    "@ydf//yggdrasil_decision_forests:tensorflow_with_header_lib": [
+        "@tensorflow_pypi//:libtensorflow_framework",
+        "@tensorflow_pypi//:tf_header_lib",
+    ],
+    "//conditions:default": ["@org_tensorflow//tensorflow/core:framework"],
+})
+
 cc_library(
     name = "op",
-    srcs = ["op.cc"],
+    srcs = OP_SRCS,
     linkstatic = 1,
-    deps = [] + select({
-        "@ydf//yggdrasil_decision_forests:tensorflow_with_header_lib": [
-            "@tensorflow_pypi//:libtensorflow_framework",
-            "@tensorflow_pypi//:tf_header_lib",
-        ],
-        "//conditions:default": ["@org_tensorflow//tensorflow/core:framework"],
-    }),
+    deps = OP_DEPS,
     alwayslink = 1,
 )
 
