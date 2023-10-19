@@ -2233,6 +2233,13 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     )
     mse_model.fit(x=x_train, y=y_train)
 
+    mae_model = keras.GradientBoostedTreesModel(
+        validation_ratio=0.0,
+        loss="MEAN_AVERAGE_ERROR",
+        task=keras.Task.REGRESSION,
+    )
+    mae_model.fit(x=x_train, y=y_train)
+
     multinom_model = keras.GradientBoostedTreesModel(
         validation_ratio=0.0, loss="MULTINOMIAL_LOG_LIKELIHOOD"
     )
@@ -2992,6 +2999,42 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         " use_hessian_gain=false",
     ):
       model.fit(tf_dataset)
+
+  def test_abalone_mae_loss(self):
+    dataset = abalone_dataset()
+    tf_train, tf_test = dataset_to_tf_dataset(dataset)
+
+    model = keras.GradientBoostedTreesModel(
+        loss="MEAN_AVERAGE_ERROR", task=keras.Task.REGRESSION
+    )
+    model.compile(metrics=["mse", "mae"])
+
+    model.fit(tf_train)
+    evaluation = model.evaluate(tf_test)
+
+    logging.info("Evaluation: %s", evaluation)
+    self.assertLessEqual(evaluation[1], 6.0)
+
+    predictions = model.predict(tf_test)
+    logging.info("Predictions: %s", predictions)
+
+  def test_abalone_poison_loss(self):
+    dataset = abalone_dataset()
+    tf_train, tf_test = dataset_to_tf_dataset(dataset)
+
+    model = keras.GradientBoostedTreesModel(
+        loss="POISSON", task=keras.Task.REGRESSION
+    )
+    model.compile(metrics=["mse", "mae"])
+
+    model.fit(tf_train)
+    evaluation = model.evaluate(tf_test)
+
+    logging.info("Evaluation: %s", evaluation)
+    self.assertLessEqual(evaluation[1], 6.0)
+
+    predictions = model.predict(tf_test)
+    logging.info("Predictions: %s", predictions)
 
 
 if __name__ == "__main__":
