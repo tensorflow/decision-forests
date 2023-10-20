@@ -1,6 +1,6 @@
 # Changelog
 
-## Head
+## 1.7.0 - 2023-10-20
 
 ### Features
 
@@ -8,7 +8,7 @@
 -   Add support for Mean average error (MAE) loss.
 -   Add support for Poisson loss.
 
-## 1.6.0 2023-09-27
+## 1.6.0 - 2023-09-27
 
 ### Breaking Changes
 
