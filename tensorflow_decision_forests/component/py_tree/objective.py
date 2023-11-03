@@ -155,3 +155,46 @@ class RankingObjective(AbstractObjective):
     if not isinstance(other, RankingObjective):
       return False
     return self.label == other.label and self._group == other._group
+
+
+class AbstractUpliftObjective(AbstractObjective):
+  """Objective for Uplift."""
+
+  def __init__(self, label: str, treatment: str):
+    super(AbstractUpliftObjective, self).__init__(label)
+    self._treatment = treatment
+
+  @property
+  def treatment(self) -> str:
+    return self._treatment
+
+  def __eq__(self, other):
+    if not isinstance(other, AbstractUpliftObjective):
+      return False
+    return (
+        self.label == other.label
+        and self._treatment == other._treatment
+        and self.task == other.task
+    )
+
+
+class CategoricalUpliftObjective(AbstractUpliftObjective):
+  """Objective for Categorical Uplift."""
+
+  @property
+  def task(self) -> Task:
+    return Task.CATEGORICAL_UPLIFT
+
+  def __repr__(self):
+    return f"CategoricalUplift(label={self.label}, treatment={self._treatment})"
+
+
+class NumericalUpliftObjective(AbstractUpliftObjective):
+  """Objective for Numerical Uplift."""
+
+  @property
+  def task(self) -> Task:
+    return Task.NUMERICAL_UPLIFT
+
+  def __repr__(self):
+    return f"NumericalUplift(label={self.label}, treatment={self._treatment})"

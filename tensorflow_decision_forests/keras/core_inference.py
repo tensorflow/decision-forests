@@ -1239,7 +1239,6 @@ def yggdrasil_model_to_keras_model(
         "file containing among other things, a data_spec.pb file."
     )
 
-  temp_directory = None
   if src_container == "zip":
     # Unzip the model in a temporary directory
     temp_directory = tempfile.TemporaryDirectory()
@@ -1254,6 +1253,13 @@ def yggdrasil_model_to_keras_model(
       task=objective.task,
       ranking_group=objective.group
       if objective.task == inspector_lib.Task.RANKING
+      else None,
+      uplift_treatment=objective.treatment
+      if objective.task
+      in (
+          inspector_lib.Task.CATEGORICAL_UPLIFT,
+          inspector_lib.Task.NUMERICAL_UPLIFT,
+      )
       else None,
       verbose=verbose,
       advanced_arguments=AdvancedArguments(

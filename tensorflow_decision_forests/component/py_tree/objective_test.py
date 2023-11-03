@@ -66,6 +66,27 @@ class ObjectiveTest(parameterized.TestCase, tf.test.TestCase):
     objective = objective_lib.RankingObjective(label="label", group="group")
     logging.info("objective: %s", objective)
 
+  def test_numerical_uplift(self):
+    objective = objective_lib.NumericalUpliftObjective(
+        label="label", treatment="treatment"
+    )
+    logging.info("objective: %s", objective)
+
+  def test_categorical_uplift(self):
+    objective = objective_lib.CategoricalUpliftObjective(
+        label="label", treatment="treatment"
+    )
+    logging.info("objective: %s", objective)
+
+  def test_uplift_objects_are_not_equal(self):
+    numerical_objective = objective_lib.NumericalUpliftObjective(
+        label="label", treatment="treatment"
+    )
+    categorical_objective = objective_lib.CategoricalUpliftObjective(
+        label="label", treatment="treatment"
+    )
+    self.assertNotEqual(numerical_objective, categorical_objective)
+
 
 if __name__ == "__main__":
   tf.test.main()

@@ -252,6 +252,22 @@ class AbstractInspector(object):
       return py_tree.objective.RankingObjective(
           label=label.name, group=group_column.name)
 
+    elif self.task == Task.CATEGORICAL_UPLIFT:
+      uplift_treatment = self._dataspec.columns[
+          self._header.uplift_treatment_col_idx
+      ]
+      return py_tree.objective.CategoricalUpliftObjective(
+          label=label.name, treatment=uplift_treatment.name
+      )
+
+    elif self.task == Task.NUMERICAL_UPLIFT:
+      uplift_treatment = self._dataspec.columns[
+          self._header.uplift_treatment_col_idx
+      ]
+      return py_tree.objective.NumericalUpliftObjective(
+          label=label.name, treatment=uplift_treatment.name
+      )
+
     else:
       raise NotImplementedError()
 

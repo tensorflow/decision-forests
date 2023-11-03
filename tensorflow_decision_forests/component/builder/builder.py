@@ -343,6 +343,10 @@ class AbstractBuilder(object):
         if dst_col_idx == self._header.ranking_group_col_idx:
           continue
 
+      if isinstance(self._objective, py_tree.objective.AbstractUpliftObjective):
+        if dst_col_idx == self._header.uplift_treatment_col_idx:
+          continue
+
       if not created:
         raise ValueError(
             "import_dataspec was called after some of the model was build. "
@@ -511,7 +515,11 @@ class AbstractBuilder(object):
     label_column.name = self._objective.label
     self._dataspec_column_index[label_column.name] = self._header.label_col_idx
 
-    if isinstance(self._objective, py_tree.objective.ClassificationObjective):
+    if isinstance(
+        self._objective, py_tree.objective.ClassificationObjective
+    ) or isinstance(
+        self._objective, py_tree.objective.CategoricalUpliftObjective
+    ):
       label_column.type = ColumnType.CATEGORICAL
 
       # One value is reserved for the non-used OOV item.
@@ -537,6 +545,7 @@ class AbstractBuilder(object):
         (
             py_tree.objective.RegressionObjective,
             py_tree.objective.RankingObjective,
+            py_tree.objective.NumericalUpliftObjective,
         ),
     ):
       label_column.type = ColumnType.NUMERICAL
@@ -554,6 +563,18 @@ class AbstractBuilder(object):
       group_column.name = self._objective.group
       self._dataspec_column_index[group_column.name] = (
           self._header.ranking_group_col_idx
+      )
+
+    if isinstance(self._objective, py_tree.objective.AbstractUpliftObjective):
+      assert len(self._dataspec.columns) == 1
+
+      # Create the "treatment" column for Uplifting.
+      self._header.uplift_treatment_col_idx = 1
+      treatment_column = self._dataspec.columns.add()
+      treatment_column.type = ColumnType.CATEGORICAL
+      treatment_column.name = self._objective.treatment
+      self._dataspec_column_index[treatment_column.name] = (
+          self._header.uplift_treatment_col_idx
       )
 
 
@@ -850,8 +871,11 @@ class RandomForestBuilder(AbstractDecisionForestBuilder):
             "A regression objective requires leaf nodes with regressive values."
         )
 
-    elif isinstance(self.objective, py_tree.objective.RankingObjective):
-      raise ValueError("Ranking objective not supported by this model")
+    elif isinstance(self.objective, py_tree.objective.AbstractUpliftObjective):
+      if not isinstance(node.value, py_tree.value.UpliftValue):
+        raise ValueError(
+            "An uplift objective requires leaf nodes with uplift values."
+        )
 
     else:
       raise NotImplementedError()
@@ -920,6 +944,11 @@ class GradientBoostedTreeBuilder(AbstractDecisionForestBuilder):
       loss = gradient_boosted_trees_pb2.Loss.LAMBDA_MART_NDCG5
       bias = [bias]
 
+    elif isinstance(objective, py_tree.objective.AbstractUpliftObjective):
+      raise ValueError(
+          "Uplift objective not supported by Gradient Boosted Tree models."
+      )
+
     else:
       raise NotImplementedError()
 
@@ -972,7 +1001,12 @@ class GradientBoostedTreeBuilder(AbstractDecisionForestBuilder):
     return self._file_prefix + inspector_lib.BASE_FILENAME_GBT_HEADER
 
   def check_leaf(self, node: py_tree.node.LeafNode):
-    if not isinstance(node.value, py_tree.value.RegressionValue):
+    if isinstance(self.objective, py_tree.objective.AbstractUpliftObjective):
+      raise ValueError(
+          "Uplift objective not supported by Gradient Boosted Tree models."
+      )
+
+    elif not isinstance(node.value, py_tree.value.RegressionValue):
       raise ValueError(
           "A GBT model should only have leaf with regressive "
           f"value. Got {node.value} instead."

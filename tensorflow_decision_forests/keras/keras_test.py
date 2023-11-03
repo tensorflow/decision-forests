@@ -2293,7 +2293,9 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
       ("adult_binary_class_gbdt", 0.012131),
       ("prefixed_adult_binary_class_gbdt", 0.012131),
   )
-  def test_ydf_to_keras_model(self, ydf_model_directory, expected_prediction):
+  def test_ydf_to_keras_model_adult(
+      self, ydf_model_directory, expected_prediction
+  ):
     ygg_model_path = os.path.join(
         ydf_test_data_path(), "model", ydf_model_directory
     )
@@ -2327,6 +2329,28 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         keras.pd_dataframe_to_tf_dataset(dataset.test, label="income")
     )
     self.assertNear(prediction[0, 0], expected_prediction, 0.00001)
+
+  def test_ydf_to_keras_model_uplift(self):
+    ygg_model_path = os.path.join(
+        ydf_test_data_path(), "model", "sim_pte_categorical_uplift_rf"
+    )
+    tfdf_model_path = os.path.join(tmp_path(), "sim_pte_categorical_uplift_rf")
+
+    dataset_directory = os.path.join(ydf_test_data_path(), "dataset")
+    test_path = os.path.join(dataset_directory, "sim_pte_test.csv")
+    test_df = pd.read_csv(test_path)
+
+    outcome_key = "y"
+    treatment_group = "treat"
+    # Remove the treatment group from the test dataset.
+    test_df = test_df.drop(treatment_group, axis=1)
+
+    core.yggdrasil_model_to_keras_model(ygg_model_path, tfdf_model_path)
+    loaded_model = models.load_model(tfdf_model_path)
+    prediction = loaded_model.predict(
+        keras.pd_dataframe_to_tf_dataset(test_df, label=outcome_key)
+    )
+    self.assertNear(prediction[0, 0], -0.7580058, 0.00001)
 
   @parameterized.parameters(
       "directory",
