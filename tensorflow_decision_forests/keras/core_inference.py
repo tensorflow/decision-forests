@@ -413,6 +413,10 @@ class InferenceCoreModel(models.Model):
         path, file_prefix=self.yggdrasil_model_prefix(index)
     )
 
+  def get_config(self):
+    """Not supported by TF-DF, returning empty directory to avoid warnings."""
+    return {}
+
   @tf.function(input_signature=[])
   def yggdrasil_model_path_tensor(
       self, multitask_model_index: int = 0
