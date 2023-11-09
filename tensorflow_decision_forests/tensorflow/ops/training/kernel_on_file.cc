@@ -30,10 +30,8 @@
 #include "yggdrasil_decision_forests/learner/abstract_learner.h"
 #include "yggdrasil_decision_forests/learner/abstract_learner.pb.h"
 #include "yggdrasil_decision_forests/learner/learner_library.h"
-#include "yggdrasil_decision_forests/model/abstract_model.h"
-#include "yggdrasil_decision_forests/model/gradient_boosted_trees/gradient_boosted_trees.h"
+#include "yggdrasil_decision_forests/model/decision_tree/decision_forest_interface.h"
 #include "yggdrasil_decision_forests/model/model_library.h"
-#include "yggdrasil_decision_forests/model/random_forest/random_forest.h"
 #include "yggdrasil_decision_forests/utils/logging.h"
 #include "yggdrasil_decision_forests/utils/tensorflow.h"
 
@@ -211,20 +209,15 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
 
       RETURN_IF_ERROR(model.status());
 
-      // If the model is GBT or RF, set the node format.
+      // If the model is a decision forest, set the node format.
       if (!training_state->node_format.empty()) {
         // Set the model format.
-        auto* gbt_model = dynamic_cast<
-            model::gradient_boosted_trees::GradientBoostedTreesModel*>(
-            model.value().get());
-        if (gbt_model) {
-          gbt_model->set_node_format(training_state->node_format);
-        }
-
-        auto* rf_model = dynamic_cast<model::random_forest::RandomForestModel*>(
-            model.value().get());
-        if (rf_model) {
-          rf_model->set_node_format(training_state->node_format);
+        auto* df_model =
+            dynamic_cast<model::DecisionForestInterface*>(model.value().get());
+        if (df_model) {
+          df_model->set_node_format(training_state->node_format);
+        } else {
+          YDF_LOG(INFO) << "The node format cannot be set for this model type";
         }
       }
 

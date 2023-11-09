@@ -111,6 +111,7 @@ cc_library(
         "@ydf//yggdrasil_decision_forests/learner/distributed_decision_tree/dataset_cache:dataset_cache_common",
         "@ydf//yggdrasil_decision_forests/model:abstract_model",
         "@ydf//yggdrasil_decision_forests/model:model_library",
+        "@ydf//yggdrasil_decision_forests/model/decision_tree:decision_forest_interface",
         "@ydf//yggdrasil_decision_forests/model/gradient_boosted_trees",
         "@ydf//yggdrasil_decision_forests/model/random_forest",
         "@ydf//yggdrasil_decision_forests/utils:concurrency",
