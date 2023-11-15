@@ -37,6 +37,8 @@ tensorflow_decision_forests/tensorflow/ops/training/training.so: undefined symbo
 
 -   Use the version of TF-DF that is compatible with your version of TensorFlow.
 
+Note that TF-DF is not compatible with Keras 3 at this time.
+
 ### Compatibility table
 
 The following table shows the compatibility between

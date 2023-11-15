@@ -11,9 +11,9 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 # absl used by tensorflow.
 http_archive(
     name = "org_tensorflow",
-    strip_prefix = "tensorflow-2.14.0",
-    sha256 = "447cdb65c80c86d6c6cf1388684f157612392723eaea832e6392d219098b49de",
-    urls = ["https://github.com/tensorflow/tensorflow/archive/v2.14.0.zip"],
+    strip_prefix = "tensorflow-2.15.0",
+    sha256 = "9cec5acb0ecf2d47b16891f8bc5bc6fbfdffe1700bdadc0d9ebe27ea34f0c220",
+    urls = ["https://github.com/tensorflow/tensorflow/archive/v2.15.0.zip"],
     # Starting with TF 2.14, disable hermetic Python builds.
     patch_args = ["-p1"],
     patches = ["//third_party/tensorflow:tf.patch"],

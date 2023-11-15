@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.8.0 - 2023-11-15
+
+### Features
+
+-   Compatibility with TensorFlow 2.15.0.
+-   Inspector support for uplifting.
+
+### Fix
+
+-   Less warnings emitted when loading a model.
+
 ## 1.7.0 - 2023-10-20
 
 ### Features

@@ -785,12 +785,12 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
 class GradientBoostedTreesModel(core.CoreModel):
   r"""Gradient Boosted Trees learning algorithm.
 
-  A GBT (Gradient Boosted [Decision] Tree;
-  https://statweb.stanford.edu/~jhf/ftp/trebst.pdf) is a set of shallow
-  decision trees trained sequentially. Each tree is trained to predict and then
-  "correct" for the errors of the previously trained trees (more precisely each
-  tree predict the gradient of the loss relative to the model output).
-  GBTs use [early stopping](early_stopping.md) to avoid overfitting.
+  A [Gradient Boosted Trees](https://statweb.stanford.edu/~jhf/ftp/trebst.pdf)
+  (GBT), also known as Gradient Boosted Decision Trees (GBDT) or Gradient
+  Boosted Machines (GBM),  is a set of shallow decision trees trained
+  sequentially. Each tree is trained to predict and then "correct" for the
+  errors of the previously trained trees (more precisely each tree predict the
+  gradient of the loss relative to the model output).
 
   Usage example:
 
@@ -1169,7 +1169,7 @@ class GradientBoostedTreesModel(core.CoreModel):
     subsample: Ratio of the dataset (sampling without replacement) used to train
       individual trees for the random sampling method. If \\"subsample\\" is set
       and if \\"sampling_method\\" is NOT set or set to \\"NONE\\", then
-      \\"sampling_method\\" is implicitely set to \\"RANDOM\\". In other words,
+      \\"sampling_method\\" is implicitly set to \\"RANDOM\\". In other words,
       to enable random subsampling, you only need to set "\\"subsample\\".
       Default: 1.0.
     uplift_min_examples_in_treatment: For uplift models only. Minimum number of
