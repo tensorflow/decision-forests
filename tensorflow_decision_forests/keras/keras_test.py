@@ -2278,7 +2278,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
   def test_golden_model_gbt(self):
     dataset = adult_dataset()
     loaded_model = models.load_model(
-        os.path.join(tfdf_test_data_path(), "model/saved_model_adult_gbt")
+        os.path.join(tfdf_test_data_path(), "model/saved_model_adult_rf")
     )
     prediction = loaded_model.predict(
         keras.pd_dataframe_to_tf_dataset(dataset.test, label="income")

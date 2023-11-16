@@ -39,7 +39,7 @@ In this example, we use an already trained TF-DF model.
 ```shell
 # Get a TF-DF model
 git clone https://github.com/tensorflow/decision-forests.git
-MODEL_PATH=$(pwd)/decision-forests/tensorflow_decision_forests/test_data/model/saved_model_adult_gbt
+MODEL_PATH=$(pwd)/decision-forests/tensorflow_decision_forests/test_data/model/saved_model_adult_rf
 
 echo "The TF-DF model is available at: ${MODEL_PATH}"
 ```
