@@ -1,11 +1,11 @@
 # Changelog
 
-## HEAD
+## 1.8.0 - 2023-11-17
 
 ### Fix
 
-Regression with Mean Squared Error loss and Mean Average error loss incorrectly
-clamped the gradients, leading to incorrect predictions.
+-   Regression with Mean Squared Error loss and Mean Average error loss
+    incorrectly clamped the gradients, leading to incorrect predictions.
 
 ## 1.8.0 - 2023-11-15
 
