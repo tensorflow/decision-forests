@@ -1208,6 +1208,7 @@ def yggdrasil_model_to_keras_model(
     verbose: int = 1,
     disable_categorical_integer_offset_correction: bool = False,
     allow_slow_inference: bool = True,
+    keras_model_name: Optional[str] = None,
 ) -> None:
   """Converts an Yggdrasil model into a TensorFlow SavedModel / Keras model.
 
@@ -1229,6 +1230,7 @@ def yggdrasil_model_to_keras_model(
       integer offset correction. See
       disable_categorical_integer_offset_correction in AdvancedArguments for
       more details.
+    name: Optional name of the resulting model.
   """
 
   # Detect the container of the model.
@@ -1270,6 +1272,7 @@ def yggdrasil_model_to_keras_model(
           disable_categorical_integer_offset_correction=disable_categorical_integer_offset_correction,
           allow_slow_inference=allow_slow_inference,
       ),
+      name=keras_model_name,
   )
 
   model._set_from_yggdrasil_model(  # pylint: disable=protected-access

@@ -66,16 +66,21 @@ def test_dataset_directory() -> str:
 
 class BuilderTest(parameterized.TestCase, tf.test.TestCase):
 
-  @parameterized.parameters((None,), ("",), ("prefix_",))
-  def test_classification_random_forest(self, file_prefix):
+  @parameterized.parameters(
+      (None, None), ("", "abc123"), ("prefix_", "test_model")
+  )
+  def test_classification_random_forest(self, file_prefix, model_name):
     model_path = os.path.join(tmp_path(), "classification_rf")
     logging.info("Create model in %s", model_path)
     builder = builder_lib.RandomForestBuilder(
         path=model_path,
         model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
         objective=py_tree.objective.ClassificationObjective(
-            label="color", classes=["red", "blue", "green"]),
-        file_prefix=file_prefix)
+            label="color", classes=["red", "blue", "green"]
+        ),
+        file_prefix=file_prefix,
+        keras_model_name=model_name,
+    )
 
     #  f1>=1.5
     #    │
@@ -118,7 +123,10 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
 
     logging.info("Loading model")
     loaded_model = tf.keras.models.load_model(model_path)
-
+    expected_model_name = (
+        "inference_core_model" if model_name is None else model_name
+    )
+    self.assertEqual(loaded_model.name, expected_model_name)
     logging.info("Make predictions")
     tf_dataset = tf.data.Dataset.from_tensor_slices({
         "f1": [1.0, 2.0, 3.0],
@@ -136,8 +144,11 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
         path=model_path,
         model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
         objective=py_tree.objective.ClassificationObjective(
-            label="color", classes=["red", "blue", "green"]),
-        file_prefix=file_prefix)
+            label="color", classes=["red", "blue", "green"]
+        ),
+        file_prefix=file_prefix,
+        keras_model_name="classification_cart",
+    )
 
     #  f1>=1.5
     #    ├─(pos)─ f2 in ["cat","dog"]
@@ -178,7 +189,7 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
 
     logging.info("Loading model")
     loaded_model = tf.keras.models.load_model(model_path)
-
+    self.assertEqual(loaded_model.name, "classification_cart")
     logging.info("Make predictions")
     tf_dataset = tf.data.Dataset.from_tensor_slices({
         "f1": [1.0, 2.0, 3.0],
@@ -271,7 +282,10 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
         model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
         bias=1.0,
         objective=py_tree.objective.ClassificationObjective(
-            label="color", classes=["red", "blue"]))
+            label="color", classes=["red", "blue"]
+        ),
+        keras_model_name="binary_classification_gbt",
+    )
 
     #  bias: 1.0 (toward "blue")
     #  f1>=1.5
@@ -294,7 +308,7 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
 
     logging.info("Loading model")
     loaded_model = tf.keras.models.load_model(model_path)
-
+    self.assertEqual(loaded_model.name, "binary_classification_gbt")
     logging.info("Make predictions")
     tf_dataset = tf.data.Dataset.from_tensor_slices({
         "f1": [1.0, 2.0],
