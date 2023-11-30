@@ -674,6 +674,34 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
         inspector.dataspec.columns[2].numerical.mean, (4.0 - 3.0) / 2.0
     )
 
+  def test_no_slow_inference(self):
+    model_path = os.path.join(tmp_path(), "no_slow_inference")
+    builder = builder_lib.CARTBuilder(
+        path=model_path,
+        model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
+        objective=py_tree.objective.RegressionObjective(label="color"),
+        advanced_arguments=builder_lib.AdvancedArguments(
+            allow_slow_inference=False
+        ),
+    )
+
+    builder.add_tree(
+        Tree(
+            NonLeafNode(
+                condition=py_tree.condition.IsMissingInCondition(
+                    feature=SimpleColumnSpec(
+                        name="f1", type=py_tree.dataspec.ColumnType.NUMERICAL
+                    ),
+                ),
+                pos_child=LeafNode(value=RegressionValue(value=1)),
+                neg_child=LeafNode(value=RegressionValue(value=2)),
+            )
+        )
+    )
+
+    with self.assertRaises(tf.errors.UnknownError):
+      builder.close()
+
   def test_categorical_is_in_global_imputation(self):
     model_path = os.path.join(tmp_path(), "categorical_is_in_global_imputation")
     builder = builder_lib.CARTBuilder(
