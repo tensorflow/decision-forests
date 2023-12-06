@@ -3060,6 +3060,16 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     predictions = model.predict(tf_test)
     logging.info("Predictions: %s", predictions)
 
+  def test_plot_contains_condition(self):
+    df = pd.DataFrame({"f": [-10, 0, 1000], "label": [0, 1, 2]})
+    ds = keras.pd_dataframe_to_tf_dataset(df, label="label")
+    model = keras.CartModel(
+        min_examples=1,
+        features=[keras.FeatureUsage("f", keras.FeatureSemantic.CATEGORICAL)],
+    )
+    model.fit(ds)
+    model_plotter.plot_model(model)
+
 
 if __name__ == "__main__":
   tf.test.main()
