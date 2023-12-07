@@ -110,7 +110,7 @@ py_library(
 
 py_test(
     name = "keras_test",
-    size = "enormous",
+    size = "large",
     srcs = ["keras_test.py"],
     data = [
         ":synthetic_dataset",
