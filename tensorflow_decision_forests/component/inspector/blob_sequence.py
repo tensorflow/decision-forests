@@ -39,7 +39,7 @@ class Reader(object):
   """
 
   def __init__(self, path: str):
-    self.file_ = None
+    self.file_: tf.io.gfile.Gfile = None
     self.path_ = None
 
     if path:
@@ -115,7 +115,7 @@ class Writer(object):
     self.file_.close()
 
   def __init__(self, path: Optional[str] = None):
-    self.file_ = None
+    self.file_: tf.io.gfile.Gfile = None
     self.path_ = None
 
     if path:
