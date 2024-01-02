@@ -881,6 +881,8 @@ def execute_function_on_each_worker(
         else:
           self.value += value
       else:
+        # in __init__, if reduce_results is False, self.value=[]
+        assert self.value is not None
         self.value.append(value)
       self.lock.release()
 
