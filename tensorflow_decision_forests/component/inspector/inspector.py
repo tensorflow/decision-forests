@@ -440,7 +440,10 @@ class AbstractInspector(object):
 
       logs = self.training_logs() or []
       for log in logs:
-        for key, value in log.evaluation._asdict().items():
+        evaluation = log.evaluation
+        if evaluation is None:
+          raise ValueError("log.evaluation is None.")
+        for key, value in evaluation._asdict().items():
           if value is None:
             continue
           tf.summary.scalar(key, value, step=log.num_trees)
