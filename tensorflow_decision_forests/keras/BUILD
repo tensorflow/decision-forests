@@ -119,7 +119,7 @@ py_test(
         "@ydf//yggdrasil_decision_forests/test_data",
     ],
     python_version = "PY3",
-    shard_count = 30,
+    shard_count = 50,
     deps = [
         ":core",
         ":keras",

@@ -2878,7 +2878,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     """Test that the node format is BLOB_SEQUENCE if required."""
     dataset = adult_dataset()
     model = keras.RandomForestModel(
-        advanced_arguments=keras.AdvancedArguments(node_format="BLOB_SEQUENCE")
+        num_trees=10,
+        advanced_arguments=keras.AdvancedArguments(node_format="BLOB_SEQUENCE"),
     )
     ds = keras.pd_dataframe_to_tf_dataset(dataset.train, dataset.label)
     model.fit(ds)
