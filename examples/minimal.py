@@ -30,11 +30,11 @@ Or
 """
 
 from absl import app
-
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 import tensorflow_decision_forests as tfdf
+import tf_keras
 
 
 def main(argv):
@@ -42,10 +42,11 @@ def main(argv):
     raise app.UsageError("Too many command-line arguments.")
 
   # Download the Adult dataset.
-  dataset_path = tf.keras.utils.get_file(
+  dataset_path = tf_keras.utils.get_file(
       "adult.csv",
       "https://raw.githubusercontent.com/google/yggdrasil-decision-forests/"
-      "main/yggdrasil_decision_forests/test_data/dataset/adult.csv")
+      "main/yggdrasil_decision_forests/test_data/dataset/adult.csv",
+  )
 
   # Load a dataset into a Pandas Dataframe.
   dataset_df = pd.read_csv(dataset_path)  # "df" for Pandas's DataFrame.
@@ -61,8 +62,10 @@ def main(argv):
   test_indices = np.random.rand(len(dataset_df)) < 0.30
   test_ds_pd = dataset_df[test_indices]
   train_ds_pd = dataset_df[~test_indices]
-  print(f"{len(train_ds_pd)} examples in training"
-        f", {len(test_ds_pd)} examples for testing.")
+  print(
+      f"{len(train_ds_pd)} examples in training"
+      f", {len(test_ds_pd)} examples for testing."
+  )
 
   # Converts datasets from Pandas dataframe to TensorFlow dataset format.
   train_ds = tfdf.keras.pd_dataframe_to_tf_dataset(train_ds_pd, label="income")

@@ -27,10 +27,12 @@ from sklearn import ensemble
 from sklearn import tree
 import tensorflow as tf
 import tensorflow_decision_forests as tfdf
+import tf_keras
 
 
 class TaskType(enum.Enum):
   """The type of task that a scikit-learn model performs."""
+
   UNKNOWN = 1
   SCALAR_REGRESSION = 2
   SINGLE_LABEL_CLASSIFICATION = 3
@@ -43,7 +45,7 @@ ScikitLearnTree = TypeVar("ScikitLearnTree", bound=tree.BaseDecisionTree)
 def convert(
     sklearn_model: ScikitLearnModel,
     intermediate_write_path: Optional[os.PathLike] = None,
-) -> tf.keras.Model:
+) -> tf_keras.Model:
   """Converts a tree-based scikit-learn model to a tensorflow model.
 
   Currently supported models are:
@@ -66,8 +68,8 @@ def convert(
       process, a TFDF model is written to disk. If intermediate_write_path is
       specified, the TFDF model is written to this directory. Otherwise, a
       temporary directory is created that is immediately removed after this
-      function executes. Note that in order to save the converted model and
-      load it again later, this argument must be provided.
+      function executes. Note that in order to save the converted model and load
+      it again later, this argument must be provided.
 
   Returns:
     a keras Model that emulates the provided scikit-learn model.
@@ -87,30 +89,35 @@ def convert(
   # The resultant tfdf model only receives the features that are used
   # to split samples in nodes in the trees as input. But we want to pass the
   # full design matrix as an input to match the scikit-learn API, thus we
-  # create another tf.keras.Model with the desired call signature.
-  template_input = tf.keras.Input(shape=(sklearn_model.n_features_in_,))
+  # create another tf_keras.Model with the desired call signature.
+  template_input = tf_keras.Input(shape=(sklearn_model.n_features_in_,))
   # Extracts the indices of the features that are used by the TFDF model.
   # The features have names with the format "feature_<index-of-feature>".
-  feature_names = tfdf_model.signatures[
-      "serving_default"].structured_input_signature[1].keys()
+  feature_names = (
+      tfdf_model.signatures["serving_default"]
+      .structured_input_signature[1]
+      .keys()
+  )
   template_output = tfdf_model(
-      {i: template_input[:, int(i.split("_")[1])] for i in feature_names})
-  return tf.keras.Model(inputs=template_input, outputs=template_output)
+      {i: template_input[:, int(i.split("_")[1])] for i in feature_names}
+  )
+  return tf_keras.Model(inputs=template_input, outputs=template_output)
 
 
 @functools.singledispatch
 def _build_tfdf_model(
     sklearn_model: ScikitLearnModel,
     path: os.PathLike,
-) -> tf.keras.Model:
+) -> tf_keras.Model:
   """Builds a TFDF model from the given scikit-learn model."""
   raise NotImplementedError(
-      f"Can't build a TFDF model for {type(sklearn_model)}")
+      f"Can't build a TFDF model for {type(sklearn_model)}"
+  )
 
 
 @_build_tfdf_model.register(tree.DecisionTreeRegressor)
 @_build_tfdf_model.register(tree.ExtraTreeRegressor)
-def _(sklearn_model: ScikitLearnTree, path: os.PathLike) -> tf.keras.Model:
+def _(sklearn_model: ScikitLearnTree, path: os.PathLike) -> tf_keras.Model:
   """Converts a single scikit-learn regression tree to a TFDF model."""
   # The label argument is unused when the model is loaded, so we pass a
   # placeholder.
@@ -119,12 +126,12 @@ def _(sklearn_model: ScikitLearnTree, path: os.PathLike) -> tf.keras.Model:
   cart_builder = tfdf.builder.CARTBuilder(path=path, objective=objective)
   cart_builder.add_tree(pytree)
   cart_builder.close()
-  return tf.keras.models.load_model(path)
+  return tf_keras.models.load_model(path)
 
 
 @_build_tfdf_model.register(tree.DecisionTreeClassifier)
 @_build_tfdf_model.register(tree.ExtraTreeClassifier)
-def _(sklearn_model: ScikitLearnTree, path: os.PathLike) -> tf.keras.Model:
+def _(sklearn_model: ScikitLearnTree, path: os.PathLike) -> tf_keras.Model:
   """Converts a single scikit-learn classification tree to a TFDF model."""
   objective = tfdf.py_tree.objective.ClassificationObjective(
       label="label",
@@ -136,30 +143,34 @@ def _(sklearn_model: ScikitLearnTree, path: os.PathLike) -> tf.keras.Model:
   cart_builder = tfdf.builder.CARTBuilder(path=path, objective=objective)
   cart_builder.add_tree(pytree)
   cart_builder.close()
-  return tf.keras.models.load_model(path)
+  return tf_keras.models.load_model(path)
 
 
 @_build_tfdf_model.register(ensemble.ExtraTreesRegressor)
 @_build_tfdf_model.register(ensemble.RandomForestRegressor)
 def _(
-    sklearn_model: Union[ensemble.ExtraTreesRegressor, ensemble.RandomForestRegressor],
+    sklearn_model: Union[
+        ensemble.ExtraTreesRegressor, ensemble.RandomForestRegressor
+    ],
     path: os.PathLike,
-) -> tf.keras.Model:
+) -> tf_keras.Model:
   """Converts a forest regression model into a TFDF model."""
   objective = tfdf.py_tree.objective.RegressionObjective(label="label")
   rf_builder = tfdf.builder.RandomForestBuilder(path=path, objective=objective)
   for single_tree in sklearn_model.estimators_:
     rf_builder.add_tree(convert_sklearn_tree_to_tfdf_pytree(single_tree))
   rf_builder.close()
-  return tf.keras.models.load_model(path)
+  return tf_keras.models.load_model(path)
 
 
 @_build_tfdf_model.register(ensemble.ExtraTreesClassifier)
 @_build_tfdf_model.register(ensemble.RandomForestClassifier)
 def _(
-    sklearn_model: Union[ensemble.ExtraTreesClassifier, ensemble.RandomForestClassifier],
+    sklearn_model: Union[
+        ensemble.ExtraTreesClassifier, ensemble.RandomForestClassifier
+    ],
     path: os.PathLike,
-) -> tf.keras.Model:
+) -> tf_keras.Model:
   """Converts a forest classification model into a TFDF model."""
   objective = tfdf.py_tree.objective.ClassificationObjective(
       label="label",
@@ -169,14 +180,14 @@ def _(
   for single_tree in sklearn_model.estimators_:
     rf_builder.add_tree(convert_sklearn_tree_to_tfdf_pytree(single_tree))
   rf_builder.close()
-  return tf.keras.models.load_model(path)
+  return tf_keras.models.load_model(path)
 
 
 @_build_tfdf_model.register(ensemble.GradientBoostingRegressor)
 def _(
     sklearn_model: ensemble.GradientBoostingRegressor,
     path: os.PathLike,
-) -> tf.keras.Model:
+) -> tf_keras.Model:
   """Converts a gradient boosting regression model into a TFDF model."""
   if isinstance(sklearn_model.init_, dummy.DummyRegressor):
     # If the initial estimator is a DummyRegressor, then it predicts a constant
@@ -194,9 +205,11 @@ def _(
     init_pytree = None
     bias = 0.0
   else:
-    raise ValueError("The initial estimator must be either a DummyRegressor"
-                     "or a DecisionTreeRegressor, but got"
-                     f"{type(sklearn_model.init_)}.")
+    raise ValueError(
+        "The initial estimator must be either a DummyRegressor"
+        "or a DecisionTreeRegressor, but got"
+        f"{type(sklearn_model.init_)}."
+    )
 
   gbt_builder = tfdf.builder.GradientBoostedTreeBuilder(
       path=path,
@@ -207,12 +220,14 @@ def _(
     gbt_builder.add_tree(init_pytree)
 
   for weak_learner in sklearn_model.estimators_.ravel():
-    gbt_builder.add_tree(convert_sklearn_tree_to_tfdf_pytree(
-        weak_learner,
-        weight=sklearn_model.learning_rate,
-    ))
+    gbt_builder.add_tree(
+        convert_sklearn_tree_to_tfdf_pytree(
+            weak_learner,
+            weight=sklearn_model.learning_rate,
+        )
+    )
   gbt_builder.close()
-  return tf.keras.models.load_model(path)
+  return tf_keras.models.load_model(path)
 
 
 def convert_sklearn_tree_to_tfdf_pytree(
@@ -233,7 +248,8 @@ def convert_sklearn_tree_to_tfdf_pytree(
     sklearn_tree_data = sklearn_tree.tree_.__getstate__()
   except AttributeError as e:
     raise ValueError(
-        "Scikit-Learn model must be fit to data before converting.") from e
+        "Scikit-Learn model must be fit to data before converting."
+    ) from e
 
   field_names = sklearn_tree_data["nodes"].dtype.names
   task_type = _get_sklearn_tree_task_type(sklearn_tree)
@@ -251,8 +267,9 @@ def convert_sklearn_tree_to_tfdf_pytree(
     }
     if task_type is TaskType.SCALAR_REGRESSION:
       scaling_factor = weight if weight else 1.0
-      node["value"] = tfdf.py_tree.value.RegressionValue(target_value[0][0] *
-                                                         scaling_factor)
+      node["value"] = tfdf.py_tree.value.RegressionValue(
+          target_value[0][0] * scaling_factor
+      )
     elif task_type is TaskType.SINGLE_LABEL_CLASSIFICATION:
       # Normalise to probabilities if we have a classification tree.
       probabilities = list(target_value[0] / target_value[0].sum())
@@ -260,7 +277,8 @@ def convert_sklearn_tree_to_tfdf_pytree(
     else:
       raise ValueError(
           "Only scalar regression and single-label classification are "
-          "supported.")
+          "supported."
+      )
     nodes.append(node)
 
   root_node = _convert_sklearn_node_to_tfdf_node(

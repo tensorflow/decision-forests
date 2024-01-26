@@ -352,18 +352,18 @@ dataset reads are deterministic as well.
 #### Specify a task (e.g. classification, ranking) instead of a loss (e.g. binary cross-entropy)
 
 ```diff {.bad}
-- model = tf.keras.Sequential()
+- model = tf_keras.Sequential()
 - model.add(Dense(64, activation=relu))
 - model.add(Dense(1)) # One output for binary classification
 
-- model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
+- model.compile(loss=tf_keras.losses.BinaryCrossentropy(from_logits=True),
 -               optimizer='adam',
 -               metrics=['accuracy'])
 ```
 
 ```diff {.good}
 # The loss is automatically determined from the task.
-+ model = tfdf.keras.GradientBoostedTreesModel(task=tf.keras.Task.CLASSIFICATION)
++ model = tfdf.keras.GradientBoostedTreesModel(task=tf_keras.Task.CLASSIFICATION)
 
 # Optional if you want to report the accuracy.
 + model.compile(metrics=['accuracy'])

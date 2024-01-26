@@ -106,7 +106,7 @@ builder.set_dictionary("f2",["<OOD>", "x", "y", "z"]
 builder.close()
 
 # Load and use the model
-model = tf.keras.models.load_model("/path/to/model")
+model = tf_keras.models.load_model("/path/to/model")
 predictions = model.predict(...)
 ```
 """

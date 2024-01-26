@@ -254,6 +254,7 @@ documentation (and meta-data) used to generate this file.
 
 from typing import Optional, List, Set
 import tensorflow as tf
+import tf_keras
 $0
 TaskType = "abstract_model_pb2.Task"  # pylint: disable=invalid-name
 AdvancedArguments = core.AdvancedArguments
@@ -550,9 +551,9 @@ $2
       task: Optional[TaskType] = core.Task.CLASSIFICATION,
       features: Optional[List[core.FeatureUsage]] = None,
       exclude_non_specified_features: Optional[bool] = False,
-      preprocessing: Optional["tf.keras.models.Functional"] = None,
-      postprocessing: Optional["tf.keras.models.Functional"] = None,
-      training_preprocessing: Optional["tf.keras.models.Functional"] = None,
+      preprocessing: Optional["tf_keras.models.Functional"] = None,
+      postprocessing: Optional["tf_keras.models.Functional"] = None,
+      training_preprocessing: Optional["tf_keras.models.Functional"] = None,
       ranking_group: Optional[str] = None,
       uplift_treatment: Optional[str] = None,
       temp_directory: Optional[str] = None,

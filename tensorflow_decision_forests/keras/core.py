@@ -54,6 +54,8 @@ import tempfile
 from typing import Optional, List, Dict, Any, Tuple, NamedTuple, Set, Union, Literal
 
 import tensorflow as tf
+import tf_keras
+
 
 from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.data.ops import load_op
@@ -70,20 +72,8 @@ from yggdrasil_decision_forests.dataset import data_spec_pb2
 from yggdrasil_decision_forests.learner import abstract_learner_pb2
 from yggdrasil_decision_forests.model import abstract_model_pb2  # pylint: disable=unused-import
 from yggdrasil_decision_forests.utils.distribute.implementations.grpc import grpc_pb2  # pylint: disable=unused-import
+from tensorflow_decision_forests.keras import keras_internal
 
-try:
-  # tf>1.12
-  import keras.src.engine.data_adapter as data_adapter
-except ImportError:
-  # tf<=1.12
-  import keras.engine.data_adapter as data_adapter
-get_data_handler = data_adapter.get_data_handler
-
-layers = tf.keras.layers
-models = tf.keras.models
-optimizers = tf.keras.optimizers
-losses = tf.keras.losses
-backend = tf.keras.backend
 
 no_automatic_dependency_tracking = (
     tf1_compatibility.no_automatic_dependency_tracking
@@ -385,7 +375,7 @@ class CoreModel(InferenceCoreModel):
   # ...
 
   # Load a model: it loads as a generic keras model.
-  model = tf.keras.models.load_model("/tmp/my_saved_model")
+  model = tf_keras.models.load_model("/tmp/my_saved_model")
   ```
 
   The training logs (e.g. feature statistics, validation loss, remaining
@@ -513,9 +503,9 @@ class CoreModel(InferenceCoreModel):
       learner_params: Optional[HyperParameters] = None,
       features: Optional[List[FeatureUsage]] = None,
       exclude_non_specified_features: Optional[bool] = False,
-      preprocessing: Optional["models.Functional"] = None,
-      postprocessing: Optional["models.Functional"] = None,
-      training_preprocessing: Optional["models.Functional"] = None,
+      preprocessing: Optional[keras_internal.Functional] = None,
+      postprocessing: Optional[keras_internal.Functional] = None,
+      training_preprocessing: Optional[keras_internal.Functional] = None,
       ranking_group: Optional[str] = None,
       uplift_treatment: Optional[str] = None,
       temp_directory: Optional[str] = None,
@@ -652,7 +642,7 @@ class CoreModel(InferenceCoreModel):
 
     `load_weights` is not supported by TensorFlow Decision Forests models.
     To save and restore a model, use the SavedModel API i.e.
-    `model.save(...)` and `tf.keras.models.load_model(...)`. To resume the
+    `model.save(...)` and `tf_keras.models.load_model(...)`. To resume the
     training of an existing model, create the model with
     `try_resume_training=True` (default value) and with a similar
     `temp_directory` argument. See documentation of `try_resume_training`
@@ -1118,7 +1108,7 @@ class CoreModel(InferenceCoreModel):
       steps_per_epoch: Optional[Any] = None,
       class_weight: Optional[Any] = None,
       **kwargs,
-  ) -> tf.keras.callbacks.History:
+  ) -> tf_keras.callbacks.History:
     """Trains the model.
 
     Local training
@@ -1406,7 +1396,7 @@ class CoreModel(InferenceCoreModel):
       validation_steps,
       steps_per_epoch,
       class_weight,
-  ) -> tf.keras.callbacks.History:  # pylint: disable=g-doc-args,g-doc-return-or-yield
+  ) -> tf_keras.callbacks.History:  # pylint: disable=g-doc-args,g-doc-return-or-yield
     """Train the model.
 
     This method performs operations that resembles as the Keras' fit function.
@@ -1426,15 +1416,15 @@ class CoreModel(InferenceCoreModel):
     """
 
     # Create the callback manager
-    if not isinstance(callbacks, tf.keras.callbacks.CallbackList):
-      callbacks = tf.keras.callbacks.CallbackList(
+    if not isinstance(callbacks, tf_keras.callbacks.CallbackList):
+      callbacks = tf_keras.callbacks.CallbackList(
           callbacks, model=self, add_history=False
       )
 
     # Manages the history manually.
     # Note: The both the History and CallbackList object will override the
     # "model.history" field.
-    history = tf.keras.callbacks.History()
+    history = tf_keras.callbacks.History()
     history.model = self
     history.on_train_begin()
     history.on_epoch_begin(0)
@@ -1453,7 +1443,7 @@ class CoreModel(InferenceCoreModel):
     # training).
     validation_data_handler = None
     if validation_data:
-      val_x, val_y, val_sample_weight = tf.keras.utils.unpack_x_y_sample_weight(
+      val_x, val_y, val_sample_weight = keras_internal.unpack_x_y_sample_weight(
           validation_data
       )
 
@@ -1464,7 +1454,7 @@ class CoreModel(InferenceCoreModel):
         # seems to cause some issues.
 
         # Create data_handler for evaluation and cache it.
-        validation_data_handler = get_data_handler(
+        validation_data_handler = keras_internal.get_data_handler(
             x=val_x,
             y=val_y,
             sample_weight=val_sample_weight,
@@ -1484,7 +1474,7 @@ class CoreModel(InferenceCoreModel):
       # Wraps the input training dataset into a tf.data.Dataset like object.
       # This is a noop if the training dataset is already provided as a
       # tf.data.Dataset.
-      data_handler = get_data_handler(
+      data_handler = keras_internal.get_data_handler(
           x=x,
           y=y,
           sample_weight=sample_weight,
@@ -1990,7 +1980,7 @@ class CoreModel(InferenceCoreModel):
 
   def _add_training_logs_to_history(
       self,
-      history: tf.keras.callbacks.History,
+      history: tf_keras.callbacks.History,
       inspector: Optional[inspector_lib.AbstractInspector] = None,
   ) -> Optional[Dict[str, Any]]:
     if inspector is None:
@@ -2010,8 +2000,8 @@ class CoreModel(InferenceCoreModel):
 
   def _training_logs_to_history(
       self, inspector: Optional[inspector_lib.AbstractInspector] = None
-  ) -> tf.keras.callbacks.History:
-    history = tf.keras.callbacks.History()
+  ) -> tf_keras.callbacks.History:
+    history = tf_keras.callbacks.History()
     history.model = self
     history.on_train_begin()
     history.on_epoch_begin(0)

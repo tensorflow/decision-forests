@@ -32,6 +32,7 @@ import tensorflow as tf
 
 from tensorflow.python.distribute import distribute_lib
 import tensorflow_decision_forests as tfdf
+from tensorflow_decision_forests.keras import keras_internal
 from yggdrasil_decision_forests.learner.distributed_gradient_boosted_trees import distributed_gradient_boosted_trees_pb2
 
 
@@ -183,7 +184,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     with strategy.scope():
       model = tfdf.keras.DistributedGradientBoostedTreesModel(worker_logs=False)
       model.compile(metrics=["accuracy"])
-      # Note: "tf.keras.utils.experimental.DatasetCreator" seems to also work.
+      # Note: "tf_keras.utils.experimental.DatasetCreator" seems to also work.
       train_dataset_creator = strategy.distribute_datasets_from_function(
           lambda context: dataset_fn(context, seed=111)
       )
@@ -249,7 +250,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
       dataset = dataset.prefetch(2)
       return dataset
 
-    dataset_creator = tf.keras.utils.experimental.DatasetCreator(dataset_fn)
+    dc = keras_internal.DatasetCreator(dataset_fn)
 
     cluster_resolver = _create_in_process_tf_ps_cluster(num_workers=2, num_ps=1)
 
@@ -262,9 +263,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     with self.assertRaisesRegex(
         ValueError, "does not support training with a TF Distribution strategy"
     ):
-      model.fit(
-          dataset_creator, steps_per_epoch=num_examples // global_batch_size
-      )
+      model.fit(dc, steps_per_epoch=num_examples // global_batch_size)
 
   def _shard_dataset(self, path, num_shards=20) -> List[str]:
     """Splits a csv dataset into multiple csv files."""

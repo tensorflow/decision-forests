@@ -45,9 +45,10 @@ import tensorflow as tf
 import tensorflow_decision_forests as tfdf
 import tensorflowjs as tfjs
 from google.colab import files
+import tf_keras
 
 # Load the model with Keras
-model = tf.keras.models.load_model("/tmp/my_saved_model/")
+model = tf_keras.models.load_model("/tmp/my_saved_model/")
 
 # Convert the keras model to TensorFlow.js
 tfjs.converters.tf_saved_model_conversion_v2.convert_keras_model_to_graph_model(model, "./tfjs_model")

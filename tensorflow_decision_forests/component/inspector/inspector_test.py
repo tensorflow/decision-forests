@@ -23,6 +23,7 @@ from absl import logging
 from absl.testing import parameterized
 import numpy as np
 import tensorflow as tf
+import tf_keras
 
 from tensorflow_decision_forests import keras
 from tensorflow_decision_forests.component import py_tree
@@ -338,7 +339,7 @@ Label classes: ['<=50K', '>50K']
     features = tf.random.uniform(shape=[100, 2], minval=1, maxval=100)
     target = tf.random.uniform(shape=[100, 1], minval=25, maxval=50)
     dataset = tf.data.Dataset.from_tensor_slices((features, target)).batch(32)
-    inputs = tf.keras.Input(shape=(2,))
+    inputs = tf_keras.Input(shape=(2,))
 
     model_rf = keras.RandomForestModel(num_trees=10, task=keras.Task.REGRESSION)
     model_gbt = keras.GradientBoostedTreesModel(task=keras.Task.REGRESSION)
@@ -347,7 +348,7 @@ Label classes: ['<=50K', '>50K']
       return tf.concat([model_rf(x), x], axis=1)
     model_gbt_pred = model_gbt(model_gbt_preprocessing(inputs))
 
-    combined_model = tf.keras.models.Model(inputs, model_gbt_pred)
+    combined_model = tf_keras.models.Model(inputs, model_gbt_pred)
 
     # Train first model.
     model_rf.fit(dataset)

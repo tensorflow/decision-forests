@@ -12,9 +12,7 @@ package(
 
 cc_library(
     name = "learners",
-    deps = [
-        "//tensorflow_decision_forests/tensorflow:canonical_learners",
-    ],
+    deps = ["//tensorflow_decision_forests/tensorflow:canonical_learners"],
     alwayslink = 1,
 )
 
@@ -57,6 +55,7 @@ py_library(
     deps = [
         ":core",
         # TensorFlow Python,
+        # tf_keras dep,
         "//tensorflow_decision_forests/component/tuner",
         "@ydf//yggdrasil_decision_forests/learner:abstract_learner_py_proto",
         "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
@@ -67,8 +66,14 @@ py_library(
     name = "core_inference",
     srcs = ["core_inference.py"],
     srcs_version = "PY3",
+    tags = [
+        # Certain deps are not provided on purpose, so this cannot be a python_strict_library.
+        "ignore_for_dep=third_party.tensorflow.python.framework.type_spec_registry",
+    ],
     deps = [
+        ":keras_internal",
         # TensorFlow Python,
+        # tf_keras dep,
         # TensorFlow /distribute:input_lib,
         "//tensorflow_decision_forests/component/inspector",
         "//tensorflow_decision_forests/component/tuner",
@@ -88,7 +93,9 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":core_inference",
+        ":keras_internal",
         # TensorFlow Python,
+        # tf_keras dep,
         # TensorFlow /data/ops:dataset_ops,
         "//tensorflow_decision_forests/component/inspector",
         "//tensorflow_decision_forests/component/tuner",
@@ -102,6 +109,21 @@ py_library(
         "@ydf//yggdrasil_decision_forests/learner:abstract_learner_py_proto",
         "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
         "@ydf//yggdrasil_decision_forests/utils/distribute/implementations/grpc:grpc_py_proto",
+    ],
+)
+
+py_library(
+    name = "keras_internal",
+    srcs = ["keras_internal.py"],
+    srcs_version = "PY3",
+    deps = [
+        # tf_keras dep,
+        # tf_keras/engine dep,
+        # tf_keras/engine:data_adapter dep,
+        # tf_keras/engine:input_layer dep,
+        # tf_keras/feature_column:dense_features_v2 dep,
+        ## tf_keras/layers dep,
+        # tf_keras/utils:dataset_creator dep,
     ],
 )
 
@@ -123,6 +145,7 @@ py_test(
     deps = [
         ":core",
         ":keras",
+        ":keras_internal",
         "@com_google_protobuf//:python_srcs",
         # absl/flags dep,
         # absl/logging dep,
@@ -130,6 +153,7 @@ py_test(
         # numpy dep,
         # pandas dep,
         # TensorFlow Python,
+        # tf_keras dep,
         "//tensorflow_decision_forests/component/inspector",
         "//tensorflow_decision_forests/component/model_plotter",
         "//tensorflow_decision_forests/tensorflow:core",
@@ -159,6 +183,7 @@ py_test(
         # pandas dep,
         # TensorFlow Python,
         "//tensorflow_decision_forests",
+        # tf_keras dep,
     ],
 )
 
@@ -182,6 +207,7 @@ py_test(
         "manual",
     ],
     deps = [
+        ":keras_internal",
         # absl/flags dep,
         # absl/logging dep,
         # absl/testing:parameterized dep,
@@ -189,6 +215,7 @@ py_test(
         # pandas dep,
         # portpicker dep,
         # TensorFlow Python,
+        # tf_keras dep,
         # TensorFlow /distribute:distribute_lib,
         "//tensorflow_decision_forests",
         "@ydf//yggdrasil_decision_forests/learner/distributed_gradient_boosted_trees:dgbt_py_proto",
@@ -208,6 +235,7 @@ py_binary(
         # numpy dep,
         # pandas dep,
         # TensorFlow Python,
+        # tf_keras dep,
         "//tensorflow_decision_forests/tensorflow/ops/inference:op_py",
     ],
 )
@@ -227,5 +255,15 @@ tf_cc_binary(
         "@org_tensorflow//tensorflow/core:framework",
         "@org_tensorflow//tensorflow/core:lib",
         "@ydf//yggdrasil_decision_forests/utils/distribute/implementations/grpc:grpc_worker_lib_with_main",
+    ],
+)
+
+py_test(
+    name = "keras_internal_test",
+    srcs = ["keras_internal_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":keras_internal",
+        # TensorFlow Python,
     ],
 )
