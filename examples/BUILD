@@ -14,6 +14,7 @@ py_binary(
         # pandas dep,
         # TensorFlow Python,
         "//tensorflow_decision_forests",
+        # tf_keras dep,
     ],
 )
 
@@ -28,6 +29,7 @@ py_binary(
         # pandas dep,
         # TensorFlow Python,
         "//tensorflow_decision_forests",
+        # tf_keras dep,
     ],
 )
 
@@ -43,6 +45,7 @@ py_binary(
         # pandas dep,
         # TensorFlow Python,
         "//tensorflow_decision_forests",
+        # tf_keras dep,
     ],
 )
 
@@ -56,5 +59,6 @@ py_binary(
         # absl/logging dep,
         # TensorFlow Python,
         "//tensorflow_decision_forests",
+        # tf_keras dep,
     ],
 )

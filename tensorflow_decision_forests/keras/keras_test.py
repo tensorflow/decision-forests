@@ -31,6 +31,7 @@ from absl.testing import parameterized
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import tf_keras
 
 from google.protobuf import text_format
 
@@ -38,6 +39,7 @@ from tensorflow_decision_forests import keras
 from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
 from tensorflow_decision_forests.component.model_plotter import model_plotter
 from tensorflow_decision_forests.keras import core
+from tensorflow_decision_forests.keras import keras_internal
 from tensorflow_decision_forests.tensorflow import core as tf_core
 from yggdrasil_decision_forests.dataset import synthetic_dataset_pb2
 from yggdrasil_decision_forests.learner import abstract_learner_pb2
@@ -45,13 +47,10 @@ from yggdrasil_decision_forests.learner.decision_tree import decision_tree_pb2
 from yggdrasil_decision_forests.learner.random_forest import random_forest_pb2
 from yggdrasil_decision_forests.model import abstract_model_pb2
 
-layers = tf.keras.layers
-models = tf.keras.models
-optimizers = tf.keras.optimizers
-callbacks = tf.keras.callbacks
-Normalization = layers.experimental.preprocessing.Normalization
-CategoryEncoding = layers.experimental.preprocessing.CategoryEncoding
-StringLookup = layers.experimental.preprocessing.StringLookup
+
+Normalization = tf_keras.layers.Normalization
+CategoryEncoding = tf_keras.layers.CategoryEncoding
+StringLookup = tf_keras.layers.StringLookup
 
 Dataset = collections.namedtuple(
     "Dataset", ["train", "test", "semantics", "label", "num_classes"]
@@ -264,7 +263,7 @@ def build_preprocessing(dataset: Dataset) -> Tuple[List[Any], List[Any]]:
       normalizer = Normalization(axis=None)
       normalizer.adapt(raw_input_values)
 
-      raw_input = layers.Input(shape=(1,), name=key)
+      raw_input = tf_keras.layers.Input(shape=(1,), name=key)
       processed_input = normalizer(raw_input)
 
       raw_inputs.append(raw_input)
@@ -273,8 +272,8 @@ def build_preprocessing(dataset: Dataset) -> Tuple[List[Any], List[Any]]:
     elif semantic == keras.FeatureSemantic.CATEGORICAL:
       if raw_input_values.dtype in [np.int64]:
         # Integer
-        raw_input = layers.Input(shape=(1,), name=key, dtype="int64")
-        raw_input = layers.minimum([raw_input, 5])
+        raw_input = tf_keras.layers.Input(shape=(1,), name=key, dtype="int64")
+        raw_input = tf_keras.layers.minimum([raw_input, 5])
         onehot = CategoryEncoding(
             num_tokens=np.minimum(raw_input_values, 5), output_mode="binary"
         )
@@ -282,7 +281,7 @@ def build_preprocessing(dataset: Dataset) -> Tuple[List[Any], List[Any]]:
 
       else:
         # String
-        raw_input = layers.Input(shape=(1,), name=key, dtype="string")
+        raw_input = tf_keras.layers.Input(shape=(1,), name=key, dtype="string")
 
         lookup = StringLookup(max_tokens=5, output_mode="binary")
         lookup.adapt(raw_input_values)
@@ -363,7 +362,9 @@ class Signature(enum.Enum):
   ANY_FEATURE_COLUMN = 9
 
 
-def build_model(signature: Signature, dataset: Dataset, **args) -> models.Model:
+def build_model(
+    signature: Signature, dataset: Dataset, **args
+) -> tf_keras.models.Model:
   """Builds a model with the different supported signatures.
 
   Setting nn_baseline=True creates a NN keras model instead. This is useful to
@@ -391,25 +392,33 @@ def build_model(signature: Signature, dataset: Dataset, **args) -> models.Model:
 
   elif signature == Signature.DENSE_PREPROCESSING:
     raw_inputs, processed_inputs = build_preprocessing(dataset)
-    processed_inputs = layers.Concatenate()(processed_inputs)
-    preprocessing = models.Model(inputs=raw_inputs, outputs=processed_inputs)
+    processed_inputs = tf_keras.layers.Concatenate()(processed_inputs)
+    preprocessing = tf_keras.models.Model(
+        inputs=raw_inputs, outputs=processed_inputs
+    )
     model = keras.RandomForestModel(preprocessing=preprocessing, **args)
 
   elif signature == Signature.STRUCTURED_DICTIONARY_PREPROCESSING:
     raw_inputs, processed_inputs = build_preprocessing(dataset)
     processed_inputs = {value.name: value for value in processed_inputs}
-    preprocessing = models.Model(inputs=raw_inputs, outputs=processed_inputs)
+    preprocessing = tf_keras.models.Model(
+        inputs=raw_inputs, outputs=processed_inputs
+    )
     model = keras.RandomForestModel(preprocessing=preprocessing, **args)
 
   elif signature == Signature.STRUCTURED_LIST_PREPROCESSING:
     raw_inputs, processed_inputs = build_preprocessing(dataset)
-    preprocessing = models.Model(inputs=raw_inputs, outputs=processed_inputs)
+    preprocessing = tf_keras.models.Model(
+        inputs=raw_inputs, outputs=processed_inputs
+    )
     model = keras.RandomForestModel(preprocessing=preprocessing, **args)
 
   elif signature == Signature.STRUCTURED_PREPROCESSING_WITH_SEMANTIC:
     raw_inputs, processed_inputs = build_preprocessing(dataset)
     processed_inputs = {value.name: value for value in processed_inputs}
-    preprocessing = models.Model(inputs=raw_inputs, outputs=processed_inputs)
+    preprocessing = tf_keras.models.Model(
+        inputs=raw_inputs, outputs=processed_inputs
+    )
     features = []
     for key in processed_inputs.keys():
       features.append(keras.FeatureUsage(key))
@@ -419,12 +428,12 @@ def build_model(signature: Signature, dataset: Dataset, **args) -> models.Model:
 
   elif signature == Signature.DENSE_FEATURE_COLUMN:
     feature_columns = build_feature_columns(dataset, dense=True)
-    preprocessing = layers.DenseFeatures(feature_columns)
+    preprocessing = keras_internal.DenseFeatures(feature_columns)
     model = keras.RandomForestModel(preprocessing=preprocessing, **args)
 
   elif signature == Signature.ANY_FEATURE_COLUMN:
     feature_columns = build_feature_columns(dataset, dense=False)
-    preprocessing = layers.DenseFeatures(feature_columns)
+    preprocessing = keras_internal.DenseFeatures(feature_columns)
     model = keras.RandomForestModel(preprocessing=preprocessing, **args)
 
   else:
@@ -489,7 +498,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     logging.info("Predictions: %s", predictions)
 
     if check_serialization:
-      tf.keras.backend.clear_session()
+      tf_keras.backend.clear_session()
 
       # Export the trained model.
       saved_model_path = os.path.join(self.get_temp_dir(), "saved_model")
@@ -499,7 +508,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
       logging.info("Saving model to %s", saved_model_path)
       model.save(saved_model_path)
 
-      tf.keras.backend.clear_session()
+      tf_keras.backend.clear_session()
 
       logging.info("Run model in separate binary")
       process = subprocess.Popen(
@@ -529,7 +538,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
       # Load and evaluate the exported trained model.
       logging.info("Loading model from %s", new_saved_model_path)
-      loaded_model = models.load_model(new_saved_model_path)
+      loaded_model = tf_keras.models.load_model(new_saved_model_path)
       loaded_model.summary()
 
       evaluation = loaded_model.evaluate(tf_test)
@@ -755,7 +764,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     # Load and evaluate the exported trained model.
     logging.info("Loading model from %s", saved_model_path)
-    loaded_model = models.load_model(saved_model_path)
+    loaded_model = tf_keras.models.load_model(saved_model_path)
     loaded_model.summary()
 
     loaded_model.compile(metrics=["accuracy"])
@@ -816,7 +825,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
   def test_model_adult_dense_nparray(self):
     dataset = adult_dataset()
     feature_columns = build_feature_columns(dataset, dense=True)
-    dense_features = layers.DenseFeatures(feature_columns)
+    dense_features = keras_internal.DenseFeatures(feature_columns)
 
     train_x = dense_features(dict(dataset.train)).numpy()
     train_y = dataset.train[dataset.label].values
@@ -848,7 +857,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
   def test_model_adult_dense_tfdataset(self):
     dataset = adult_dataset()
     feature_columns = build_feature_columns(dataset, dense=True)
-    dense_features = layers.DenseFeatures(feature_columns)
+    dense_features = keras_internal.DenseFeatures(feature_columns)
 
     train_x = dense_features(dict(dataset.train))
     train_y = dataset.train[dataset.label].values
@@ -1168,7 +1177,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     else:
       raise ValueError("Non initialized model")
 
-    class _TestEvalCallback(tf.keras.callbacks.Callback):
+    class _TestEvalCallback(tf_keras.callbacks.Callback):
 
       def on_train_end(self, logs=None):
         self.evaluation = model.evaluate(test_dataset)
@@ -1305,15 +1314,15 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     # Note: The following code does not work with the "models.Sequential" API
     # (Nov.17, 2020).
     raw_inputs, preprocessed_inputs = build_preprocessing(dataset)
-    z1 = layers.Concatenate()(preprocessed_inputs)
-    z2 = layers.Dense(16, activation=tf.nn.relu6)(z1)
-    z3 = layers.Dense(16, activation=tf.nn.relu, name="last")(z2)
-    y = layers.Dense(1)(z3)
-    nn_model = models.Model(raw_inputs, y)
+    z1 = tf_keras.layers.Concatenate()(preprocessed_inputs)
+    z2 = tf_keras.layers.Dense(16, activation=tf.nn.relu6)(z1)
+    z3 = tf_keras.layers.Dense(16, activation=tf.nn.relu, name="last")(z2)
+    y = tf_keras.layers.Dense(1)(z3)
+    nn_model = tf_keras.models.Model(raw_inputs, y)
 
     nn_model.compile(
-        optimizer=optimizers.Adam(),
-        loss=tf.keras.losses.BinaryCrossentropy(),
+        optimizer=tf_keras.optimizers.Adam(),
+        loss=tf_keras.losses.BinaryCrossentropy(),
         metrics=["accuracy"],
     )
 
@@ -1322,7 +1331,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     nn_model.summary()
 
     # Build a DF on top of the NN
-    nn_without_head = models.Model(
+    nn_without_head = tf_keras.models.Model(
         inputs=nn_model.inputs, outputs=nn_model.get_layer("last").output
     )
     df_model = keras.RandomForestModel(preprocessing=nn_without_head)
@@ -1692,7 +1701,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     model_2.fit(keras.pd_dataframe_to_tf_dataset(dataset_2, label="label"))
     model_2.save(model_path)
 
-    model_2_restored = tf.keras.models.load_model(model_path)
+    model_2_restored = tf_keras.models.load_model(model_path)
     model_2_restored.predict(
         keras.pd_dataframe_to_tf_dataset(dataset_2, label="label")
     )
@@ -1708,7 +1717,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     self.assertAlmostEqual(np.mean(predictions), -2.2, delta=0.2)
     self.assertAlmostEqual(np.std(predictions), 2.8, delta=0.25)
 
-    model.compile(metrics=[tf.keras.metrics.BinaryAccuracy(threshold=0.0)])
+    model.compile(metrics=[tf_keras.metrics.BinaryAccuracy(threshold=0.0)])
     evaluation = model.evaluate(tf_test, return_dict=True)
     logging.info("Evaluation: %s", evaluation)
 
@@ -1734,9 +1743,9 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     model = keras.GradientBoostedTreesModel()
 
-    inputs = tf.keras.layers.Input(shape=(num_features,))
+    inputs = tf_keras.layers.Input(shape=(num_features,))
     outputs = model(inputs)
-    functional_model = tf.keras.Model(inputs=inputs, outputs=outputs)
+    functional_model = tf_keras.Model(inputs=inputs, outputs=outputs)
 
     # Generate predictions before training.
     for features, _ in test_dataset.take(1):
@@ -2277,7 +2286,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
   def test_golden_model_gbt(self):
     dataset = adult_dataset()
-    loaded_model = models.load_model(
+    loaded_model = tf_keras.models.load_model(
         os.path.join(tfdf_test_data_path(), "model/saved_model_adult_rf")
     )
     prediction = loaded_model.predict(
@@ -2323,7 +2332,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         tfdf_model_path,
         input_model_signature_fn=custom_model_input_signature,
     )
-    loaded_model = models.load_model(tfdf_model_path)
+    loaded_model = tf_keras.models.load_model(tfdf_model_path)
     dataset = adult_dataset()
     prediction = loaded_model.predict(
         keras.pd_dataframe_to_tf_dataset(dataset.test, label="income")
@@ -2346,7 +2355,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     test_df = test_df.drop(treatment_group, axis=1)
 
     core.yggdrasil_model_to_keras_model(ygg_model_path, tfdf_model_path)
-    loaded_model = models.load_model(tfdf_model_path)
+    loaded_model = tf_keras.models.load_model(tfdf_model_path)
     prediction = loaded_model.predict(
         keras.pd_dataframe_to_tf_dataset(test_df, label=outcome_key)
     )
@@ -2385,7 +2394,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     core.yggdrasil_model_to_keras_model(src_model_path, dst_model_path)
 
     # Load/Check the model
-    _ = models.load_model(dst_model_path)
+    _ = tf_keras.models.load_model(dst_model_path)
 
   def test_load_combined_model(self):
     target = tf.random.uniform(shape=[100, 1], minval=25, maxval=50)
@@ -2393,7 +2402,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         "my_feature": tf.random.uniform(shape=[100, 2], minval=1, maxval=100)
     }
     dataset = tf.data.Dataset.from_tensor_slices((features, target)).batch(32)
-    inputs = {"my_feature": tf.keras.Input(shape=(2,))}
+    inputs = {"my_feature": tf_keras.Input(shape=(2,))}
 
     model_1 = keras.RandomForestModel(num_trees=10, task=keras.Task.REGRESSION)
     model_2 = keras.RandomForestModel(num_trees=20, task=keras.Task.REGRESSION)
@@ -2403,7 +2412,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     model_2_pred = model_2(model_2_preprocessing(inputs))
 
-    combined_model = models.Model(inputs, model_2_pred)
+    combined_model = tf_keras.models.Model(inputs, model_2_pred)
 
     # Train first model.
     model_1.fit(dataset)
@@ -2417,7 +2426,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     combined_model_path = os.path.join(tmp_path(), "combined_model")
     combined_model.save(combined_model_path, overwrite=True)
     combined_model_prediction = combined_model.predict([[1, 1]])
-    loaded_combined_model = models.load_model(combined_model_path)
+    loaded_combined_model = tf_keras.models.load_model(combined_model_path)
 
     # Check if inference is working on the combined model.
     loaded_combined_model_prediction = loaded_combined_model.predict([[1, 1]])
@@ -2435,7 +2444,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         loaded_model_1_path,
         file_prefix=model_1.training_model_id,
     )
-    loaded_model_1 = models.load_model(loaded_model_1_path)
+    loaded_model_1 = tf_keras.models.load_model(loaded_model_1_path)
     logging.info(
         "Prediction result 1 is %s", loaded_model_1.predict(examples_1)
     )
@@ -2449,7 +2458,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
         loaded_model_2_path,
         file_prefix=model_2.training_model_id,
     )
-    loaded_model_2 = models.load_model(loaded_model_2_path)
+    loaded_model_2 = tf_keras.models.load_model(loaded_model_2_path)
     logging.info(
         "Prediction result 2 is %s", loaded_model_2.predict(examples_2)
     )
@@ -2642,7 +2651,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     model.save(saved_model_path)
 
     logging.info("Loading model from %s", saved_model_path)
-    loaded_model = models.load_model(saved_model_path)
+    loaded_model = tf_keras.models.load_model(saved_model_path)
     loaded_model.summary()
 
     # Check exported / imported model predictions
@@ -2728,7 +2737,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     model.save(saved_model_path)
 
     logging.info("Loading model from %s", saved_model_path)
-    loaded_model = models.load_model(saved_model_path)
+    loaded_model = tf_keras.models.load_model(saved_model_path)
     loaded_model.summary()
 
     # Check exported / imported model predictions
@@ -2878,7 +2887,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     """Test that the node format is BLOB_SEQUENCE if required."""
     dataset = adult_dataset()
     model = keras.RandomForestModel(
-        advanced_arguments=keras.AdvancedArguments(node_format="BLOB_SEQUENCE")
+        num_trees=10,
+        advanced_arguments=keras.AdvancedArguments(node_format="BLOB_SEQUENCE"),
     )
     ds = keras.pd_dataframe_to_tf_dataset(dataset.train, dataset.label)
     model.fit(ds)
@@ -2900,7 +2910,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     )
     model_tmp_path_keras = os.path.join(self.get_temp_dir(), "kerasmodel")
     keras.yggdrasil_model_to_keras_model(ygg_model_path, model_tmp_path_keras)
-    model = tf.keras.models.load_model(model_tmp_path_keras)
+    model = tf_keras.models.load_model(model_tmp_path_keras)
     tree_plot = model_plotter.plot_model(model, tree_idx=0, max_depth=2)
     expected_tree_start = (
         'display_tree({"margin": 10, "node_x_size": 160, "node_y_size": 28,'
@@ -3059,6 +3069,16 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
     predictions = model.predict(tf_test)
     logging.info("Predictions: %s", predictions)
+
+  def test_plot_contains_condition(self):
+    df = pd.DataFrame({"f": [-10, 0, 1000], "label": [0, 1, 2]})
+    ds = keras.pd_dataframe_to_tf_dataset(df, label="label")
+    model = keras.CartModel(
+        min_examples=1,
+        features=[keras.FeatureUsage("f", keras.FeatureSemantic.CATEGORICAL)],
+    )
+    model.fit(ds)
+    model_plotter.plot_model(model)
 
 
 if __name__ == "__main__":

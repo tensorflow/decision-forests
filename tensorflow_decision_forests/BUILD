@@ -9,10 +9,16 @@ package(
 
 exports_files(["LICENSE"])
 
+# Do not depend on this rule. Instead, depend on "//tensorflow_decision_forests".
 py_library(
     name = "tensorflow_decision_forests",
     srcs = ["__init__.py"],
     srcs_version = "PY3",
+    visibility = [
+        "//learning/lib/ami/simple_ml:__subpackages__",
+        "//tensorflow_decision_forests:__subpackages__",
+        "//tensorflow_decision_forests:__subpackages__",
+    ],
     deps = [
         "//tensorflow_decision_forests/component/builder",
         "//tensorflow_decision_forests/component/inspector",

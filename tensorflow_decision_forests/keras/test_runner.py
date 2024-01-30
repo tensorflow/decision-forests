@@ -30,6 +30,7 @@ from absl import logging
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import tf_keras
 
 # Inject the inference ops only.
 from tensorflow_decision_forests.tensorflow.ops.inference import op  # pylint: disable=unused-import
@@ -45,7 +46,7 @@ def main(argv):
   del argv
 
   logging.info("Load model")
-  model = tf.keras.models.load_model(FLAGS.model_path)
+  model = tf_keras.models.load_model(FLAGS.model_path)
 
   logging.info("Load dataset")
   pd_dataset = load_dataset()

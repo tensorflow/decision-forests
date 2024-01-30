@@ -21,6 +21,7 @@ from absl.testing import parameterized
 import numpy as np
 import tensorflow as tf
 import tensorflow_decision_forests as tfdf
+import tf_keras
 
 from tensorflow_decision_forests.contrib.training_preprocessing import training_preprocessing
 
@@ -231,7 +232,7 @@ class TrainingPreprocessingTest(tf.test.TestCase, parameterized.TestCase):
     model.save(saved_model_path)
 
     logging.info('Loading model from %s', saved_model_path)
-    loaded_model = tf.keras.models.load_model(saved_model_path)
+    loaded_model = tf_keras.models.load_model(saved_model_path)
     loaded_model.summary()
 
     # Check exported / imported model predictions

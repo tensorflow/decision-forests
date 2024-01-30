@@ -25,6 +25,7 @@ from absl.testing import parameterized
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import tf_keras
 
 from tensorflow_decision_forests import keras
 from tensorflow_decision_forests.component import py_tree
@@ -48,8 +49,9 @@ def data_root_path() -> str:
 
 
 def test_data_path() -> str:
-  return os.path.join(data_root_path(),
-                      "external/ydf/yggdrasil_decision_forests/test_data")
+  return os.path.join(
+      data_root_path(), "external/ydf/yggdrasil_decision_forests/test_data"
+  )
 
 
 def tmp_path() -> str:
@@ -66,16 +68,21 @@ def test_dataset_directory() -> str:
 
 class BuilderTest(parameterized.TestCase, tf.test.TestCase):
 
-  @parameterized.parameters((None,), ("",), ("prefix_",))
-  def test_classification_random_forest(self, file_prefix):
+  @parameterized.parameters(
+      (None, None), ("", "abc123"), ("prefix_", "test_model")
+  )
+  def test_classification_random_forest(self, file_prefix, model_name):
     model_path = os.path.join(tmp_path(), "classification_rf")
     logging.info("Create model in %s", model_path)
     builder = builder_lib.RandomForestBuilder(
         path=model_path,
         model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
         objective=py_tree.objective.ClassificationObjective(
-            label="color", classes=["red", "blue", "green"]),
-        file_prefix=file_prefix)
+            label="color", classes=["red", "blue", "green"]
+        ),
+        file_prefix=file_prefix,
+        keras_model_name=model_name,
+    )
 
     #  f1>=1.5
     #    │
@@ -89,44 +96,64 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
             NonLeafNode(
                 condition=NumericalHigherThanCondition(
                     feature=SimpleColumnSpec(
-                        name="f1", type=py_tree.dataspec.ColumnType.NUMERICAL),
+                        name="f1", type=py_tree.dataspec.ColumnType.NUMERICAL
+                    ),
                     threshold=1.5,
-                    missing_evaluation=False),
+                    missing_evaluation=False,
+                ),
                 pos_child=NonLeafNode(
                     condition=CategoricalIsInCondition(
                         feature=SimpleColumnSpec(
                             name="f2",
-                            type=py_tree.dataspec.ColumnType.CATEGORICAL),
+                            type=py_tree.dataspec.ColumnType.CATEGORICAL,
+                        ),
                         mask=["cat", "dog"],
-                        missing_evaluation=False),
+                        missing_evaluation=False,
+                    ),
                     pos_child=LeafNode(
                         value=ProbabilityValue(
-                            probability=[0.8, 0.1, 0.1], num_examples=10)),
+                            probability=[0.8, 0.1, 0.1], num_examples=10
+                        )
+                    ),
                     neg_child=LeafNode(
                         value=ProbabilityValue(
-                            probability=[0.1, 0.8, 0.1], num_examples=20))),
+                            probability=[0.1, 0.8, 0.1], num_examples=20
+                        )
+                    ),
+                ),
                 neg_child=LeafNode(
                     value=ProbabilityValue(
-                        probability=[0.1, 0.1, 0.8], num_examples=30)))))
+                        probability=[0.1, 0.1, 0.8], num_examples=30
+                    )
+                ),
+            )
+        )
+    )
 
     builder.close()
 
     if file_prefix is not None:
       self.assertEqual(
           inspector_lib.detect_model_file_prefix(
-              os.path.join(model_path, "assets")), file_prefix)
+              os.path.join(model_path, "assets")
+          ),
+          file_prefix,
+      )
 
     logging.info("Loading model")
-    loaded_model = tf.keras.models.load_model(model_path)
-
+    loaded_model = tf_keras.models.load_model(model_path)
+    expected_model_name = (
+        "inference_core_model" if model_name is None else model_name
+    )
+    self.assertEqual(loaded_model.name, expected_model_name)
     logging.info("Make predictions")
-    tf_dataset = tf.data.Dataset.from_tensor_slices({
-        "f1": [1.0, 2.0, 3.0],
-        "f2": ["cat", "cat", "bird"]
-    }).batch(2)
+    tf_dataset = tf.data.Dataset.from_tensor_slices(
+        {"f1": [1.0, 2.0, 3.0], "f2": ["cat", "cat", "bird"]}
+    ).batch(2)
     predictions = loaded_model.predict(tf_dataset)
-    self.assertAllClose(predictions,
-                        [[0.1, 0.1, 0.8], [0.8, 0.1, 0.1], [0.1, 0.8, 0.1]])
+    self.assertAllClose(
+        predictions, [[0.1, 0.1, 0.8], [0.8, 0.1, 0.1], [0.1, 0.8, 0.1]]
+    )
 
   @parameterized.parameters((None,), ("",), ("prefix_",))
   def test_classification_cart(self, file_prefix):
@@ -136,8 +163,11 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
         path=model_path,
         model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
         objective=py_tree.objective.ClassificationObjective(
-            label="color", classes=["red", "blue", "green"]),
-        file_prefix=file_prefix)
+            label="color", classes=["red", "blue", "green"]
+        ),
+        file_prefix=file_prefix,
+        keras_model_name="classification_cart",
+    )
 
     #  f1>=1.5
     #    ├─(pos)─ f2 in ["cat","dog"]
@@ -149,44 +179,61 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
             NonLeafNode(
                 condition=NumericalHigherThanCondition(
                     feature=SimpleColumnSpec(
-                        name="f1", type=py_tree.dataspec.ColumnType.NUMERICAL),
+                        name="f1", type=py_tree.dataspec.ColumnType.NUMERICAL
+                    ),
                     threshold=1.5,
-                    missing_evaluation=False),
+                    missing_evaluation=False,
+                ),
                 pos_child=NonLeafNode(
                     condition=CategoricalIsInCondition(
                         feature=SimpleColumnSpec(
                             name="f2",
-                            type=py_tree.dataspec.ColumnType.CATEGORICAL),
+                            type=py_tree.dataspec.ColumnType.CATEGORICAL,
+                        ),
                         mask=["cat", "dog"],
-                        missing_evaluation=False),
+                        missing_evaluation=False,
+                    ),
                     pos_child=LeafNode(
                         value=ProbabilityValue(
-                            probability=[0.8, 0.1, 0.1], num_examples=10)),
+                            probability=[0.8, 0.1, 0.1], num_examples=10
+                        )
+                    ),
                     neg_child=LeafNode(
                         value=ProbabilityValue(
-                            probability=[0.1, 0.8, 0.1], num_examples=20))),
+                            probability=[0.1, 0.8, 0.1], num_examples=20
+                        )
+                    ),
+                ),
                 neg_child=LeafNode(
                     value=ProbabilityValue(
-                        probability=[0.1, 0.1, 0.8], num_examples=30)))))
+                        probability=[0.1, 0.1, 0.8], num_examples=30
+                    )
+                ),
+            )
+        )
+    )
 
     builder.close()
 
     if file_prefix is not None:
       self.assertEqual(
           inspector_lib.detect_model_file_prefix(
-              os.path.join(model_path, "assets")), file_prefix)
+              os.path.join(model_path, "assets")
+          ),
+          file_prefix,
+      )
 
     logging.info("Loading model")
-    loaded_model = tf.keras.models.load_model(model_path)
-
+    loaded_model = tf_keras.models.load_model(model_path)
+    self.assertEqual(loaded_model.name, "classification_cart")
     logging.info("Make predictions")
-    tf_dataset = tf.data.Dataset.from_tensor_slices({
-        "f1": [1.0, 2.0, 3.0],
-        "f2": ["cat", "cat", "bird"]
-    }).batch(2)
+    tf_dataset = tf.data.Dataset.from_tensor_slices(
+        {"f1": [1.0, 2.0, 3.0], "f2": ["cat", "cat", "bird"]}
+    ).batch(2)
     predictions = loaded_model.predict(tf_dataset)
-    self.assertAllClose(predictions,
-                        [[0.1, 0.1, 0.8], [0.8, 0.1, 0.1], [0.1, 0.8, 0.1]])
+    self.assertAllClose(
+        predictions, [[0.1, 0.1, 0.8], [0.8, 0.1, 0.1], [0.1, 0.8, 0.1]]
+    )
 
   def test_regression_random_forest(self):
     model_path = os.path.join(tmp_path(), "regression_rf")
@@ -194,7 +241,8 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
     builder = builder_lib.RandomForestBuilder(
         path=model_path,
         model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
-        objective=py_tree.objective.RegressionObjective(label="age"))
+        objective=py_tree.objective.RegressionObjective(label="age"),
+    )
 
     #  f1>=1.5
     #    ├─(pos)─ age: 1
@@ -204,18 +252,25 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
             NonLeafNode(
                 condition=NumericalHigherThanCondition(
                     feature=SimpleColumnSpec(
-                        name="f1", type=py_tree.dataspec.ColumnType.NUMERICAL),
+                        name="f1", type=py_tree.dataspec.ColumnType.NUMERICAL
+                    ),
                     threshold=1.5,
-                    missing_evaluation=False),
+                    missing_evaluation=False,
+                ),
                 pos_child=LeafNode(
-                    value=RegressionValue(value=1, num_examples=30)),
+                    value=RegressionValue(value=1, num_examples=30)
+                ),
                 neg_child=LeafNode(
-                    value=RegressionValue(value=2, num_examples=30)))))
+                    value=RegressionValue(value=2, num_examples=30)
+                ),
+            )
+        )
+    )
 
     builder.close()
 
     logging.info("Loading model")
-    loaded_model = tf.keras.models.load_model(model_path)
+    loaded_model = tf_keras.models.load_model(model_path)
 
     logging.info("Make predictions")
     tf_dataset = tf.data.Dataset.from_tensor_slices({
@@ -232,7 +287,9 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
         model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
         objective=py_tree.objective.RegressionObjective(label="age"),
         advanced_arguments=builder_lib.AdvancedArguments(
-            disable_categorical_integer_offset_correction=True))
+            disable_categorical_integer_offset_correction=True
+        ),
+    )
 
     #  f1 in [2,3]
     #    ├─(pos)─ age: 1
@@ -242,19 +299,25 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
             NonLeafNode(
                 condition=CategoricalIsInCondition(
                     feature=SimpleColumnSpec(
-                        name="f1",
-                        type=py_tree.dataspec.ColumnType.CATEGORICAL),
+                        name="f1", type=py_tree.dataspec.ColumnType.CATEGORICAL
+                    ),
                     mask=[2, 3],
-                    missing_evaluation=False),
+                    missing_evaluation=False,
+                ),
                 pos_child=LeafNode(
-                    value=RegressionValue(value=1, num_examples=30)),
+                    value=RegressionValue(value=1, num_examples=30)
+                ),
                 neg_child=LeafNode(
-                    value=RegressionValue(value=2, num_examples=30)))))
+                    value=RegressionValue(value=2, num_examples=30)
+                ),
+            )
+        )
+    )
 
     builder.close()
 
     logging.info("Loading model")
-    loaded_model = tf.keras.models.load_model(model_path)
+    loaded_model = tf_keras.models.load_model(model_path)
 
     logging.info("Make predictions")
     tf_dataset = tf.data.Dataset.from_tensor_slices({
@@ -271,7 +334,10 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
         model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
         bias=1.0,
         objective=py_tree.objective.ClassificationObjective(
-            label="color", classes=["red", "blue"]))
+            label="color", classes=["red", "blue"]
+        ),
+        keras_model_name="binary_classification_gbt",
+    )
 
     #  bias: 1.0 (toward "blue")
     #  f1>=1.5
@@ -282,19 +348,26 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
             NonLeafNode(
                 condition=NumericalHigherThanCondition(
                     feature=SimpleColumnSpec(
-                        name="f1", type=py_tree.dataspec.ColumnType.NUMERICAL),
+                        name="f1", type=py_tree.dataspec.ColumnType.NUMERICAL
+                    ),
                     threshold=1.5,
-                    missing_evaluation=False),
+                    missing_evaluation=False,
+                ),
                 pos_child=LeafNode(
-                    value=RegressionValue(value=+1, num_examples=30)),
+                    value=RegressionValue(value=+1, num_examples=30)
+                ),
                 neg_child=LeafNode(
-                    value=RegressionValue(value=-1, num_examples=30)))))
+                    value=RegressionValue(value=-1, num_examples=30)
+                ),
+            )
+        )
+    )
 
     builder.close()
 
     logging.info("Loading model")
-    loaded_model = tf.keras.models.load_model(model_path)
-
+    loaded_model = tf_keras.models.load_model(model_path)
+    self.assertEqual(loaded_model.name, "binary_classification_gbt")
     logging.info("Make predictions")
     tf_dataset = tf.data.Dataset.from_tensor_slices({
         "f1": [1.0, 2.0],
@@ -302,7 +375,8 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
     predictions = loaded_model.predict(tf_dataset)
     self.assertAllClose(
         predictions,
-        [[1.0 / (1.0 + math.exp(0.0))], [1.0 / (1.0 + math.exp(-2.0))]])
+        [[1.0 / (1.0 + math.exp(0.0))], [1.0 / (1.0 + math.exp(-2.0))]],
+    )
 
   @parameterized.parameters((None,), ("",), ("prefix_",))
   def test_multi_class_classification_gbt(self, file_prefix):
@@ -312,8 +386,10 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
         path=model_path,
         model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
         objective=py_tree.objective.ClassificationObjective(
-            label="color", classes=["red", "blue", "green"]),
-        file_prefix=file_prefix)
+            label="color", classes=["red", "blue", "green"]
+        ),
+        file_prefix=file_prefix,
+    )
 
     #  f1>=1.5
     #    ├─(pos)─ +1.0 (toward "red")
@@ -331,24 +407,33 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
               NonLeafNode(
                   condition=NumericalHigherThanCondition(
                       feature=SimpleColumnSpec(
-                          name="f1",
-                          type=py_tree.dataspec.ColumnType.NUMERICAL),
+                          name="f1", type=py_tree.dataspec.ColumnType.NUMERICAL
+                      ),
                       threshold=threshold,
-                      missing_evaluation=False),
+                      missing_evaluation=False,
+                  ),
                   pos_child=LeafNode(
-                      value=RegressionValue(value=+1, num_examples=30)),
+                      value=RegressionValue(value=+1, num_examples=30)
+                  ),
                   neg_child=LeafNode(
-                      value=RegressionValue(value=-1, num_examples=30)))))
+                      value=RegressionValue(value=-1, num_examples=30)
+                  ),
+              )
+          )
+      )
 
     builder.close()
 
     if file_prefix is not None:
       self.assertEqual(
           inspector_lib.detect_model_file_prefix(
-              os.path.join(model_path, "assets")), file_prefix)
+              os.path.join(model_path, "assets")
+          ),
+          file_prefix,
+      )
 
     logging.info("Loading model")
-    loaded_model = tf.keras.models.load_model(model_path)
+    loaded_model = tf_keras.models.load_model(model_path)
 
     logging.info("Make predictions")
     tf_dataset = tf.data.Dataset.from_tensor_slices({
@@ -357,12 +442,17 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
     predictions = loaded_model.predict(tf_dataset)
 
     soft_max_sum = np.sum(np.exp([+1, -1, -1]))
-    self.assertAllClose(predictions, [[1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0],
-                                      [
-                                          math.exp(+1) / soft_max_sum,
-                                          math.exp(-1) / soft_max_sum,
-                                          math.exp(-1) / soft_max_sum
-                                      ]])
+    self.assertAllClose(
+        predictions,
+        [
+            [1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0],
+            [
+                math.exp(+1) / soft_max_sum,
+                math.exp(-1) / soft_max_sum,
+                math.exp(-1) / soft_max_sum,
+            ],
+        ],
+    )
 
   def test_regression_gbt(self):
     model_path = os.path.join(tmp_path(), "regression_gbt")
@@ -371,7 +461,8 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
         path=model_path,
         bias=1.0,
         model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
-        objective=py_tree.objective.RegressionObjective(label="age"))
+        objective=py_tree.objective.RegressionObjective(label="age"),
+    )
 
     # bias: 1.0
     #  f1>=1.5
@@ -382,18 +473,25 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
             NonLeafNode(
                 condition=NumericalHigherThanCondition(
                     feature=SimpleColumnSpec(
-                        name="f1", type=py_tree.dataspec.ColumnType.NUMERICAL),
+                        name="f1", type=py_tree.dataspec.ColumnType.NUMERICAL
+                    ),
                     threshold=1.5,
-                    missing_evaluation=False),
+                    missing_evaluation=False,
+                ),
                 pos_child=LeafNode(
-                    value=RegressionValue(value=+1, num_examples=30)),
+                    value=RegressionValue(value=+1, num_examples=30)
+                ),
                 neg_child=LeafNode(
-                    value=RegressionValue(value=-1, num_examples=30)))))
+                    value=RegressionValue(value=-1, num_examples=30)
+                ),
+            )
+        )
+    )
 
     builder.close()
 
     logging.info("Loading model")
-    loaded_model = tf.keras.models.load_model(model_path)
+    loaded_model = tf_keras.models.load_model(model_path)
 
     logging.info("Make predictions")
     tf_dataset = tf.data.Dataset.from_tensor_slices({
@@ -410,7 +508,9 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
         bias=1.0,
         model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
         objective=py_tree.objective.RankingObjective(
-            label="document", group="query"))
+            label="document", group="query"
+        ),
+    )
 
     # bias: 1.0
     #  f1>=1.5
@@ -421,18 +521,25 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
             NonLeafNode(
                 condition=NumericalHigherThanCondition(
                     feature=SimpleColumnSpec(
-                        name="f1", type=py_tree.dataspec.ColumnType.NUMERICAL),
+                        name="f1", type=py_tree.dataspec.ColumnType.NUMERICAL
+                    ),
                     threshold=1.5,
-                    missing_evaluation=False),
+                    missing_evaluation=False,
+                ),
                 pos_child=LeafNode(
-                    value=RegressionValue(value=+1, num_examples=30)),
+                    value=RegressionValue(value=+1, num_examples=30)
+                ),
                 neg_child=LeafNode(
-                    value=RegressionValue(value=-1, num_examples=30)))))
+                    value=RegressionValue(value=-1, num_examples=30)
+                ),
+            )
+        )
+    )
 
     builder.close()
 
     logging.info("Loading model")
-    loaded_model = tf.keras.models.load_model(model_path)
+    loaded_model = tf_keras.models.load_model(model_path)
 
     logging.info("Make predictions")
     tf_dataset = tf.data.Dataset.from_tensor_slices({
@@ -443,71 +550,104 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
 
   def test_error_empty_path(self):
     self.assertRaises(
-        ValueError, lambda: builder_lib.RandomForestBuilder(
+        ValueError,
+        lambda: builder_lib.RandomForestBuilder(
             path="",
             model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
-            objective=py_tree.objective.RegressionObjective("label")))
+            objective=py_tree.objective.RegressionObjective("label"),
+        ),
+    )
 
   def test_error_multi_tree_cart(self):
     builder = builder_lib.CARTBuilder(
         path=os.path.join(tmp_path(), "model"),
-        objective=py_tree.objective.RegressionObjective("label"))
+        objective=py_tree.objective.RegressionObjective("label"),
+    )
     builder.add_tree(Tree(LeafNode(RegressionValue(1, 30))))
 
     self.assertRaises(
         ValueError,
-        lambda: builder.add_tree(Tree(LeafNode(RegressionValue(1, 30)))))
+        lambda: builder.add_tree(Tree(LeafNode(RegressionValue(1, 30)))),
+    )
 
   def test_error_reg_cart_with_class_tree(self):
     builder = builder_lib.CARTBuilder(
         path=os.path.join(tmp_path(), "model"),
-        objective=py_tree.objective.RegressionObjective("label"))
+        objective=py_tree.objective.RegressionObjective("label"),
+    )
     self.assertRaises(
-        ValueError, lambda: builder.add_tree(
+        ValueError,
+        lambda: builder.add_tree(
             Tree(
                 LeafNode(
                     ProbabilityValue(
-                        probability=[0.8, 0.1, 0.1], num_examples=10)))))
+                        probability=[0.8, 0.1, 0.1], num_examples=10
+                    )
+                )
+            )
+        ),
+    )
 
   def test_error_class_cart_with_reg_tree(self):
     builder = builder_lib.CARTBuilder(
         path=os.path.join(tmp_path(), "model"),
         objective=py_tree.objective.ClassificationObjective(
-            "label", classes=["red", "blue"]))
+            "label", classes=["red", "blue"]
+        ),
+    )
     self.assertRaises(
         ValueError,
-        lambda: builder.add_tree(Tree(LeafNode(RegressionValue(1, 10)))))
+        lambda: builder.add_tree(Tree(LeafNode(RegressionValue(1, 10)))),
+    )
 
   def test_error_wrong_class_leaf_dim(self):
     builder = builder_lib.CARTBuilder(
         path=os.path.join(tmp_path(), "model"),
         objective=py_tree.objective.ClassificationObjective(
-            "label", classes=["red", "blue"]))
+            "label", classes=["red", "blue"]
+        ),
+    )
     self.assertRaises(
-        ValueError, lambda: builder.add_tree(
+        ValueError,
+        lambda: builder.add_tree(
             Tree(
                 LeafNode(
                     ProbabilityValue(
-                        probability=[0.8, 0.1, 0.1], num_examples=10)))))
+                        probability=[0.8, 0.1, 0.1], num_examples=10
+                    )
+                )
+            )
+        ),
+    )
 
   def test_error_gbt_with_class_tree(self):
     builder = builder_lib.GradientBoostedTreeBuilder(
         path=os.path.join(tmp_path(), "model"),
         objective=py_tree.objective.ClassificationObjective(
-            "label", classes=["red", "blue", "green"]))
+            "label", classes=["red", "blue", "green"]
+        ),
+    )
 
     self.assertRaises(
-        ValueError, lambda: builder.add_tree(
+        ValueError,
+        lambda: builder.add_tree(
             Tree(
                 LeafNode(
                     ProbabilityValue(
-                        probability=[0.8, 0.1, 0.1], num_examples=10)))))
+                        probability=[0.8, 0.1, 0.1], num_examples=10
+                    )
+                )
+            )
+        ),
+    )
 
   def test_error_gbt_wrong_number_of_trees(self):
     builder = builder_lib.GradientBoostedTreeBuilder(
         path=os.path.join(tmp_path(), "model"),
         objective=py_tree.objective.ClassificationObjective(
-            "label", classes=["red", "blue", "green"]))
+            "label", classes=["red", "blue", "green"]
+        ),
+    )
 
     builder.add_tree(Tree(LeafNode(RegressionValue(1, num_examples=10))))
     self.assertRaises(ValueError, builder.close)
@@ -516,23 +656,33 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
     builder = builder_lib.RandomForestBuilder(
         path=os.path.join(tmp_path(), "model"),
         objective=py_tree.objective.ClassificationObjective(
-            "label", classes=["true", "false"]))
+            "label", classes=["true", "false"]
+        ),
+    )
 
     builder.add_tree(
         Tree(
             NonLeafNode(
                 condition=CategoricalIsInCondition(
                     feature=SimpleColumnSpec(
-                        name="f1",
-                        type=py_tree.dataspec.ColumnType.CATEGORICAL),
+                        name="f1", type=py_tree.dataspec.ColumnType.CATEGORICAL
+                    ),
                     mask=["x", "y"],
-                    missing_evaluation=False),
+                    missing_evaluation=False,
+                ),
                 pos_child=LeafNode(
                     value=ProbabilityValue(
-                        probability=[0.8, 0.2], num_examples=10)),
+                        probability=[0.8, 0.2], num_examples=10
+                    )
+                ),
                 neg_child=LeafNode(
                     value=ProbabilityValue(
-                        probability=[0.2, 0.8], num_examples=20)))))
+                        probability=[0.2, 0.8], num_examples=20
+                    )
+                ),
+            )
+        )
+    )
 
     self.assertEqual(builder.get_dictionary("f1"), ["<OOD>", "x", "y"])
     builder.set_dictionary("f1", ["<OOD>", "x", "y", "z"])
@@ -551,17 +701,23 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
     dataset = keras.pd_dataframe_to_tf_dataset(dataframe, "income")
 
     # Load an inspector to an existing model.
-    src_model_path = os.path.join(test_model_directory(),
-                                  "adult_binary_class_rf")
+    src_model_path = os.path.join(
+        test_model_directory(), "adult_binary_class_rf"
+    )
     inspector = inspector_lib.make_inspector(src_model_path)
 
     # Extract a piece of this model
     def custom_model_input_signature(
-        inspector: inspector_lib.AbstractInspector):
+        inspector: inspector_lib.AbstractInspector,
+    ):
       input_spec = keras.build_default_input_model_signature(inspector)
       # Those features are stored as int64 in the dataset.
       for feature_name in [
-          "age", "fnlwgt", "capital_gain", "capital_loss", "hours_per_week"
+          "age",
+          "fnlwgt",
+          "capital_gain",
+          "capital_loss",
+          "hours_per_week",
       ]:
         input_spec[feature_name] = tf.TensorSpec(shape=[None], dtype=tf.int64)
       return input_spec
@@ -573,7 +729,8 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
         # Make sure the features and feature dictionaries are the same as in the
         # original model.
         import_dataspec=inspector.dataspec,
-        input_signature_example_fn=custom_model_input_signature)
+        input_signature_example_fn=custom_model_input_signature,
+    )
 
     # Extract the first 5 trees
     for i in range(5):
@@ -582,7 +739,7 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
 
     builder.close()
 
-    truncated_model = tf.keras.models.load_model(dst_model_path)
+    truncated_model = tf_keras.models.load_model(dst_model_path)
     predictions = truncated_model.predict(dataset)
     self.assertEqual(predictions.shape, (9769, 1))
 
@@ -593,7 +750,8 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
         path=model_path,
         bias=0.0,
         model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
-        objective=py_tree.objective.RegressionObjective(label="label"))
+        objective=py_tree.objective.RegressionObjective(label="label"),
+    )
 
     # f1>=-1.0 (default: false)
     #   │
@@ -613,11 +771,14 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
       return NonLeafNode(
           condition=NumericalHigherThanCondition(
               feature=SimpleColumnSpec(
-                  name=feature, type=py_tree.dataspec.ColumnType.NUMERICAL),
+                  name=feature, type=py_tree.dataspec.ColumnType.NUMERICAL
+              ),
               threshold=threshold,
-              missing_evaluation=missing_evaluation),
+              missing_evaluation=missing_evaluation,
+          ),
           pos_child=pos,
-          neg_child=neg)
+          neg_child=neg,
+      )
 
     def leaf(value):
       return LeafNode(RegressionValue(value=value, num_examples=1))
@@ -625,15 +786,20 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
     builder.add_tree(
         Tree(
             condition(
-                "f1", -1.0, False, condition("f1", 2.0, False, leaf(1),
-                                             leaf(2)),
+                "f1",
+                -1.0,
+                False,
+                condition("f1", 2.0, False, leaf(1), leaf(2)),
                 condition(
                     "f2",
                     -3.0,
                     True,
                     condition("f2", 4.0, False, leaf(3), leaf(4)),
                     leaf(5),
-                ))))
+                ),
+            )
+        )
+    )
     builder.close()
 
     logging.info("Loading model")
@@ -644,7 +810,7 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
     #
     # TODO:: Add API to check which inference engine is used.
 
-    loaded_model = tf.keras.models.load_model(model_path)
+    loaded_model = tf_keras.models.load_model(model_path)
 
     logging.info("Make predictions")
     tf_dataset = tf.data.Dataset.from_tensor_slices({
@@ -659,34 +825,6 @@ class BuilderTest(parameterized.TestCase, tf.test.TestCase):
     self.assertEqual(
         inspector.dataspec.columns[2].numerical.mean, (4.0 - 3.0) / 2.0
     )
-
-  def test_no_slow_inference(self):
-    model_path = os.path.join(tmp_path(), "no_slow_inference")
-    builder = builder_lib.CARTBuilder(
-        path=model_path,
-        model_format=builder_lib.ModelFormat.TENSORFLOW_SAVED_MODEL,
-        objective=py_tree.objective.RegressionObjective(label="color"),
-        advanced_arguments=builder_lib.AdvancedArguments(
-            allow_slow_inference=False
-        ),
-    )
-
-    builder.add_tree(
-        Tree(
-            NonLeafNode(
-                condition=py_tree.condition.IsMissingInCondition(
-                    feature=SimpleColumnSpec(
-                        name="f1", type=py_tree.dataspec.ColumnType.NUMERICAL
-                    ),
-                ),
-                pos_child=LeafNode(value=RegressionValue(value=1)),
-                neg_child=LeafNode(value=RegressionValue(value=2)),
-            )
-        )
-    )
-
-    with self.assertRaises(tf.errors.UnknownError):
-      builder.close()
 
   def test_categorical_is_in_global_imputation(self):
     model_path = os.path.join(tmp_path(), "categorical_is_in_global_imputation")

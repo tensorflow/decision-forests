@@ -22,11 +22,13 @@ import copy
 from functools import partial  # pylint: disable=g-importing-member
 import os
 import tempfile
-from typing import Optional, List, Dict, Any, Union, NamedTuple
+from typing import Any, Dict, List, NamedTuple, Optional, Union
 import uuid
 import zipfile
 
 import tensorflow as tf
+import tf_keras
+from tensorflow_decision_forests.keras import keras_internal
 
 from tensorflow.python.distribute import input_lib
 from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
@@ -39,11 +41,6 @@ from yggdrasil_decision_forests.learner.multitasker import multitasker_pb2
 from yggdrasil_decision_forests.model import abstract_model_pb2  # pylint: disable=unused-import
 from yggdrasil_decision_forests.utils.distribute.implementations.grpc import grpc_pb2  # pylint: disable=unused-import
 
-layers = tf.keras.layers
-models = tf.keras.models
-optimizers = tf.keras.optimizers
-losses = tf.keras.losses
-backend = tf.keras.backend
 
 # The length of a model identifier
 MODEL_IDENTIFIER_LENGTH = 16
@@ -225,7 +222,7 @@ class MultiTaskItem(NamedTuple):
     return self.output if self.output else self.label
 
 
-class InferenceCoreModel(models.Model):
+class InferenceCoreModel(tf_keras.models.Model):
   """Keras Model V2 wrapper around an Yggdrasil Model.
 
   See "CoreModel" in "core.py" for the definition of the arguments.
@@ -238,8 +235,8 @@ class InferenceCoreModel(models.Model):
       verbose: int = 1,
       advanced_arguments: Optional[AdvancedArguments] = None,
       name: Optional[str] = None,
-      preprocessing: Optional["models.Functional"] = None,
-      postprocessing: Optional["models.Functional"] = None,
+      preprocessing: Optional[keras_internal.Functional] = None,
+      postprocessing: Optional[keras_internal.Functional] = None,
       uplift_treatment: Optional[str] = None,
       temp_directory: Optional[str] = None,
       multitask: Optional[List[MultiTaskItem]] = None,
@@ -464,9 +461,8 @@ class InferenceCoreModel(models.Model):
     @tf.function(reduce_retracing=True)
     def predict_function_not_trained(iterator):
       """Prediction of a non-trained model. Returns "zeros"."""
-
       data = next(iterator)
-      x, _, _ = tf.keras.utils.unpack_x_y_sample_weight(data)
+      x, _, _ = keras_internal.unpack_x_y_sample_weight(data)
       batch_size = _batch_size(x)
       return tf.zeros([batch_size, 1])
 
@@ -898,7 +894,7 @@ class InferenceCoreModel(models.Model):
         # Extract the example here (instead of inside of "predict") to make
         # sure this operation is done on the chief.
         for row in dataset.take(1):
-          x, _, _ = tf.keras.utils.unpack_x_y_sample_weight(row)
+          x, _, _ = keras_internal.unpack_x_y_sample_weight(row)
           return x
       except Exception:  # pylint: disable=broad-except
         pass
@@ -1208,6 +1204,7 @@ def yggdrasil_model_to_keras_model(
     verbose: int = 1,
     disable_categorical_integer_offset_correction: bool = False,
     allow_slow_inference: bool = True,
+    keras_model_name: Optional[str] = None,
 ) -> None:
   """Converts an Yggdrasil model into a TensorFlow SavedModel / Keras model.
 
@@ -1229,6 +1226,7 @@ def yggdrasil_model_to_keras_model(
       integer offset correction. See
       disable_categorical_integer_offset_correction in AdvancedArguments for
       more details.
+    name: Optional name of the resulting model.
   """
 
   # Detect the container of the model.
@@ -1270,6 +1268,7 @@ def yggdrasil_model_to_keras_model(
           disable_categorical_integer_offset_correction=disable_categorical_integer_offset_correction,
           allow_slow_inference=allow_slow_inference,
       ),
+      name=keras_model_name,
   )
 
   model._set_from_yggdrasil_model(  # pylint: disable=protected-access
@@ -1279,7 +1278,7 @@ def yggdrasil_model_to_keras_model(
       input_model_signature_fn=input_model_signature_fn,
   )
 
-  tf.keras.models.save_model(model, dst_path)
+  tf_keras.models.save_model(model, dst_path)
   return
 
 

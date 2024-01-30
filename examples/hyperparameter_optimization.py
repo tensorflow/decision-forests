@@ -36,14 +36,14 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import tensorflow_decision_forests as tfdf
-
+import tf_keras
 
 def main(argv):
   if len(argv) > 1:
     raise app.UsageError("Too many command-line arguments.")
 
   # Download the Adult dataset.
-  dataset_path = tf.keras.utils.get_file(
+  dataset_path = tf_keras.utils.get_file(
       "adult.csv",
       "https://raw.githubusercontent.com/google/yggdrasil-decision-forests/"
       "main/yggdrasil_decision_forests/test_data/dataset/adult.csv")

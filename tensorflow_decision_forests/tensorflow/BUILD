@@ -77,6 +77,7 @@ py_library(
         # numpy dep,
         # pandas dep,
         # TensorFlow Python,
+        # tf_keras dep,
         "//tensorflow_decision_forests/component/inspector",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
         "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
@@ -92,6 +93,7 @@ py_library(
         # numpy dep,
         # pandas dep,
         # TensorFlow Python,
+        # tf_keras dep,
         # TensorFlow /distribute:distribute_lib,
         # TensorFlow /distribute:parameter_server_strategy_v2,
         # TensorFlow /distribute/coordinator:cluster_coordinator,
@@ -143,6 +145,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         # TensorFlow Python,
+        # tf_keras dep,
         # TensorFlow /trackable,
     ],
 )
@@ -160,6 +163,7 @@ py_test(
         # absl/logging dep,
         # pandas dep,
         # TensorFlow Python,
+        # tf_keras dep,
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
         "@ydf//yggdrasil_decision_forests/model:hyperparameter_py_proto",
     ],

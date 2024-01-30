@@ -28,6 +28,7 @@ documentation (and meta-data) used to generate this file.
 
 from typing import Optional, List, Set
 import tensorflow as tf
+import tf_keras
 
 from tensorflow_decision_forests.keras import core
 from tensorflow_decision_forests.component.tuner import tuner as tuner_lib
@@ -341,9 +342,9 @@ class CartModel(core.CoreModel):
       task: Optional[TaskType] = core.Task.CLASSIFICATION,
       features: Optional[List[core.FeatureUsage]] = None,
       exclude_non_specified_features: Optional[bool] = False,
-      preprocessing: Optional["tf.keras.models.Functional"] = None,
-      postprocessing: Optional["tf.keras.models.Functional"] = None,
-      training_preprocessing: Optional["tf.keras.models.Functional"] = None,
+      preprocessing: Optional["tf_keras.models.Functional"] = None,
+      postprocessing: Optional["tf_keras.models.Functional"] = None,
+      training_preprocessing: Optional["tf_keras.models.Functional"] = None,
       ranking_group: Optional[str] = None,
       uplift_treatment: Optional[str] = None,
       temp_directory: Optional[str] = None,
@@ -478,6 +479,7 @@ class CartModel(core.CoreModel):
     return abstract_learner_pb2.LearnerCapabilities(
         support_partial_cache_dataset_format=False
     )
+
 
 class DistributedGradientBoostedTreesModel(core.CoreModel):
   r"""Distributed Gradient Boosted Trees learning algorithm.
@@ -682,9 +684,9 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
       task: Optional[TaskType] = core.Task.CLASSIFICATION,
       features: Optional[List[core.FeatureUsage]] = None,
       exclude_non_specified_features: Optional[bool] = False,
-      preprocessing: Optional["tf.keras.models.Functional"] = None,
-      postprocessing: Optional["tf.keras.models.Functional"] = None,
-      training_preprocessing: Optional["tf.keras.models.Functional"] = None,
+      preprocessing: Optional["tf_keras.models.Functional"] = None,
+      postprocessing: Optional["tf_keras.models.Functional"] = None,
+      training_preprocessing: Optional["tf_keras.models.Functional"] = None,
       ranking_group: Optional[str] = None,
       uplift_treatment: Optional[str] = None,
       temp_directory: Optional[str] = None,
@@ -781,6 +783,7 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
     return abstract_learner_pb2.LearnerCapabilities(
         support_partial_cache_dataset_format=True
     )
+
 
 class GradientBoostedTreesModel(core.CoreModel):
   r"""Gradient Boosted Trees learning algorithm.
@@ -1199,9 +1202,9 @@ class GradientBoostedTreesModel(core.CoreModel):
       task: Optional[TaskType] = core.Task.CLASSIFICATION,
       features: Optional[List[core.FeatureUsage]] = None,
       exclude_non_specified_features: Optional[bool] = False,
-      preprocessing: Optional["tf.keras.models.Functional"] = None,
-      postprocessing: Optional["tf.keras.models.Functional"] = None,
-      training_preprocessing: Optional["tf.keras.models.Functional"] = None,
+      preprocessing: Optional["tf_keras.models.Functional"] = None,
+      postprocessing: Optional["tf_keras.models.Functional"] = None,
+      training_preprocessing: Optional["tf_keras.models.Functional"] = None,
       ranking_group: Optional[str] = None,
       uplift_treatment: Optional[str] = None,
       temp_directory: Optional[str] = None,
@@ -1416,6 +1419,7 @@ class GradientBoostedTreesModel(core.CoreModel):
         support_partial_cache_dataset_format=False
     )
 
+
 class HyperparameterOptimizerModel(core.CoreModel):
   r"""Hyperparameter Optimizer learning algorithm.
 
@@ -1572,9 +1576,9 @@ class HyperparameterOptimizerModel(core.CoreModel):
       task: Optional[TaskType] = core.Task.CLASSIFICATION,
       features: Optional[List[core.FeatureUsage]] = None,
       exclude_non_specified_features: Optional[bool] = False,
-      preprocessing: Optional["tf.keras.models.Functional"] = None,
-      postprocessing: Optional["tf.keras.models.Functional"] = None,
-      training_preprocessing: Optional["tf.keras.models.Functional"] = None,
+      preprocessing: Optional["tf_keras.models.Functional"] = None,
+      postprocessing: Optional["tf_keras.models.Functional"] = None,
+      training_preprocessing: Optional["tf_keras.models.Functional"] = None,
       ranking_group: Optional[str] = None,
       uplift_treatment: Optional[str] = None,
       temp_directory: Optional[str] = None,
@@ -1647,6 +1651,7 @@ class HyperparameterOptimizerModel(core.CoreModel):
     return abstract_learner_pb2.LearnerCapabilities(
         support_partial_cache_dataset_format=False
     )
+
 
 class MultitaskerModel(core.CoreModel):
   r"""Multitasker learning algorithm.
@@ -1804,9 +1809,9 @@ class MultitaskerModel(core.CoreModel):
       task: Optional[TaskType] = core.Task.CLASSIFICATION,
       features: Optional[List[core.FeatureUsage]] = None,
       exclude_non_specified_features: Optional[bool] = False,
-      preprocessing: Optional["tf.keras.models.Functional"] = None,
-      postprocessing: Optional["tf.keras.models.Functional"] = None,
-      training_preprocessing: Optional["tf.keras.models.Functional"] = None,
+      preprocessing: Optional["tf_keras.models.Functional"] = None,
+      postprocessing: Optional["tf_keras.models.Functional"] = None,
+      training_preprocessing: Optional["tf_keras.models.Functional"] = None,
       ranking_group: Optional[str] = None,
       uplift_treatment: Optional[str] = None,
       temp_directory: Optional[str] = None,
@@ -1879,6 +1884,7 @@ class MultitaskerModel(core.CoreModel):
     return abstract_learner_pb2.LearnerCapabilities(
         support_partial_cache_dataset_format=False
     )
+
 
 class RandomForestModel(core.CoreModel):
   r"""Random Forest learning algorithm.
@@ -2231,9 +2237,9 @@ class RandomForestModel(core.CoreModel):
       task: Optional[TaskType] = core.Task.CLASSIFICATION,
       features: Optional[List[core.FeatureUsage]] = None,
       exclude_non_specified_features: Optional[bool] = False,
-      preprocessing: Optional["tf.keras.models.Functional"] = None,
-      postprocessing: Optional["tf.keras.models.Functional"] = None,
-      training_preprocessing: Optional["tf.keras.models.Functional"] = None,
+      preprocessing: Optional["tf_keras.models.Functional"] = None,
+      postprocessing: Optional["tf_keras.models.Functional"] = None,
+      training_preprocessing: Optional["tf_keras.models.Functional"] = None,
       ranking_group: Optional[str] = None,
       uplift_treatment: Optional[str] = None,
       temp_directory: Optional[str] = None,

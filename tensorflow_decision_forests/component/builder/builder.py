@@ -106,7 +106,7 @@ builder.set_dictionary("f2",["<OOD>", "x", "y", "z"]
 builder.close()
 
 # Load and use the model
-model = tf.keras.models.load_model("/path/to/model")
+model = tf_keras.models.load_model("/path/to/model")
 predictions = model.predict(...)
 ```
 """
@@ -193,6 +193,7 @@ class AbstractBuilder(object):
       file_prefix: Optional[str] = None,
       verbose: int = 1,
       advanced_arguments: Optional[AdvancedArguments] = None,
+      keras_model_name: Optional[str] = None,
   ):
     if not path:
       raise ValueError("The path cannot be empty")
@@ -208,6 +209,7 @@ class AbstractBuilder(object):
     if self._file_prefix is None:
       self._file_prefix = keras_core.generate_training_id()
     self._verbose = verbose
+    self._keras_model_name = keras_model_name
 
     self._header.name = self.model_type()
     self._header.task = objective.task
@@ -276,6 +278,7 @@ class AbstractBuilder(object):
           verbose=self._verbose,
           disable_categorical_integer_offset_correction=self._advanced_arguments.disable_categorical_integer_offset_correction,
           allow_slow_inference=self._advanced_arguments.allow_slow_inference,
+          keras_model_name=self._keras_model_name,
       )
       tf.io.gfile.rmtree(self.yggdrasil_model_path())
 
@@ -594,6 +597,7 @@ class AbstractDecisionForestBuilder(AbstractBuilder):
       file_prefix: Optional[str] = None,
       verbose: int = 1,
       advanced_arguments: Optional[AdvancedArguments] = None,
+      keras_model_name: Optional[str] = None,
   ):
     super(AbstractDecisionForestBuilder, self).__init__(
         path,
@@ -604,6 +608,7 @@ class AbstractDecisionForestBuilder(AbstractBuilder):
         file_prefix,
         verbose,
         advanced_arguments,
+        keras_model_name=keras_model_name,
     )
 
     self._trees = []
@@ -823,6 +828,7 @@ class RandomForestBuilder(AbstractDecisionForestBuilder):
       file_prefix: Optional[str] = None,
       verbose: int = 1,
       advanced_arguments: Optional[AdvancedArguments] = None,
+      keras_model_name: Optional[str] = None,
   ):
     self._specialized_header = random_forest_pb2.Header(
         winner_take_all_inference=winner_take_all
@@ -838,6 +844,7 @@ class RandomForestBuilder(AbstractDecisionForestBuilder):
         file_prefix,
         verbose,
         advanced_arguments,
+        keras_model_name,
     )
 
   def model_type(self) -> str:
@@ -913,6 +920,7 @@ class GradientBoostedTreeBuilder(AbstractDecisionForestBuilder):
       file_prefix: Optional[str] = None,
       verbose: int = 1,
       advanced_arguments: Optional[AdvancedArguments] = None,
+      keras_model_name: Optional[str] = None,
   ):
     # Compute the number of tree per iterations and loss.
     #
@@ -974,7 +982,8 @@ class GradientBoostedTreeBuilder(AbstractDecisionForestBuilder):
         file_prefix,
         verbose,
         advanced_arguments,
-    )
+        keras_model_name,
+  )
 
   def model_type(self) -> str:
     return "GRADIENT_BOOSTED_TREES"

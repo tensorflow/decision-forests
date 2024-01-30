@@ -90,7 +90,7 @@ to the estimator format.
 
 While abstracted by the Keras API, a model instantiated in Python (e.g., with
 `tfdf.keras.RandomForestModel()`) and a model loaded from disk (e.g., with
-`tf.keras.models.load_model()`) can behave differently. Notably, a Python
+`tf_keras.models.load_model()`) can behave differently. Notably, a Python
 instantiated model automatically applies necessary type conversions. For
 example, if a `float64` feature is fed to a model expecting a `float32` feature,
 this conversion is performed implicitly. However, such a conversion is not

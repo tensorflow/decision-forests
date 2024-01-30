@@ -46,12 +46,12 @@ model.save("/tmp/my_saved_model")
 # ...
 
 # Load a model: it loads as a generic keras model.
-loaded_model = tf.keras.models.load_model("/tmp/my_saved_model")
+loaded_model = tf_keras.models.load_model("/tmp/my_saved_model")
 ```
 
 """
 
-__version__ = "1.8.0"
+__version__ = "1.8.1"
 __author__ = "Mathieu Guillame-Bert"
 
 compatible_tf_versions = ["2.15.0"]

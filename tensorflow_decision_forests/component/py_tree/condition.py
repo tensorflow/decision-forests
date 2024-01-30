@@ -301,7 +301,7 @@ def core_condition_to_condition(
                                              core_condition.split_score)
 
   if condition_type.HasField("contains_condition"):
-    items = condition_type.contains_condition.elements
+    items = list(condition_type.contains_condition.elements)
     if not column_spec.categorical.is_already_integerized:
       items = [
           dataspec_lib.categorical_value_idx_to_value(column_spec, item)

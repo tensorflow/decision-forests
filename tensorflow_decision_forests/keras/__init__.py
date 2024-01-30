@@ -44,7 +44,7 @@ model.save("/path/to/my/model")
 # ...
 
 # Load a model: it loads as a generic keras model.
-loaded_model = tf.keras.models.load_model("/path/to/my/model")
+loaded_model = tf_keras.models.load_model("/path/to/my/model")
 ```
 """
 
