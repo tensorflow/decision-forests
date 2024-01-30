@@ -56,8 +56,10 @@ ${PYTHON} -m pip install numpy pandas scikit-learn tf_keras
 # Install Tensorflow at the chosen version.
 if [ ${TF_VERSION} == "nightly" ]; then
   ${PYTHON} -m pip install tf-nightly --force-reinstall
+  TF_MINOR="nightly"
 else
   ${PYTHON} -m pip install tensorflow==${TF_VERSION} --force-reinstall
+  TF_MINOR=$(echo $TF_VERSION | grep -oP '[0-9]+\.[0-9]+')
 fi
 ext=""
 
@@ -72,7 +74,7 @@ if is_macos; then
 fi
 
 # For Tensorflow versions > 2.15, apply compatibility patches.
-TF_MINOR=$(echo $TF_VERSION | grep -oP '[0-9]+\.[0-9]+')
+
 if [[ ${TF_MINOR} != "2.15" ]]; then
   sed -i $ext "s/tensorflow:tf.patch/tensorflow:tf-216.patch/" WORKSPACE
   sed -i $ext "s/# patch_args = \[\"-p1\"\],/patch_args = \[\"-p1\"\],/" third_party/yggdrasil_decision_forests/workspace.bzl
