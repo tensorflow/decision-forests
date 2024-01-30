@@ -58,18 +58,25 @@ if [ ${TF_VERSION} == "nightly" ]; then
   ${PYTHON} -m pip install tf-nightly --force-reinstall
 else
   ${PYTHON} -m pip install tensorflow==${TF_VERSION} --force-reinstall
-  TF_MINOR=$(echo $TF_VERSION | grep -oE '[0-9]+\.[0-9]*')
 fi
+ext=""
 
 pip list
 
-ext=""
 if is_macos; then
   ext='""'
   # Tensorflow requires the use of GNU realpath instead of MacOS realpath.
   # See https://github.com/tensorflow/tensorflow/issues/60088#issuecomment-1499766349
   # If missing, install coreutils via homebrew: `brew install coreutils`
   export PATH="/opt/homebrew/opt/coreutils/libexec/gnubin:$PATH"
+fi
+
+# For Tensorflow versions > 2.15, apply compatibility patches.
+TF_MINOR=$(echo $TF_VERSION | grep -oP '[0-9]+\.[0-9]+')
+if [[ ${TF_MINOR} != "2.15" ]]; then
+  sed -i $ext "s/tensorflow:tf.patch/tensorflow:tf-216.patch/" WORKSPACE
+  sed -i $ext "s/# patch_args = \[\"-p1\"\],/patch_args = \[\"-p1\"\],/" third_party/yggdrasil_decision_forests/workspace.bzl
+  sed -i $ext "s/# patches = \[\"\/\/third_party\/yggdrasil_decision_forests:ydf.patch\"\],/patches = \[\"\/\/third_party\/yggdrasil_decision_forests:ydf.patch\"\],/" third_party/yggdrasil_decision_forests/workspace.bzl
 fi
 
 # Get the commit SHA

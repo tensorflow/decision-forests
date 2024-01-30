@@ -1,0 +1,13 @@
+diff --git a/yggdrasil_decision_forests/learner/decision_tree/BUILD b/yggdrasil_decision_forests/learner/decision_tree/BUILD
+index 201418c..23de5cc 100644
+--- a/yggdrasil_decision_forests/learner/decision_tree/BUILD
++++ b/yggdrasil_decision_forests/learner/decision_tree/BUILD
+@@ -49,7 +49,7 @@ cc_library_ydf(
+         "@com_google_absl//absl/strings",
+         "@com_google_absl//absl/time",
+         "@com_google_absl//absl/types:optional",
+-        "@eigen_archive//:eigen3_internal",
++        "@eigen_archive//:eigen3",
+     ] + select({
+         "//conditions:default": [
+         ],

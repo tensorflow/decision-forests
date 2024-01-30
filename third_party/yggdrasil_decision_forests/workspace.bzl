@@ -8,6 +8,8 @@ def deps(from_git_repo = True):
             name = "ydf",
             urls = ["https://github.com/google/yggdrasil-decision-forests/archive/refs/heads/main.zip"],
             strip_prefix = "yggdrasil-decision-forests-main",
+            # patch_args = ["-p1"],
+            # patches = ["@ydf//yggdrasil_decision_forests:ydf.patch"],
         )
     else:
         # You can also clone the YDF repository manually.
