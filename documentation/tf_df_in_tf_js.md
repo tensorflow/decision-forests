@@ -39,6 +39,7 @@ to TensorFlow.js.
 
 ```python
 !pip install tensorflow tensorflow_decision_forests 'tensorflowjs>=4.4.0'
+!pip install tf_keras
 
 # Prepare and load the model with TensorFlow
 import tensorflow as tf
