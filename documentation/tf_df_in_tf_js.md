@@ -25,10 +25,9 @@ import pandas as pd
 dataset_df = pd.read_csv("/tmp/penguins.csv")
 train_ds = tfdf.keras.pd_dataframe_to_tf_dataset(dataset_df, label="species")
 
-# Create, train and save the model
+# Create and train the model
 model_1 = tfdf.keras.GradientBoostedTreesModel()
 model_1.fit(train_ds)
-model_1.save("/tmp/my_saved_model")
 ```
 
 ### Convert the model
@@ -43,16 +42,14 @@ to TensorFlow.js.
 
 # Prepare and load the model with TensorFlow
 import tensorflow as tf
-import tensorflow_decision_forests as tfdf
 import tensorflowjs as tfjs
 from google.colab import files
-import tf_keras
 
-# Load the model with Keras
-model = tf_keras.models.load_model("/tmp/my_saved_model/")
+# Save the model in the SavedModel format
+tf.saved_model.save(model_1, "/tmp/my_saved_model")
 
-# Convert the keras model to TensorFlow.js
-tfjs.converters.tf_saved_model_conversion_v2.convert_keras_model_to_graph_model(model, "./tfjs_model")
+# Convert the SavedModel to TensorFlow.js and save as a zip file
+tfjs.converters.tf_saved_model_conversion_v2.convert_tf_saved_model("/tmp/my_saved_model", "./tfjs_model")
 
 # Download the converted TFJS model
 !zip -r tfjs_model.zip tfjs_model/
