@@ -392,6 +392,7 @@ class CartModel(core.CoreModel):
       validation_ratio: Optional[float] = 0.1,
       explicit_args: Optional[Set[str]] = None,
   ):
+
     learner_params = {
         "allow_na_conditions": allow_na_conditions,
         "categorical_algorithm": categorical_algorithm,
@@ -479,7 +480,6 @@ class CartModel(core.CoreModel):
     return abstract_learner_pb2.LearnerCapabilities(
         support_partial_cache_dataset_format=False
     )
-
 
 class DistributedGradientBoostedTreesModel(core.CoreModel):
   r"""Distributed Gradient Boosted Trees learning algorithm.
@@ -719,6 +719,7 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
       worker_logs: Optional[bool] = True,
       explicit_args: Optional[Set[str]] = None,
   ):
+
     learner_params = {
         "apply_link_function": apply_link_function,
         "force_numerical_discretization": force_numerical_discretization,
@@ -783,7 +784,6 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
     return abstract_learner_pb2.LearnerCapabilities(
         support_partial_cache_dataset_format=True
     )
-
 
 class GradientBoostedTreesModel(core.CoreModel):
   r"""Gradient Boosted Trees learning algorithm.
@@ -981,12 +981,15 @@ class GradientBoostedTreesModel(core.CoreModel):
     dart_dropout: Dropout rate applied when using the DART i.e. when
       forest_extraction=DART. Default: 0.01.
     early_stopping: Early stopping detects the overfitting of the model and
-      halts it training using the validation dataset controlled by
-      `validation_ratio`. - `NONE`: No early stopping. The model is trained
-      entirely. - `MIN_LOSS_FINAL`: No early stopping. However, the model is
-      then truncated to minimize the validation loss. - `LOSS_INCREASE`: Stop
-      the training when the validation does not decrease for
-      `early_stopping_num_trees_look_ahead` trees. Default: "LOSS_INCREASE".
+      halts it training using the validation dataset. If not provided directly,
+      the validation dataset is extracted from the training dataset (see
+      "validation_ratio" parameter): - `NONE`: No early stopping. All the
+      num_trees are trained and kept. - `MIN_LOSS_FINAL`: All the num_trees are
+      trained. The model is then truncated to minimize the validation loss i.e.
+      some of the trees are discarded as to minimum the validation loss. -
+      `LOSS_INCREASE`: Classical early stopping. Stop the training when the
+      validation does not decrease for `early_stopping_num_trees_look_ahead`
+      trees. Default: "LOSS_INCREASE".
     early_stopping_initial_iteration: 0-based index of the first iteration
       considered for early stopping computation. Increasing this value prevents
       too early stopping due to noisy initial iterations of the learner.
@@ -1068,7 +1071,11 @@ class GradientBoostedTreesModel(core.CoreModel):
       regression. - `MULTINOMIAL_LOG_LIKELIHOOD`: Multinomial log likelihood
       i.e. cross-entropy. Only valid for binary or multi-class classification. -
       `LAMBDA_MART_NDCG5`: LambdaMART with NDCG5. - `XE_NDCG_MART`:  Cross
-      Entropy Loss NDCG. See arxiv.org/abs/1911.09798.
+      Entropy Loss NDCG. See arxiv.org/abs/1911.09798. - `BINARY_FOCAL_LOSS`:
+      Focal loss. Only valid for binary classification. See
+      https://arxiv.org/pdf/1708.02002.pdf. - `POISSON`: Poisson log likelihood.
+        Only valid for regression. - `MEAN_AVERAGE_ERROR`: Mean average error
+        a.k.a. MAE.
         Default: "DEFAULT".
     max_depth: Maximum depth of the tree. `max_depth=1` means that all trees
       will be roots. Negative values are ignored. Default: 6.
@@ -1192,8 +1199,14 @@ class GradientBoostedTreesModel(core.CoreModel):
       "validation_interval_in_trees" trees. Increasing this value reduce the
       cost of validation and can impact the early stopping policy (as early
       stopping is only tested during the validation). Default: 1.
-    validation_ratio: Ratio of the training dataset used to monitor the
-      training. Require to be >0 if early stopping is enabled. Default: 0.1.
+    validation_ratio: Fraction of the training dataset used for validation if
+      not validation dataset is provided. The validation dataset, whether
+      provided directly or extracted from the training dataset, is used to
+      compute the validation loss, other validation metrics, and possibly
+      trigger early stopping (if enabled). When early stopping is disabled, the
+      validation dataset is only used for monitoring and does not influence the
+      model directly. If the "validation_ratio" is set to 0, early stopping is
+      disabled (i.e., it implies setting early_stopping=NONE). Default: 0.1.
   """
 
   @core._list_explicit_arguments
@@ -1276,6 +1289,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       validation_ratio: Optional[float] = 0.1,
       explicit_args: Optional[Set[str]] = None,
   ):
+
     learner_params = {
         "adapt_subsample_for_maximum_training_duration": (
             adapt_subsample_for_maximum_training_duration
@@ -1418,7 +1432,6 @@ class GradientBoostedTreesModel(core.CoreModel):
     return abstract_learner_pb2.LearnerCapabilities(
         support_partial_cache_dataset_format=False
     )
-
 
 class HyperparameterOptimizerModel(core.CoreModel):
   r"""Hyperparameter Optimizer learning algorithm.
@@ -1600,6 +1613,7 @@ class HyperparameterOptimizerModel(core.CoreModel):
       random_seed: Optional[int] = 123456,
       explicit_args: Optional[Set[str]] = None,
   ):
+
     learner_params = {
         "maximum_model_size_in_memory_in_bytes": (
             maximum_model_size_in_memory_in_bytes
@@ -1651,7 +1665,6 @@ class HyperparameterOptimizerModel(core.CoreModel):
     return abstract_learner_pb2.LearnerCapabilities(
         support_partial_cache_dataset_format=False
     )
-
 
 class MultitaskerModel(core.CoreModel):
   r"""Multitasker learning algorithm.
@@ -1833,6 +1846,7 @@ class MultitaskerModel(core.CoreModel):
       random_seed: Optional[int] = 123456,
       explicit_args: Optional[Set[str]] = None,
   ):
+
     learner_params = {
         "maximum_model_size_in_memory_in_bytes": (
             maximum_model_size_in_memory_in_bytes
@@ -1884,7 +1898,6 @@ class MultitaskerModel(core.CoreModel):
     return abstract_learner_pb2.LearnerCapabilities(
         support_partial_cache_dataset_format=False
     )
-
 
 class RandomForestModel(core.CoreModel):
   r"""Random Forest learning algorithm.
@@ -2297,6 +2310,7 @@ class RandomForestModel(core.CoreModel):
       winner_take_all: Optional[bool] = True,
       explicit_args: Optional[Set[str]] = None,
   ):
+
     learner_params = {
         "adapt_bootstrap_size_ratio_for_maximum_training_duration": (
             adapt_bootstrap_size_ratio_for_maximum_training_duration
