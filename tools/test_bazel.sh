@@ -51,15 +51,16 @@ function is_macos() {
 # Install Pip dependencies
 ${PYTHON} -m ensurepip --upgrade || true
 ${PYTHON} -m pip install pip setuptools --upgrade
-${PYTHON} -m pip install numpy pandas scikit-learn tf_keras
+${PYTHON} -m pip install numpy pandas scikit-learn
 
 # Install Tensorflow at the chosen version.
 if [ ${TF_VERSION} == "nightly" ]; then
-  ${PYTHON} -m pip install tf-nightly --force-reinstall
+  ${PYTHON} -m pip install tf-nightly tf-keras-nightly --force-reinstall
   TF_MINOR="nightly"
 else
   ${PYTHON} -m pip install tensorflow==${TF_VERSION} --force-reinstall
   TF_MINOR=$(echo $TF_VERSION | grep -oP '[0-9]+\.[0-9]+')
+  ${PYTHON} -m pip install tf-keras==${TF_MINOR}  --force-reinstall
 fi
 ext=""
 
