@@ -1275,7 +1275,7 @@ class SimpleMLInferenceOp : public OpKernel {
 
   void Compute(OpKernelContext* ctx) override {
     // Make sure the model is available.
-    tf::StatusOr<YggdrasilModelResource*> model_resource_or =
+    absl::StatusOr<YggdrasilModelResource*> model_resource_or =
         GetModelResource(ctx);
     OP_REQUIRES_OK(ctx, model_resource_or.status());
     YggdrasilModelResource* model_resource = model_resource_or.value();
@@ -1341,7 +1341,8 @@ class SimpleMLInferenceOp : public OpKernel {
   // "SimpleMLInferenceOp" class.
   //
   // This method is thread safe.
-  tf::StatusOr<YggdrasilModelResource*> GetModelResource(OpKernelContext* ctx) {
+  absl::StatusOr<YggdrasilModelResource*> GetModelResource(
+      OpKernelContext* ctx) {
     {
       tf::tf_shared_lock l(model_container_mutex_);
       if (model_container_) {
@@ -1364,7 +1365,7 @@ class SimpleMLInferenceOp : public OpKernel {
   // Imports the model resource.
   //
   // The returned resource IS tracked with ref count.
-  virtual tf::StatusOr<YggdrasilModelResource*> ImportModelResource(
+  virtual absl::StatusOr<YggdrasilModelResource*> ImportModelResource(
       OpKernelContext* ctx) {
     // The resource exists but is not tracked in the class.
     //
@@ -1414,7 +1415,7 @@ class SimpleMLInferenceOp : public OpKernel {
 
   // Gets the c++ references on all the input tensor values of the inference op.
   // In other words, get the input tensor and cast them to the expected type.
-  tf::StatusOr<InputTensors> LinkInputTensors(
+  absl::StatusOr<InputTensors> LinkInputTensors(
       OpKernelContext* ctx, const FeatureIndex& feature_index) {
     const Tensor* numerical_features_tensor = nullptr;
     const Tensor* boolean_features_tensor = nullptr;
@@ -1471,8 +1472,8 @@ class SimpleMLInferenceOp : public OpKernel {
 
   // Allocates and gets the c++ references to all the output tensor values of
   // the inference op.
-  tf::StatusOr<OutputTensors> LinkOutputTensors(OpKernelContext* ctx,
-                                                const int batch_size) {
+  absl::StatusOr<OutputTensors> LinkOutputTensors(OpKernelContext* ctx,
+                                                  const int batch_size) {
     Tensor* dense_predictions_tensor = nullptr;
     Tensor* dense_col_representation_tensor = nullptr;
 
@@ -1489,7 +1490,7 @@ class SimpleMLInferenceOp : public OpKernel {
   }
 
   // Allocates and gets the c++ references to the output leaves.
-  tf::StatusOr<OutputLeavesTensors> LinkOutputLeavesTensors(
+  absl::StatusOr<OutputLeavesTensors> LinkOutputLeavesTensors(
       OpKernelContext* ctx, const int batch_size, const int num_trees) {
     Tensor* leaves_tensor = nullptr;
     TF_RETURN_IF_ERROR(ctx->allocate_output(
@@ -1574,7 +1575,7 @@ class SimpleMLInferenceOpWithHandle : public SimpleMLInferenceOp {
 
   ~SimpleMLInferenceOpWithHandle() override {}
 
-  tf::StatusOr<YggdrasilModelResource*> ImportModelResource(
+  absl::StatusOr<YggdrasilModelResource*> ImportModelResource(
       OpKernelContext* ctx) override {
     YggdrasilModelResource* res;
     TF_RETURN_IF_ERROR(GetModelResourceFromResourceHandle(ctx, &res));
@@ -1594,7 +1595,7 @@ class SimpleMLInferenceLeafIndexOpWithHandle : public SimpleMLInferenceOp {
 
   ~SimpleMLInferenceLeafIndexOpWithHandle() override {}
 
-  tf::StatusOr<YggdrasilModelResource*> ImportModelResource(
+  absl::StatusOr<YggdrasilModelResource*> ImportModelResource(
       OpKernelContext* ctx) override {
     YggdrasilModelResource* res;
     TF_RETURN_IF_ERROR(GetModelResourceFromResourceHandle(ctx, &res));
