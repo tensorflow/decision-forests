@@ -39,7 +39,7 @@ REGISTER_OP("SimpleMLCreateYDFGRPCWorker")
     .Output("port: int32")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
       c->set_output(0, c->Scalar());
-      return OkStatus();
+      return absl::OkStatus();
     });
 
 // Indicates to the GRPC manager that the address of a worker have changed.
@@ -63,7 +63,7 @@ REGISTER_OP("SimpleMLUpdateGRPCWorkerAddress")
           0, {shape_inference::ShapeAndType(c->Scalar(), DataType::DT_INT32)});
       c->set_input_handle_shapes_and_types(
           1, {shape_inference::ShapeAndType(c->Scalar(), DataType::DT_STRING)});
-      return OkStatus();
+      return absl::OkStatus();
     });
 
 // Stop any running YDF GRPC Worker server.
@@ -75,7 +75,7 @@ REGISTER_OP("SimpleMLStopYDFGRPCWorker")
     .SetIsStateful()
     .Attr("key: int")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-      return OkStatus();
+      return absl::OkStatus();
     });
 
 }  // namespace tensorflow
