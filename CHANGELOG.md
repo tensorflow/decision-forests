@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.9.0rc0 - 2024-02-26
+
+### Fix
+
+-   Fix max_depth, early stopping parameter documentation.
+-   Fix plotting contains conditions.
+
+### Features
+
+-   Compatibility with TensorFlow 2.16.0rc0.
+-   Using tf_keras instead tf.keras in examples, documentation.
+-   Support NAConditions for fast engine.
+
 ## 1.8.1 - 2023-11-17
 
 ### Fix
