@@ -34,7 +34,7 @@ REQUIRED_PACKAGES = [
     "absl_py",
     "wheel",
     "wurlitzer",
-    "tf_keras",
+    "tf_keras~=2.16.0rc2",
 ]
 
 

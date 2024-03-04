@@ -59,8 +59,12 @@ if [ ${TF_VERSION} == "nightly" ]; then
   TF_MINOR="nightly"
 else
   ${PYTHON} -m pip install tensorflow==${TF_VERSION} --force-reinstall
-  TF_MINOR=$(echo $TF_VERSION | grep -oP '[0-9]+\.[0-9]+')
-  ${PYTHON} -m pip install tf-keras==${TF_MINOR}  --force-reinstall
+  if [[ $TF_VERSION == *"rc"* ]]; then
+    ${PYTHON} -m pip install tf-keras --pre --upgrade
+  else
+    TF_MINOR=$(echo $TF_VERSION | grep -oP '[0-9]+\.[0-9]+')
+    ${PYTHON} -m pip install tf-keras==${TF_MINOR}
+  fi
 fi
 ext=""
 
