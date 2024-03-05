@@ -102,6 +102,7 @@ function assemble_files() {
 
   # When cross-compiling, adapt the platform string.
   if [ ${ARG} == "ALL_VERSIONS_MAC_INTEL_CROSSCOMPILE" ]; then
+    sed -i'.bak' -e "s/plat = \"macosx_12_0_arm64\"/# plat = \"macosx_12_0_arm64\"/" ${SRCPK}/setup.py
     sed -i'.bak' -e "s/# plat = \"macosx_10_15_x86_64\"/plat = \"macosx_10_15_x86_64\"/" ${SRCPK}/setup.py
   fi
 

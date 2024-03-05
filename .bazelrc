@@ -60,7 +60,6 @@ build --strategy=Genrule=standalone
 build --action_env TF_NEED_CUDA="0"
 
 # Host specifics options.
-build:macos --config=release_base
 build:macos --features=-supports_dynamic_linker
 # On Intel machines, AVX2 is available
 build:macos_intel --config=avx_linux

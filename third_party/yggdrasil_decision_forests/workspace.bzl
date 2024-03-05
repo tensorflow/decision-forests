@@ -13,6 +13,7 @@ def deps(from_git_repo = True):
         )
     else:
         # You can also clone the YDF repository manually.
+        # Note that you need to manually apply the patch for Tensorflow >= 2.16 or nightly.
         native.local_repository(
             name = "ydf",
             # When downloading from Github, you might need - instead of _ as folder name

@@ -68,7 +68,7 @@ try:
       if platform.system() == "Darwin":
         # Uncomment on of the lines below to adapt the platform string when
         # cross-compiling.
-        # plat = "macosx_12_0_arm64"
+        plat = "macosx_12_0_arm64"
         # plat = "macosx_10_15_x86_64"
         pass
       return python, abi, plat
