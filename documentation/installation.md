@@ -73,8 +73,8 @@ cd decision-forests
 
 **Optional:** TensorFlow Decision Forests depends on
 [Yggdrasil Decision Forests](https://github.com/google/yggdrasil-decision-forests)
-. If you want to edit the Yggdrasil code, you can clone the Yggdrasil github and
-change the path accordingly in
+. If you want to edit the Yggdrasil code, you can clone the Yggdrasil repository
+and change the path accordingly in
 `third_party/yggdrasil_decision_forests/workspace.bzl`.
 
 **Optional:** If you want to use the docker option, run the
@@ -145,59 +145,38 @@ of python using pyenv by running the following command. See the header of
 
 -   XCode command line tools
 -   Bazel (recommended [Bazelisk](https://github.com/bazelbuild/bazelisk))
--   Python >= 3.9
--   Git
+-   Homebrew packages: GNU coreutils, GNU sed, GNU grep
 -   Pyenv (for building the Pip packages with multiple Python versions)
 
-#### Building  / Packaging (Apple CPU)
+#### Arm64 CPU
 
-If you have a MacOS machine with Apple CPU, you can build with the following
-instructions.
+For MacOS systems with ARM64 CPU, follow these steps:
 
-1.  Clone the three repositories and adjust paths.
+1.  Prepare your environment
 
     ```
     git clone https://github.com/tensorflow/decision-forests.git
-    git clone https://github.com/google/yggdrasil-decision-forests.git
-    git clone --branch boost-1.75.0 https://github.com/boostorg/boost.git
-    (cd boost && git submodule update --init --checkout --force)
-    # Adjust path TF-DF --> YDF
-    perl -0777 -i.original -pe 's/    http_archive\(\n        name = "ydf",\n        urls = \["https:\/\/github.com\/google\/yggdrasil-decision-forests\/archive\/refs\/heads\/main.zip"\],\n        strip_prefix = "yggdrasil-decision-forests-main",\n    \)/    native.local_repository\(\n        name = "ydf",\n        path = "..\/yggdrasil-decision-forests",\n    \)/igs' decision-forests/third_party/yggdrasil_decision_forests/workspace.bzl
-    # Adjust path YDF --> Boost
-    perl -0777 -i.original -pe 's/    new_git_repository\(\n        name = "org_boost",\n        branch = branch,\n        build_file_content = build_file_content,\n        init_submodules = True,\n        recursive_init_submodules = True,\n        remote = "https:\/\/github.com\/boostorg\/boost",\n    \)/    native.new_local_repository\(\n        name = "org_boost",\n        path = "..\/boost",\n        build_file_content = build_file_content,\n    \)/igs' yggdrasil-decision-forests/third_party/boost/workspace.bzl
-    ```
-
-    You may need to adjust the test_bazel.sh script manually to fix the
-    Tensorflow commit hash, since it is sometimes broken for MacOS builds.
-
-1.  (Optional) Create a fresh virtual environment and activate it
-
-    ```
     python3 -m venv venv
     source venv/source/activate
     ```
 
-1.  Adjust the TensorFlow dependency for Apple CPUs
-
-    ```
-    perl -0777 -i.original -pe 's/tensorflow~=/tensorflow-macos~=/igs' decision-forests/configure/setup.py
-    ```
-
-1.  Decide which Python version you want to use and run
+1.  Decide which Python version and TensorFlow version you want to use and run
 
     ```
     cd decision-forests
-    # This will compile with the latest Tensorflow version in the tensorflow-macos repository.
-    RUN_TESTS=1 PY_VERSION=3.9 TF_VERSION=mac-arm64 ./tools/test_bazel.sh
+    export TF_VERSION=2.15.0  # Change to the TensorFlow Version you need.
+    export PY_VERSION=3.9     # Change to the Python you need.
+    export RUN_TESTS=1        # Change to 0 if you want to skip tests.
+    ./tools/test_bazel.sh     # Takes ~15 minutes on a modern Mac.
     ```
 
-1.  Build the Pip Packages
+1.  Package the code.
 
     ```
-    # First, we deactivate our virtualenv, since the Pip script uses a different one.
+    # Building the packages uses different virtualenvs through Pyenv.
     deactivate
     # Build the packages.
-    ./tools/build_pip_package.sh ALL_VERSIONS_MAC_ARM64
+    ./tools/build_pip_package.sh ALL_VERSIONS
     ```
 
 1.  The packages can be found in `decision-forests/dist/`.
@@ -207,22 +186,29 @@ instructions.
 If you have a MacOS machine with Apple CPU, cross-compile TF-DF for MacOS
 machines with Intel CPUs as follows.
 
-1.  Follow Steps 1-3 and 5 of the guide for Apple CPUs, **skip Step 4**.
-    You may need to run `bazel --bazelrc=tensorflow_bazelrc clean --expunge` to
-    clean your build directory.
+1.  Prepare your environment
+
+    ```
+    git clone https://github.com/tensorflow/decision-forests.git
+    python3 -m venv venv
+    source venv/source/activate
+    ```
 
 1.  Decide which Python version you want to use and run
 
     ```
     cd decision-forests
-    # This will compile with the latest Tensorflow version in the tensorflow-macos repository.
-    RUN_TESTS=0 PY_VERSION=3.9 TF_VERSION=mac-intel-crosscompile ./tools/test_bazel.sh
+    export TF_VERSION=2.15.0        # Change to the TensorFlow Version you need.
+    export PY_VERSION=3.9           # Change to the Python you need.
+    export RUN_TESTS=0              # Cross-compiled packages cannot be tested.
+    export MAC_INTEL_CROSSCOMPILE=1
+    ./tools/test_bazel.sh           # Takes ~15 minutes on a modern Mac.
     ```
 
-1.  Build the Pip Packages
+1.  Package the code.
 
     ```
-    # First, we deactivate our virtualenv, since the Pip script uses a different one.
+    # Building the packages uses different virtualenvs through Pyenv.
     deactivate
     # Build the packages.
     ./tools/build_pip_package.sh ALL_VERSIONS_MAC_INTEL_CROSSCOMPILE
