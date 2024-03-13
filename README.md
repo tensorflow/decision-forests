@@ -68,8 +68,6 @@ The following resources are available:
 -   [Issue tracker](https://github.com/tensorflow/decision-forests/issues)
 -   [Known issues](documentation/known_issues.md)
 -   [Changelog](CHANGELOG.md)
--   [TensorFlow Forum](https://discuss.tensorflow.org) (on
-    discuss.tensorflow.org)
 -   [More examples](documentation/more_examples.md)
 
 ## Installation

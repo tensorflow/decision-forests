@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.9.0rc0 - 2024-02-26
+## 1.9.0 - 2024-03-12
 
 ### Fix
 
@@ -10,8 +10,15 @@
 ### Features
 
 -   Compatibility with TensorFlow 2.16.0rc0.
+-   Expose new parameter sparse_oblique_max_num_projections.
 -   Using tf_keras instead tf.keras in examples, documentation.
 -   Support NAConditions for fast engine.
+-   Faster model loading for models with many features and dense oblique
+    conditions.
+
+### Documentation
+
+-   Clarified documentation of parameters for oblique splits.
 
 ## 1.8.1 - 2023-11-17
 

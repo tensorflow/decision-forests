@@ -297,6 +297,16 @@ class CartModel(core.CoreModel):
       IN_NODE. - IN_NODE: The features are sorted just before being used in the
       node. This solution is slow but consumes little amount of memory. .
       Default: "PRESORT".
+    sparse_oblique_max_num_projections: For sparse oblique splits i.e.
+      `split_axis=SPARSE_OBLIQUE`. Maximum number of projections (applied after
+      the num_projections_exponent). Oblique splits try out
+      max(p^num_projections_exponent, max_num_projections) random projections
+      for choosing a split, where p is the number of numerical features.
+      Increasing "max_num_projections" increases the training time but not the
+      inference time. In late stage model development, if every bit of accuracy
+      if important, increase this value. The paper "Sparse Projection Oblique
+      Random Forests" (Tomita et al, 2020) does not define this hyperparameter.
+      Default: None.
     sparse_oblique_normalization: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Normalization applied on the features, before
       applying the sparse oblique projections. - `NONE`: No normalization. -
@@ -306,12 +316,28 @@ class CartModel(core.CoreModel):
       max-min) estimated on the entire train dataset. Default: None.
     sparse_oblique_num_projections_exponent: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Controls of the number of random projections
-      to test at each node as `num_features^num_projections_exponent`. Default:
-      None.
-    sparse_oblique_projection_density_factor: For sparse oblique splits i.e.
-      `split_axis=SPARSE_OBLIQUE`. Controls of the number of random projections
-      to test at each node as `num_features^num_projections_exponent`. Default:
-      None.
+      to test at each node. Increasing this value very likely improves the
+      quality of the model, drastically increases the training time, and doe not
+      impact the inference time. Oblique splits try out
+      max(p^num_projections_exponent, max_num_projections) random projections
+      for choosing a split, where p is the number of numerical features.
+      Therefore, increasing this `num_projections_exponent` and possibly
+      `max_num_projections` may improve model quality, but will also
+      significantly increase training time. Note that the complexity of
+      (classic) Random Forests is roughly proportional to
+      `num_projections_exponent=0.5`, since it considers sqrt(num_features) for
+      a split. The complexity of (classic) GBDT is roughly proportional to
+      `num_projections_exponent=1`, since it considers all features for a split.
+      The paper "Sparse Projection Oblique Random Forests" (Tomita et al, 2020)
+      recommends values in [1/4, 2]. Default: None.
+    sparse_oblique_projection_density_factor: Density of the projections as an
+      exponent of the number of features. Independently for each projection,
+      each feature has a probability "projection_density_factor / num_features"
+      to be considered in the projection. The paper "Sparse Projection Oblique
+      Random Forests" (Tomita et al, 2020) calls this parameter `lambda` and
+      recommends values in [1, 5]. Increasing this value increases training and
+      inference time (on average). This value is best tuned for each dataset.
+      Default: None.
     sparse_oblique_weights: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Possible values: - `BINARY`: The oblique
       weights are sampled in {-1,1} (default). - `CONTINUOUS`: The oblique
@@ -383,6 +409,7 @@ class CartModel(core.CoreModel):
       pure_serving_model: Optional[bool] = False,
       random_seed: Optional[int] = 123456,
       sorting_strategy: Optional[str] = "PRESORT",
+      sparse_oblique_max_num_projections: Optional[int] = None,
       sparse_oblique_normalization: Optional[str] = None,
       sparse_oblique_num_projections_exponent: Optional[float] = None,
       sparse_oblique_projection_density_factor: Optional[float] = None,
@@ -425,6 +452,9 @@ class CartModel(core.CoreModel):
         "pure_serving_model": pure_serving_model,
         "random_seed": random_seed,
         "sorting_strategy": sorting_strategy,
+        "sparse_oblique_max_num_projections": (
+            sparse_oblique_max_num_projections
+        ),
         "sparse_oblique_normalization": sparse_oblique_normalization,
         "sparse_oblique_num_projections_exponent": (
             sparse_oblique_num_projections_exponent
@@ -1154,6 +1184,16 @@ class GradientBoostedTreesModel(core.CoreModel):
       IN_NODE. - IN_NODE: The features are sorted just before being used in the
       node. This solution is slow but consumes little amount of memory. .
       Default: "PRESORT".
+    sparse_oblique_max_num_projections: For sparse oblique splits i.e.
+      `split_axis=SPARSE_OBLIQUE`. Maximum number of projections (applied after
+      the num_projections_exponent). Oblique splits try out
+      max(p^num_projections_exponent, max_num_projections) random projections
+      for choosing a split, where p is the number of numerical features.
+      Increasing "max_num_projections" increases the training time but not the
+      inference time. In late stage model development, if every bit of accuracy
+      if important, increase this value. The paper "Sparse Projection Oblique
+      Random Forests" (Tomita et al, 2020) does not define this hyperparameter.
+      Default: None.
     sparse_oblique_normalization: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Normalization applied on the features, before
       applying the sparse oblique projections. - `NONE`: No normalization. -
@@ -1163,12 +1203,28 @@ class GradientBoostedTreesModel(core.CoreModel):
       max-min) estimated on the entire train dataset. Default: None.
     sparse_oblique_num_projections_exponent: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Controls of the number of random projections
-      to test at each node as `num_features^num_projections_exponent`. Default:
-      None.
-    sparse_oblique_projection_density_factor: For sparse oblique splits i.e.
-      `split_axis=SPARSE_OBLIQUE`. Controls of the number of random projections
-      to test at each node as `num_features^num_projections_exponent`. Default:
-      None.
+      to test at each node. Increasing this value very likely improves the
+      quality of the model, drastically increases the training time, and doe not
+      impact the inference time. Oblique splits try out
+      max(p^num_projections_exponent, max_num_projections) random projections
+      for choosing a split, where p is the number of numerical features.
+      Therefore, increasing this `num_projections_exponent` and possibly
+      `max_num_projections` may improve model quality, but will also
+      significantly increase training time. Note that the complexity of
+      (classic) Random Forests is roughly proportional to
+      `num_projections_exponent=0.5`, since it considers sqrt(num_features) for
+      a split. The complexity of (classic) GBDT is roughly proportional to
+      `num_projections_exponent=1`, since it considers all features for a split.
+      The paper "Sparse Projection Oblique Random Forests" (Tomita et al, 2020)
+      recommends values in [1/4, 2]. Default: None.
+    sparse_oblique_projection_density_factor: Density of the projections as an
+      exponent of the number of features. Independently for each projection,
+      each feature has a probability "projection_density_factor / num_features"
+      to be considered in the projection. The paper "Sparse Projection Oblique
+      Random Forests" (Tomita et al, 2020) calls this parameter `lambda` and
+      recommends values in [1, 5]. Increasing this value increases training and
+      inference time (on average). This value is best tuned for each dataset.
+      Default: None.
     sparse_oblique_weights: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Possible values: - `BINARY`: The oblique
       weights are sampled in {-1,1} (default). - `CONTINUOUS`: The oblique
@@ -1279,6 +1335,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       selective_gradient_boosting_ratio: Optional[float] = 0.01,
       shrinkage: Optional[float] = 0.1,
       sorting_strategy: Optional[str] = "PRESORT",
+      sparse_oblique_max_num_projections: Optional[int] = None,
       sparse_oblique_normalization: Optional[str] = None,
       sparse_oblique_num_projections_exponent: Optional[float] = None,
       sparse_oblique_projection_density_factor: Optional[float] = None,
@@ -1351,6 +1408,9 @@ class GradientBoostedTreesModel(core.CoreModel):
         "selective_gradient_boosting_ratio": selective_gradient_boosting_ratio,
         "shrinkage": shrinkage,
         "sorting_strategy": sorting_strategy,
+        "sparse_oblique_max_num_projections": (
+            sparse_oblique_max_num_projections
+        ),
         "sparse_oblique_normalization": sparse_oblique_normalization,
         "sparse_oblique_num_projections_exponent": (
             sparse_oblique_num_projections_exponent
@@ -2207,6 +2267,16 @@ class RandomForestModel(core.CoreModel):
       IN_NODE. - IN_NODE: The features are sorted just before being used in the
       node. This solution is slow but consumes little amount of memory. .
       Default: "PRESORT".
+    sparse_oblique_max_num_projections: For sparse oblique splits i.e.
+      `split_axis=SPARSE_OBLIQUE`. Maximum number of projections (applied after
+      the num_projections_exponent). Oblique splits try out
+      max(p^num_projections_exponent, max_num_projections) random projections
+      for choosing a split, where p is the number of numerical features.
+      Increasing "max_num_projections" increases the training time but not the
+      inference time. In late stage model development, if every bit of accuracy
+      if important, increase this value. The paper "Sparse Projection Oblique
+      Random Forests" (Tomita et al, 2020) does not define this hyperparameter.
+      Default: None.
     sparse_oblique_normalization: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Normalization applied on the features, before
       applying the sparse oblique projections. - `NONE`: No normalization. -
@@ -2216,12 +2286,28 @@ class RandomForestModel(core.CoreModel):
       max-min) estimated on the entire train dataset. Default: None.
     sparse_oblique_num_projections_exponent: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Controls of the number of random projections
-      to test at each node as `num_features^num_projections_exponent`. Default:
-      None.
-    sparse_oblique_projection_density_factor: For sparse oblique splits i.e.
-      `split_axis=SPARSE_OBLIQUE`. Controls of the number of random projections
-      to test at each node as `num_features^num_projections_exponent`. Default:
-      None.
+      to test at each node. Increasing this value very likely improves the
+      quality of the model, drastically increases the training time, and doe not
+      impact the inference time. Oblique splits try out
+      max(p^num_projections_exponent, max_num_projections) random projections
+      for choosing a split, where p is the number of numerical features.
+      Therefore, increasing this `num_projections_exponent` and possibly
+      `max_num_projections` may improve model quality, but will also
+      significantly increase training time. Note that the complexity of
+      (classic) Random Forests is roughly proportional to
+      `num_projections_exponent=0.5`, since it considers sqrt(num_features) for
+      a split. The complexity of (classic) GBDT is roughly proportional to
+      `num_projections_exponent=1`, since it considers all features for a split.
+      The paper "Sparse Projection Oblique Random Forests" (Tomita et al, 2020)
+      recommends values in [1/4, 2]. Default: None.
+    sparse_oblique_projection_density_factor: Density of the projections as an
+      exponent of the number of features. Independently for each projection,
+      each feature has a probability "projection_density_factor / num_features"
+      to be considered in the projection. The paper "Sparse Projection Oblique
+      Random Forests" (Tomita et al, 2020) calls this parameter `lambda` and
+      recommends values in [1, 5]. Increasing this value increases training and
+      inference time (on average). This value is best tuned for each dataset.
+      Default: None.
     sparse_oblique_weights: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Possible values: - `BINARY`: The oblique
       weights are sampled in {-1,1} (default). - `CONTINUOUS`: The oblique
@@ -2304,6 +2390,7 @@ class RandomForestModel(core.CoreModel):
       random_seed: Optional[int] = 123456,
       sampling_with_replacement: Optional[bool] = True,
       sorting_strategy: Optional[str] = "PRESORT",
+      sparse_oblique_max_num_projections: Optional[int] = None,
       sparse_oblique_normalization: Optional[str] = None,
       sparse_oblique_num_projections_exponent: Optional[float] = None,
       sparse_oblique_projection_density_factor: Optional[float] = None,
@@ -2358,6 +2445,9 @@ class RandomForestModel(core.CoreModel):
         "random_seed": random_seed,
         "sampling_with_replacement": sampling_with_replacement,
         "sorting_strategy": sorting_strategy,
+        "sparse_oblique_max_num_projections": (
+            sparse_oblique_max_num_projections
+        ),
         "sparse_oblique_normalization": sparse_oblique_normalization,
         "sparse_oblique_num_projections_exponent": (
             sparse_oblique_num_projections_exponent

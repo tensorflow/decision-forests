@@ -19,14 +19,14 @@
 # Options
 #  RUN_TESTS: Run the unit tests e.g. 0 or 1.
 #  PY_VERSION: Version of Python to be used, must be at least 3.9
-#  STARTUP_FLAGS: Any flags given to baze on startup
+#  STARTUP_FLAGS: Any flags given to bazel on startup
 #  TF_VERSION: Tensorflow version to use or "nightly".
 #  MAC_INTEL_CROSSCOMPILE: Cross-compile for Intel Macs
 #  FULL_COMPILATION: If 1, compile all parts of TF-DF. This may take a long time.
 #
 # Usage example
 #
-#   RUN_TESTS=1 PY_VERSION=3.9 TF_VERSION=2.15.0 ./tools/test_bazel.sh
+#   RUN_TESTS=1 PY_VERSION=3.9 TF_VERSION=2.16.1 ./tools/test_bazel.sh
 
 set -vex
 
@@ -108,8 +108,8 @@ short_commit_sha=$(echo $short_commit_sha | grep -oP '(?<=-g)[0-9a-f]*$')
 echo "Found tensorflow commit sha: $short_commit_sha"
 commit_slug=$(curl -s "https://api.github.com/repos/tensorflow/tensorflow/commits/$short_commit_sha" | grep "sha" | head -n 1 | cut -d '"' -f 4)
 # Update TF dependency to the chosen version
-sed -E -i "s/strip_prefix = \"tensorflow-2\.[0-9]+\.[0-9]+(-rc[0-9]+)?\",/strip_prefix = \"tensorflow-${commit_slug}\",/" WORKSPACE
-sed -E -i "s|\"https://github.com/tensorflow/tensorflow/archive/v.+\.zip\"|\"https://github.com/tensorflow/tensorflow/archive/${commit_slug}.zip\"|" WORKSPACE
+sed -E -i "s/strip_prefix = \"tensorflow-2\.[0-9]+(\.[0-9]+)*(-rc[0-9]+)?\",/strip_prefix = \"tensorflow-${commit_slug}\",/" WORKSPACE
+sed -E -i "s|\"https://github.com/tensorflow/tensorflow/archive/v.+\.tar.gz\"|\"https://github.com/tensorflow/tensorflow/archive/${commit_slug}.tar.gz\"|" WORKSPACE
 prev_shasum=$(grep -A 1 -e "strip_prefix.*tensorflow-" WORKSPACE | tail -1 | awk -F '"' '{print $2}')
 sed -i "s/sha256 = \"${prev_shasum}\",//" WORKSPACE
 

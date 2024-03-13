@@ -21,7 +21,7 @@ import setuptools
 from setuptools.command.install import install
 from setuptools.dist import Distribution
 
-_VERSION = "1.9.0rc0"
+_VERSION = "1.9.0"
 
 with open("README.md", "r", encoding="utf-8") as fh:
   long_description = fh.read()
@@ -29,12 +29,12 @@ with open("README.md", "r", encoding="utf-8") as fh:
 REQUIRED_PACKAGES = [
     "numpy",
     "pandas",
-    "tensorflow~=2.16.0rc0",
+    "tensorflow~=2.16.1",
     "six",
     "absl_py",
     "wheel",
     "wurlitzer",
-    "tf_keras~=2.16.0rc2",
+    "tf_keras~=2.16",
 ]
 
 
@@ -84,8 +84,10 @@ setuptools.setup(
     name="tensorflow_decision_forests",
     version=_VERSION,
     author="Google Inc.",
-    author_email="packages@tensorflow.org",
-    description="Collection of training and inference decision forest algorithms.",
+    author_email="decision-forests-contact@google.com",
+    description=(
+        "Collection of training and inference decision forest algorithms."
+    ),
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/tensorflow/decision-forests",
@@ -113,7 +115,10 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     python_requires=">=3.9",
     license="Apache 2.0",
-    keywords="tensorflow tensor machine learning decision forests random forest gradient boosted decision trees",
+    keywords=(
+        "tensorflow tensor machine learning decision forests random forest"
+        " gradient boosted decision trees"
+    ),
     install_requires=REQUIRED_PACKAGES,
     include_package_data=True,
     zip_safe=False,

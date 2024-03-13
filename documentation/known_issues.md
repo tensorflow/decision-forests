@@ -17,16 +17,26 @@ TensorFlow Decision Forests is not yet available as a Windows Pip package.
     [Windows Subsystem for Linux (WSL)](https://en.wikipedia.org/wiki/Windows_Subsystem_for_Linux)
     on your Windows machine and follow the Linux instructions.
 
+## Incompatibility with Keras 3
+
+Compatibility with Keras 3 is not yet implemented. Use tf_keras or a TensorFlow
+version before 2.16.
+
+## Untested for conda
+
+While TF-DF might work with Conda, this is not tested and we currently do not
+maintain packages on conda-forge.
+
 ## Incompatibility with old or nightly versions of TensorFlow
 
-TensorFlow [ABI](https://en.wikipedia.org/wiki/Application_binary_interface) is
-not compatible in between releases. Because TF-DF relies on custom TensorFlow
+TensorFlow's [ABI](https://en.wikipedia.org/wiki/Application_binary_interface)
+is not compatible in between releases. Because TF-DF relies on custom TensorFlow
 C++ ops, each version of TF-DF is tied to a specific version of TensorFlow. The
 last released version of TF-DF is always tied to the last released version of
 TensorFlow.
 
-For reasons, the current version of TF-DF might not be compatible with older
-versions or with the nightly build of TensorFlow.
+For these reasons, the current version of TF-DF might not be compatible with
+older versions or with the nightly build of TensorFlow.
 
 If using incompatible versions of TF and TF-DF, you will see cryptic errors such
 as:
@@ -37,8 +47,6 @@ tensorflow_decision_forests/tensorflow/ops/training/training.so: undefined symbo
 
 -   Use the version of TF-DF that is compatible with your version of TensorFlow.
 
-Note that TF-DF is not compatible with Keras 3 at this time.
-
 ### Compatibility table
 
 The following table shows the compatibility between
@@ -46,7 +54,9 @@ The following table shows the compatibility between
 
 tensorflow_decision_forests | tensorflow
 --------------------------- | ---------------
-1.6.0                       | 2.14.0
+1.9.0                       | 2.16.1
+1.8.0 - 1.8.1               | 2.15.0
+1.6.0 - 1.7.0               | 2.14.0
 1.5.0                       | 2.13.0
 1.3.0 - 1.4.0               | 2.12.0
 1.1.0 - 1.2.0               | 2.11.0
@@ -72,7 +82,7 @@ does.
 
 **Workarounds:**
 
--   Use a model that support distribution strategies (e.g.
+-   Use a model that supports distribution strategies (e.g.
     `DistributedGradientBoostedTreesModel`), or downsample your dataset so that
     it fits on a single machine.
 
