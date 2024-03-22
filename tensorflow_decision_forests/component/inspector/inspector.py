@@ -323,7 +323,7 @@ class AbstractInspector(object):
     the computation of permutation out-of-bag variable importances.
 
     See
-    https://github.com/google/yggdrasil-decision-forests/blob/main/documentation/user_manual.md#variable-importances
+    https://ydf.readthedocs.io/en/latest/cli_user_manual/#variable-importances
     for the definition of the variable importances.
 
     Values are sorted by decreasing value/importance except if stated otherwise.
