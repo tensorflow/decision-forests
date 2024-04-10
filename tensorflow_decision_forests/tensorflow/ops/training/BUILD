@@ -1,5 +1,5 @@
-load("@rules_python//python:defs.bzl", "py_library")
 load("@org_tensorflow//tensorflow:tensorflow.bzl", "tf_gen_op_wrapper_py")
+load("@rules_python//python:defs.bzl", "py_library")
 
 package(
     default_visibility = ["//visibility:public"],

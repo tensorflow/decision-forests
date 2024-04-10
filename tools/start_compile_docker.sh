@@ -58,7 +58,7 @@
 #  ./tools/build_pip_package.sh ALL_VERSIONS_ALREADY_ASSEMBLED
 #
 # https://hub.docker.com/r/tensorflow/build/tags?page=1
-DOCKER=tensorflow/build:2.16-python3.9
+DOCKER=tensorflow/build:2.17-python3.9
 
 # Current directory
 # Useful if Yggdrasil Decision Forests is available locally in a neighbor
