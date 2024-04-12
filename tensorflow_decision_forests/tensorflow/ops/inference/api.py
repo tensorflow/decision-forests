@@ -114,13 +114,15 @@ case of a set-type feature) are three different objects.
 
   - All the input features of the model should be given as input tensors.
   - Numerical features are handled as float32, but can be provided as
-    float{32,64} or int[32,64}. Missing numerical values should be provided as
+    float{16,32,64} or [u]int{8,16,32,64}. Missing numerical values should be
+    provided as
     "quiet NaN".
   - Boolean features are represented as float32, but can also be given as
     float{32,64} or int{32,64}. Missing boolean values should be provided as
     "quiet NaN".
   - Categorical features are handled as int32 (if pre-integerized) or bytes
-    (if not pre-integerized). Pre-integerized can be provided as int{32,64}.
+    (if not pre-integerized). Pre-integerized can be provided as
+    [u]int{8,16,32,64}.
     Missing categorical values should be provided as -1 (for integer
     categorical) or "" (empty string; for string categorical). Out of vocabulary
     should be provided as 0 (for integer categorical) or any
@@ -128,7 +130,8 @@ case of a set-type feature) are three different objects.
   - Numerical, boolean, and categorical features are provided as dense tensor of
     shape [batch size] or [batch size, 1].
   - CategoricalSet features are handled as int32 (if pre-integerized) or bytes
-    (if not pre-integerized). Pre-integerized can be provided as int{32,64}.
+    (if not pre-integerized). Pre-integerized can be provided as
+    [u]int{8,16,32,64}.
     Missing categorical values should be provided by [-1] (for integer
     categorical) or [""] (for string categorical). Out of vocabulary items are
     provided as 0 (for integer categorical) or any feature are provided as
@@ -188,6 +191,24 @@ Trackable = tf1_compatibility.Trackable
 AutoTrackable = tf1_compatibility.AutoTrackable
 TrackableResource = tf1_compatibility.TrackableResource
 
+
+TF_SUPPORTED_INT_DTYPE = [
+    tf.int8,
+    tf.int16,
+    tf.int32,
+    tf.int64,
+    tf.uint8,
+    tf.uint16,
+    tf.uint32,
+    tf.uint64,
+]
+
+TF_SUPPORTED_FLOAT_DTYPE = [
+    tf.float16,
+    tf.float32,
+    tf.float64,
+]
+
 # Wrapper around the outputs values of the inference op.
 ModelOutput = collections.namedtuple(
     "ModelOutput",
@@ -196,12 +217,12 @@ ModelOutput = collections.namedtuple(
         # "dense_predictions" in "inference_interface.cc" for the format
         # details (type, shape, semantic).
         "dense_predictions",
-
         # String representation of the model output. See the documentation
         # of "dense_col_representation" in "inference_interface.cc" for the
         # format details (type, shape, semantic).
         "dense_col_representation",
-    ])
+    ],
+)
 
 # Magic value used to indicate of a missing value for categorical stored as
 # ints, but that should not be interpreted as integer directly.
@@ -219,10 +240,12 @@ class Model(object):
   Assets to be handled automatically, use "ModelV2" instead.
   """
 
-  def __init__(self,
-               model_path: Text,
-               tensor_model_path: Optional[Tensor] = None,
-               verbose: Optional[bool] = True):
+  def __init__(
+      self,
+      model_path: Text,
+      tensor_model_path: Optional[Tensor] = None,
+      verbose: Optional[bool] = True,
+  ):
     """Initialize the model.
 
     The Yggdrasil model should be available at the "model_path" location both at
@@ -253,7 +276,8 @@ class Model(object):
     if tensor_model_path is None:
       tensor_model_path = model_path
     load_model_op = op.SimpleMLLoadModelFromPath(
-        model_identifier=self.model_identifier, path=tensor_model_path)
+        model_identifier=self.model_identifier, path=tensor_model_path
+    )
 
     self._init_op = tf.group(self.input_builder.init_op(), load_model_op)
 
@@ -285,11 +309,13 @@ class Model(object):
 
     inference_args = self.input_builder.build_inference_op_args(features)
     dense_predictions, dense_col_representation = op.SimpleMLInferenceOp(
-        model_identifier=self.model_identifier, **inference_args)
+        model_identifier=self.model_identifier, **inference_args
+    )
 
     return ModelOutput(
         dense_predictions=dense_predictions,
-        dense_col_representation=dense_col_representation)
+        dense_col_representation=dense_col_representation,
+    )
 
 
 class ModelV2(AutoTrackable):
@@ -350,12 +376,14 @@ class ModelV2(AutoTrackable):
     """
 
     inference_args = self._input_builder.build_inference_op_args(
-        features, output_leaves=True)
+        features, output_leaves=True
+    )
 
     leaves = op.SimpleMLInferenceLeafIndexOpWithHandle(
         model_handle=self._compiled_model.resource_handle,
         name="inference_op_leaves",
-        **inference_args)
+        **inference_args,
+    )
 
     return leaves
 
@@ -374,15 +402,18 @@ class ModelV2(AutoTrackable):
 
     inference_args = self._input_builder.build_inference_op_args(features)
 
-    (dense_predictions,
-     dense_col_representation) = op.SimpleMLInferenceOpWithHandle(
-         model_handle=self._compiled_model.resource_handle,
-         name="inference_op",
-         **inference_args)
+    (dense_predictions, dense_col_representation) = (
+        op.SimpleMLInferenceOpWithHandle(
+            model_handle=self._compiled_model.resource_handle,
+            name="inference_op",
+            **inference_args,
+        )
+    )
 
     return ModelOutput(
         dense_predictions=dense_predictions,
-        dense_col_representation=dense_col_representation)
+        dense_col_representation=dense_col_representation,
+    )
 
 
 def _create_model_identifier() -> Text:
@@ -398,12 +429,15 @@ def _create_model_identifier() -> Text:
 
 # For each type of features, a map between a feature index (from
 # "_feature_name_to_idx") and the input tensor for this feature.
-FeatureMaps = collections.namedtuple("FeatureMaps", [
-    "numerical_features",
-    "boolean_features",
-    "categorical_int_features",
-    "categorical_set_int_features",
-])
+FeatureMaps = collections.namedtuple(
+    "FeatureMaps",
+    [
+        "numerical_features",
+        "boolean_features",
+        "categorical_int_features",
+        "categorical_set_int_features",
+    ],
+)
 
 
 class _InferenceArgsBuilder(AutoTrackable):
@@ -439,9 +473,11 @@ class _InferenceArgsBuilder(AutoTrackable):
 
     self.build_from_dataspec_and_header(data_spec, header)
 
-  def build_from_dataspec_and_header(self,
-                                     dataspec: data_spec_pb2.DataSpecification,
-                                     header: abstract_model_pb2.AbstractModel):
+  def build_from_dataspec_and_header(
+      self,
+      dataspec: data_spec_pb2.DataSpecification,
+      header: abstract_model_pb2.AbstractModel,
+  ):
     self._header = header
     self._data_spec = dataspec
 
@@ -465,9 +501,8 @@ class _InferenceArgsBuilder(AutoTrackable):
       return tf.no_op()
 
   def build_inference_op_args(
-      self,
-      features: Dict[Text, Tensor],
-      output_leaves: Optional[bool] = False) -> Dict[Text, Any]:
+      self, features: Dict[Text, Tensor], output_leaves: Optional[bool] = False
+  ) -> Dict[Text, Any]:
     """Creates the arguments of the SimpleMLInferenceOp.
 
     Args:
@@ -489,7 +524,8 @@ class _InferenceArgsBuilder(AutoTrackable):
         numerical_features={},
         boolean_features={},
         categorical_int_features={},
-        categorical_set_int_features={})
+        categorical_set_int_features={},
+    )
 
     for feature_name, feature_tensor in features.items():
       self._register_input_feature(feature_name, feature_tensor, feature_maps)
@@ -502,7 +538,8 @@ class _InferenceArgsBuilder(AutoTrackable):
     if feature_maps.numerical_features:
       numerical_features = tf.stack(
           self._dict_to_list_sorted_by_key(feature_maps.numerical_features),
-          axis=1)
+          axis=1,
+      )
     else:
       numerical_features = tf.constant(0, dtype=tf.float32, shape=(0, 0))
 
@@ -510,7 +547,8 @@ class _InferenceArgsBuilder(AutoTrackable):
     if feature_maps.boolean_features:
       boolean_features = tf.stack(
           self._dict_to_list_sorted_by_key(feature_maps.boolean_features),
-          axis=1)
+          axis=1,
+      )
     else:
       boolean_features = tf.constant(0, dtype=tf.float32, shape=(0, 0))
 
@@ -518,8 +556,10 @@ class _InferenceArgsBuilder(AutoTrackable):
     if feature_maps.categorical_int_features:
       categorical_int_features = tf.stack(
           self._dict_to_list_sorted_by_key(
-              feature_maps.categorical_int_features),
-          axis=1)
+              feature_maps.categorical_int_features
+          ),
+          axis=1,
+      )
     else:
       categorical_int_features = tf.constant(0, dtype=tf.int32, shape=(0, 0))
 
@@ -527,27 +567,29 @@ class _InferenceArgsBuilder(AutoTrackable):
     if feature_maps.categorical_set_int_features:
       categorical_set_int_features = tf.stack(
           self._dict_to_list_sorted_by_key(
-              feature_maps.categorical_set_int_features),
-          axis=1)
+              feature_maps.categorical_set_int_features
+          ),
+          axis=1,
+      )
 
     else:
-      categorical_set_int_features = tf.ragged.constant([],
-                                                        dtype=tf.int32,
-                                                        ragged_rank=2)
+      categorical_set_int_features = tf.ragged.constant(
+          [], dtype=tf.int32, ragged_rank=2
+      )
 
     args = {
-        "numerical_features":
-            numerical_features,
-        "boolean_features":
-            boolean_features,
-        "categorical_int_features":
-            categorical_int_features,
-        "categorical_set_int_features_values":
-            categorical_set_int_features.values.values,
-        "categorical_set_int_features_row_splits_dim_1":
-            categorical_set_int_features.values.row_splits,
-        "categorical_set_int_features_row_splits_dim_2":
-            categorical_set_int_features.row_splits,
+        "numerical_features": numerical_features,
+        "boolean_features": boolean_features,
+        "categorical_int_features": categorical_int_features,
+        "categorical_set_int_features_values": (
+            categorical_set_int_features.values.values
+        ),
+        "categorical_set_int_features_row_splits_dim_1": (
+            categorical_set_int_features.values.row_splits
+        ),
+        "categorical_set_int_features_row_splits_dim_2": (
+            categorical_set_int_features.row_splits
+        ),
     }
 
     if not output_leaves:
@@ -558,8 +600,9 @@ class _InferenceArgsBuilder(AutoTrackable):
 
     return args
 
-  def _register_input_feature(self, name: Text, value: Tensor,
-                              feature_maps: FeatureMaps) -> None:
+  def _register_input_feature(
+      self, name: Text, value: Tensor, feature_maps: FeatureMaps
+  ) -> None:
     """Indexes, and optionally pre-computes, the input feature tensors.
 
     Args:
@@ -573,15 +616,16 @@ class _InferenceArgsBuilder(AutoTrackable):
 
     feature_idx = self._feature_name_to_idx.get(name)
     if feature_idx is None:
-      logging.warning("Registering feature \"%s\" not used by the model.", name)
+      logging.warning('Registering feature "%s" not used by the model.', name)
       return
 
     if feature_idx in self._all_feature_idxs(feature_maps):
-      raise Exception("The feature \"{}\" was already registered.".format(name))
+      raise ValueError('The feature "{}" was already registered.'.format(name))
 
     feature_spec = self._data_spec.columns[feature_idx]
     if feature_spec.type in [
-        ColumnType.NUMERICAL, ColumnType.DISCRETIZED_NUMERICAL
+        ColumnType.NUMERICAL,
+        ColumnType.DISCRETIZED_NUMERICAL,
     ]:
       value = self._prepare_and_check_numerical_feature(name, value)
       feature_maps.numerical_features[feature_idx] = value
@@ -592,17 +636,22 @@ class _InferenceArgsBuilder(AutoTrackable):
 
     elif feature_spec.type == ColumnType.CATEGORICAL:
       value = self._prepare_and_check_categorical_feature(
-          name, value, feature_spec)
+          name, value, feature_spec
+      )
       feature_maps.categorical_int_features[feature_idx] = value
 
     elif feature_spec.type == ColumnType.CATEGORICAL_SET:
       value = self._prepare_and_check_categorical_set_feature(
-          name, value, feature_spec)
+          name, value, feature_spec
+      )
       feature_maps.categorical_set_int_features[feature_idx] = value
 
     else:
-      raise Exception("No supported type \"{}\" for feature \"{}\"".format(
-          ColumnType.Name(feature_spec.type), name))
+      raise ValueError(
+          'No supported type "{}" for feature "{}"'.format(
+              ColumnType.Name(feature_spec.type), name
+          )
+      )
 
   def _create_str_to_int_tables(self):
     """Creates the tables used to convert categorical features into integers."""
@@ -611,16 +660,19 @@ class _InferenceArgsBuilder(AutoTrackable):
     self.categorical_str_to_int_hashmaps = {}
     for feature_idx in self._header.input_features:
       feature_spec = self._data_spec.columns[feature_idx]
-      if feature_spec.HasField(
-          "categorical"
-      ) and not feature_spec.categorical.is_already_integerized:
+      if (
+          feature_spec.HasField("categorical")
+          and not feature_spec.categorical.is_already_integerized
+      ):
         # Extract the vocabulary of the feature.
         #
         # Note: The item with index "0" is the "out of vocabulary". It is
         # handled by the hashmap directly.
-        vocabulary = [(key, item.index)
-                      for key, item in feature_spec.categorical.items.items()
-                      if item.index != 0]
+        vocabulary = [
+            (key, item.index)
+            for key, item in feature_spec.categorical.items.items()
+            if item.index != 0
+        ]
         # Missing value.
 
         # "" (the empty string) is a missing value if it is not a valid value.
@@ -628,21 +680,24 @@ class _InferenceArgsBuilder(AutoTrackable):
           vocabulary.append(("", -1))
 
         vocabulary.append(
-            (str(MISSING_NON_INTEGERIZED_CATEGORICAL_STORED_AS_INT), -1))
+            (str(MISSING_NON_INTEGERIZED_CATEGORICAL_STORED_AS_INT), -1)
+        )
         vocabulary.sort(key=lambda x: x[1])
 
         # Create a hasmap table with the vocabulary.
         vocabulary_keys = tf.constant(list(zip(*vocabulary))[0])
         vocabulary_values = tf.constant(list(zip(*vocabulary))[1])
         vocabulary_index = tf.lookup.KeyValueTensorInitializer(
-            vocabulary_keys, vocabulary_values)
+            vocabulary_keys, vocabulary_values
+        )
         # Note: Value "0" is the out-of-vocabulary.
         vocabulary_hashmap = tf.lookup.StaticHashTable(vocabulary_index, 0)
 
         self._init_ops.append(vocabulary_index.initialize(vocabulary_hashmap))
 
-        self.categorical_str_to_int_hashmaps[
-            feature_spec.name] = vocabulary_hashmap
+        self.categorical_str_to_int_hashmaps[feature_spec.name] = (
+            vocabulary_hashmap
+        )
 
   @staticmethod
   def _dict_to_list_sorted_by_key(src: Dict[Any, Any]) -> List[Any]:
@@ -672,22 +727,26 @@ class _InferenceArgsBuilder(AutoTrackable):
     """Making sure all the input features of the model are provided."""
 
     missing_features = set(self._feature_name_to_idx.values()).difference(
-        set(self._all_feature_idxs(feature_maps)))
+        set(self._all_feature_idxs(feature_maps))
+    )
     if missing_features:
-      raise Exception(
+      raise ValueError(
           "No all input features have been registered. Non registered required "
           "input features: {}".format([
               self._data_spec.columns[feature_idx].name
               for feature_idx in missing_features
-          ]))
+          ])
+      )
 
   def _get_dense_output_dim(self):
     """Gets the dimension of the op output."""
 
     label_spec = self._data_spec.columns[self._header.label_col_idx]
     if self._header.task == Task.CLASSIFICATION:
-      if (label_spec.categorical.number_of_unique_values == 3 and
-          not self._header.classification_outputs_probabilities):
+      if (
+          label_spec.categorical.number_of_unique_values == 3
+          and not self._header.classification_outputs_probabilities
+      ):
         # Returns a single logit.
         return 1
       return label_spec.categorical.number_of_unique_values - 1
@@ -700,62 +759,78 @@ class _InferenceArgsBuilder(AutoTrackable):
     elif self._header.task == Task.NUMERICAL_UPLIFT:
       return 1
     else:
-      raise Exception("Non supported task {}.".format(
-          Task.Name(self._header.task)))
+      raise ValueError(
+          "Non supported task {}.".format(Task.Name(self._header.task))
+      )
 
   def _prepare_and_check_numerical_feature(self, name: Text, value: Tensor):
     """Checks and optionally pre-processes a numerical feature."""
 
-    extended_name = "Numerical feature \"{}\"".format(name)
-    if value.dtype not in [tf.float32, tf.int32, tf.int64, tf.float64]:
-      raise Exception(
-          "{} is expected to have type float{{32,64}} or int{{32,64}}. Got {} "
-          "instead".format(extended_name, value.dtype))
+    extended_name = 'Numerical feature "{}"'.format(name)
+    if (
+        value.dtype not in TF_SUPPORTED_INT_DTYPE
+        and value.dtype not in TF_SUPPORTED_FLOAT_DTYPE
+    ):
+      raise ValueError(
+          f"{extended_name} is expected to have type"
+          f" {TF_SUPPORTED_FLOAT_DTYPE!r} or {TF_SUPPORTED_INT_DTYPE!r}. Got"
+          f" {value.dtype} instead"
+      )
 
     if value.dtype != tf.float32:
       value = tf.cast(value, tf.float32)
 
     if len(value.shape) == 2:
       if value.shape[1] != 1:
-        raise Exception(
+        raise ValueError(
             "{} is expected to have shape [None] or [None, 1]. Got {}  instead."
-            .format(extended_name, len(value.shape)))
+            .format(extended_name, len(value.shape))
+        )
       value = value[:, 0]
 
     elif len(value.shape) != 1:
-      raise Exception(
+      raise ValueError(
           "{} is expected to have shape [None] or [None, 1]. Got {}  instead."
-          .format(extended_name, len(value.shape)))
+          .format(extended_name, len(value.shape))
+      )
     return value
 
   def _prepare_and_check_boolean_feature(self, name: Text, value: Tensor):
     """Checks and optionally pre-processes a boolean feature."""
 
-    extended_name = "Boolean feature \"{}\"".format(name)
-    if value.dtype not in [tf.float32, tf.int32, tf.int64, tf.float64]:
-      raise Exception(
-          "{} is expected to have type float{{32,64}} or int{{32,64}}. Got {} "
-          "instead".format(extended_name, value.dtype))
+    extended_name = 'Boolean feature "{}"'.format(name)
+    if (
+        value.dtype not in TF_SUPPORTED_INT_DTYPE
+        and value.dtype not in TF_SUPPORTED_FLOAT_DTYPE
+        and value.dtype not in [tf.bool]
+    ):
+      raise ValueError(
+          f"{extended_name} is expected to have type"
+          f" {TF_SUPPORTED_FLOAT_DTYPE!r}, {TF_SUPPORTED_INT_DTYPE!r}, or"
+          f" tf.bool. Got {value} instead"
+      )
 
     if value.dtype != tf.float32:
       value = tf.cast(value, tf.float32)
 
     if len(value.shape) == 2:
       if value.shape[1] != 1:
-        raise Exception(
+        raise ValueError(
             "{} is expected to have shape [None] or [None, 1]. Got {}  instead."
-            .format(extended_name, len(value.shape)))
+            .format(extended_name, len(value.shape))
+        )
       value = value[:, 0]
 
     elif len(value.shape) != 1:
-      raise Exception(
+      raise ValueError(
           "{} is expected to have shape [None] or [None, 1]. Got {}  instead."
-          .format(extended_name, len(value.shape)))
+          .format(extended_name, len(value.shape))
+      )
     return value
 
   def _prepare_and_check_categorical_feature(
-      self, name: Text, value: Tensor,
-      feature_spec: data_spec_pb2.Column) -> Tensor:
+      self, name: Text, value: Tensor, feature_spec: data_spec_pb2.Column
+  ) -> Tensor:
     """Checks and optionally pre-processes a categorical feature.
 
     Args:
@@ -771,46 +846,54 @@ class _InferenceArgsBuilder(AutoTrackable):
       Exception: In case of unexpected feature type or shape.
     """
 
-    extended_name = "Categorical feature \"{}\"".format(name)
+    extended_name = 'Categorical feature "{}"'.format(name)
 
-    if value.dtype in [tf.int32, tf.int64]:
+    if value.dtype in TF_SUPPORTED_INT_DTYPE:
       # Native format.
       if not feature_spec.categorical.is_already_integerized:
         # A categorical feature, stored as integer, but not already integerized.
         value = self.categorical_str_to_int_hashmaps[name].lookup(
-            tf.strings.as_string(value))
+            tf.strings.as_string(value)
+        )
 
       if value.dtype != tf.int32:
         value = tf.cast(value, tf.int32)
 
     elif value.dtype == tf.string:
       if feature_spec.categorical.is_already_integerized:
-        raise Exception(
-            "{} was feed as {}. Expecting int32 tensor instead.".format(
-                extended_name, value))
+        raise ValueError(
+            "{} was feed as {}. Expecting integer tensor instead.".format(
+                extended_name, value
+            )
+        )
 
       value = self.categorical_str_to_int_hashmaps[name].lookup(value)
 
     else:
-      raise Exception(
-          "{} is expected to have type int32, int64 or string. Got {} instead"
-          .format(extended_name, value.dtype))
+      raise ValueError(
+          f"{extended_name} is expected to have type"
+          f" {TF_SUPPORTED_INT_DTYPE!r} or string. Got {value.dtype} instead"
+      )
 
     if len(value.shape) == 2:
       if value.shape[1] != 1:
-        raise Exception(
+        raise ValueError(
             "{} is expected to have shape [None] or [None, 1]. Got {}  instead."
-            .format(extended_name, len(value.shape)))
+            .format(extended_name, len(value.shape))
+        )
       value = value[:, 0]
     elif len(value.shape) != 1:
-      raise Exception("{} is expected to have rank 1. Got {}  instead.".format(
-          extended_name, len(value.shape)))
+      raise ValueError(
+          "{} is expected to have rank 1. Got {}  instead.".format(
+              extended_name, len(value.shape)
+          )
+      )
 
     return value
 
   def _prepare_and_check_categorical_set_feature(
-      self, name: Text, value: Tensor,
-      feature_spec: data_spec_pb2.Column) -> Tensor:
+      self, name: Text, value: Tensor, feature_spec: data_spec_pb2.Column
+  ) -> Tensor:
     """Checks and optionally pre-processes a categorical set feature.
 
     Args:
@@ -826,36 +909,44 @@ class _InferenceArgsBuilder(AutoTrackable):
       Exception: In case of unexpected feature type or shape.
     """
 
-    extended_name = "Categorical set feature \"{}\"".format(name)
+    extended_name = 'Categorical set feature "{}"'.format(name)
 
     if not isinstance(value, tf.RaggedTensor):
-      raise Exception(
+      raise ValueError(
           "{} was feed as {}. Expecting a RaggedTensor instead.".format(
-              extended_name, value))
+              extended_name, value
+          )
+      )
 
-    if value.dtype in [tf.int32, tf.int64]:
+    if value.dtype in TF_SUPPORTED_INT_DTYPE:
       # Native format.
       if not feature_spec.categorical.is_already_integerized:
-        raise Exception(
+        raise ValueError(
             "{} was feed as {}. Expecting string tensor instead.".format(
-                extended_name, value))
+                extended_name, value
+            )
+        )
 
       if value.dtype != tf.int32:
         value = tf.cast(value, tf.int32)
 
     elif value.dtype == tf.string:
       if feature_spec.categorical.is_already_integerized:
-        raise Exception(
+        raise ValueError(
             "{} was feed as {}. Expecting int32 tensor instead.".format(
-                extended_name, value))
+                extended_name, value
+            )
+        )
 
       value = tf.ragged.map_flat_values(
-          self.categorical_str_to_int_hashmaps[name].lookup, value)
+          self.categorical_str_to_int_hashmaps[name].lookup, value
+      )
 
     else:
-      raise Exception(
-          "{} is expected to have type int32, int64 or string. Got {} instead"
-          .format(extended_name, value.dtype))
+      raise ValueError(
+          f"{extended_name} is expected to have type"
+          f" {TF_SUPPORTED_INT_DTYPE!r} or string. Got {value.dtype} instead"
+      )
 
     return value
 
@@ -887,9 +978,11 @@ class _CompiledSimpleMLModelResource(TrackableResource):
     with tf.init_scope():
       self._resource_handle = self._create_resource()
 
-    if (not context.executing_eagerly() and
-        tf.compat.v1.get_default_graph()._get_control_flow_context()
-        is not None):  # pylint: disable=protected-access
+    if (
+        not context.executing_eagerly()
+        and tf.compat.v1.get_default_graph()._get_control_flow_context()
+        is not None
+    ):  # pylint: disable=protected-access
       with tf.init_scope():
         self._init_op = self._initialize()
     else:
@@ -934,16 +1027,19 @@ class _DiskModelLoader(_AbstractModelLoader, AutoTrackable):
           self._done_file = asset
         self._all_files.append(asset)
     if self._done_file is None:
-      raise ValueError(f"The model at {model_path} is invalid as it is "
-                       "missing a \"done\" file.")
+      raise ValueError(
+          f"The model at {model_path} is invalid as it is "
+          'missing a "done" file.'
+      )
 
     super(_DiskModelLoader, self).__init__()
 
   def initialize(self, model: _CompiledSimpleMLModelResource) -> tf.Operation:
 
     model_path = self.get_model_path()
-    with ops.name_scope("simple_ml", "load_model_from_disk",
-                        (model.resource_handle,)):
+    with ops.name_scope(
+        "simple_ml", "load_model_from_disk", (model.resource_handle,)
+    ):
       init_op = op.SimpleMLLoadModelFromPathWithHandle(
           model_handle=model.resource_handle,
           path=model_path,
@@ -958,8 +1054,9 @@ class _DiskModelLoader(_AbstractModelLoader, AutoTrackable):
   def get_model_path(self) -> Tensor:
     """Gets the path to the model on disk."""
 
-    return tf.strings.regex_replace(self._done_file.asset_path,
-                                    self._file_prefix + "done", "")
+    return tf.strings.regex_replace(
+        self._done_file.asset_path, self._file_prefix + "done", ""
+    )
 
   def get_model_prefix(self) -> str:
     """Gets the prefix of the model on disk."""
