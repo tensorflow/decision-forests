@@ -26,47 +26,100 @@ landing_page:
         - classname: devsite-landing-row-50
           description: >
             <p>
-            <img src="image/logo.png"  />
+            <img src="image/logo.png" style="display:block; width: 375px;" />
             </p>
+            <div style="padding: 24px; padding-bottom: 15px; border: 1px solid #afafaf; border-radius: 16px; margin: 25px;" >
+            <img src="image/ydf_logo.png" style="width: 240px; margin: auto; display: block;" >
+            <p style="font-weight: bold;">
+            <a href="https://ydf.readthedocs.io">YDF</a> is Google's new library to train Decision Forests.
+            </p>
+            <p>
+            YDF extends the power of TF-DF, offering new features, a simplified API, faster training times, updated documentation, and enhanced compatibility with popular ML libraries.
+            </p>
+            <p>
+            <a class="button button-primary button-tfo-announcement" href="https://ydf.readthedocs.io" style="display: block; margin: auto; width: 171px; text-align: center; background: linear-gradient(90deg, #ff6f00, #ff9100);">Go to new website</a>
+            </p>
+            <ul style="margin: auto; display: block; width: 192px; font-size: smaller;">
+            <li style="margin: 0px;" ><a href="https://ydf.readthedocs.io/en/latest/tutorial/migrating_to_ydf/">Migration guide</a></li>
+            <li style="margin: 0px;" ><a href="https://ydf.readthedocs.io/en/latest/faq/#python-ydf-and-tf-df">FAQ</a></li>
+            </ul>
+            </div>
+            <p>
             <p>
             <b>TensorFlow Decision Forests</b> (<b>TF-DF</b>) is a library to train, run and
             interpret <a href="https://ydf.readthedocs.io/en/latest/intro_df.html">decision forest</a>
             models (e.g., Random Forests, Gradient Boosted Trees) in TensorFlow.
             TF-DF supports classification, regression, ranking and uplifting.
-            It is available on Linux and Mac. Window users can use WSL+Linux.
-            <p>
-            <p>
-            TF-DF is powered by <a
-            href="https://github.com/google/yggdrasil-decision-forests">Yggdrasil Decision Forest</a> (<b>YDF</b>), a
-            library to train and use decision forests in c++, JavaScript, CLI, and Go. TF-DF models are <a href="https://ydf.readthedocs.io/en/latest/convert_model.html#convert-a-a-tensorflow-decision-forests-model-to-a-yggdrasil-model">compatible</a> with YDF models, and vice versa.
             </p>
-            <p>
             <i>Keywords: Decision Forests, TensorFlow, Random Forest, Gradient Boosted Trees, CART, model interpretation.</i>
             </p>
             <h3>Documentation & Resources</h3>
             <p>
             The following resources are available:
-            <ul>
+            <ul style="line-height: 1em;">
             <li><a href="https://www.tensorflow.org/decision_forests/tutorials">Guides and tutorials</a></li>
             <li><a href="https://www.tensorflow.org/decision_forests/api_docs/python/tfdf/all_symbols">API reference</a></li>
             <li><a href="https://ydf.readthedocs.io/">YDF documentation (also applicable to TF-DF)</a></li>
-            <li><a href="https://developers.google.com/machine-learning/decision-forests">Google Developers class on decision forests</a></li>
-            <li><a href="https://www.tensorflow.org/decision_forests/simple_ml_for_sheets">Use Simple ML for Sheets to train models in your Google Sheets</a></li>
+            <li><a href="https://developers.google.com/machine-learning/decision-forests">Google Developers' Decision Forests online class</a></li>
             </ul>
             </p>
             <h3>Community</h3>
-            <li><a href="https://discuss.tensorflow.org">TensorFlow forum</a></li>
+            <p>
+            <ul style="line-height: 1em;">
+            <li><a href="https://github.com/google/yggdrasil-decision-forests">YDF on Github</a></li>
             <li><a href="https://github.com/tensorflow/decision-forests">TensorFlow Decision Forest on Github</a></li>
-            <li><a href="https://github.com/google/yggdrasil-decision-forests">Yggdrasil Decision Forest on Github</a></li>
+            <li><a href="https://discuss.tensorflow.org">TensorFlow forum</a></li>
             </ul>
             </p>
-            <h3>Contributing</h3>
-            <p>
-            Contributions to TensorFlow Decision Forests and Yggdrasil Decision Forests are welcome.
-            If you want to contribute, make sure to review the <a href="developer_manual">developer
-            manual</a>.
-            </p>
           code_block: |
+            <style>
+            .tabs {
+              position: relative;
+              min-height: 200px;
+              clear: both;
+              margin: 25px 0;
+            }
+            .tab {
+              float: left;
+            }
+            .tab label {
+              padding: 10px;
+              position: relative;
+              border-bottom: 3px none #293241;
+              font: var(--devsite-link-font, 500 14px / 20px var(--devsite-primary-font-family));
+              color: #293241;
+            }
+            .tab [type=radio] {
+              display: none;
+            }
+            .content {
+              position: absolute;
+              top: 28px;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              padding-top: 25px;
+              display: none;
+            }
+            [type=radio]:checked ~ label {
+              z-index: 2;
+              border-bottom: 3px solid #293241;
+            }
+            [type=radio]:checked ~ label ~ .content {
+              z-index: 1;
+              display: block;
+            }
+            devsite-code::after {
+              display: none !important;
+            }
+            </style>
+
+            <div class="tabs">
+
+            <div class="tab">
+            <input type="radio" id="tab-1" name="tab-group-1" checked>
+            <label for="tab-1">TF-DF</label>
+            <div class="content">
             <pre class = "prettyprint">
             # Install TF-DF
             !pip install tensorflow tensorflow_decision_forests
@@ -90,37 +143,59 @@ landing_page:
             # Summary of the model structure.
             model.summary()
 
-            # Evaluate the model.
-            model.evaluate(test_ds)
+            # Compute model accuracy.
+            model.compile(metrics=["accuracy"])
+            model.evaluate(test_ds, return_dict=True)
 
             # Export the model to a SavedModel.
             model.save("project/model")
             </pre>
+            </div>
+            </div>
 
-    - classname: devsite-landing-row-cards
-      items:
-        # - heading: "Introducing TensorFlow Decision Forests"
-        #   image_path: /resources/images/tf-logo-card-16x9.png
-        #   path: https://blog.tensorflow.org
-        #   buttons:
-        #   - label: "Read on TensorFlow blog"
-        #     path: https://blog.tensorflow.org
-        # - heading: "TensorFlow Decision Forests video"
-        #   youtube_id: 3d34Hkf7KXA
-        #   buttons:
-        #   - label: Watch the video
-        #     path: https://www.youtube.com/watch?v=3d34Hkf7KXA
-        - heading: "TensorFlow Decision Forests on GitHub"
-          # # Add the image back when more cards are added.
-          # image_path: /resources/images/github-card-16x9.png
-          path: https://github.com/tensorflow/decision-forests
-          buttons:
-            - label: "View on GitHub"
-              path: https://github.com/tensorflow/decision-forests
-        - heading: "Yggdrasil Decision Forests on GitHub"
-          # # Add the image back when more cards are added.
-          # image_path: /resources/images/github-card-16x9.png
-          path: https://github.com/google/yggdrasil-decision-forests
-          buttons:
-            - label: "View on GitHub"
-              path: https://github.com/google/yggdrasil-decision-forests
+            <div class="tab">
+            <input type="radio" id="tab-2" name="tab-group-1">
+            <label for="tab-2">YDF <span style="font-size: small; border-radius: 5px; padding: 2px 4px; margin-left: 5px; background: linear-gradient(90deg, #5bb53d, #0d9d11); color: white;">new api</span></label>
+            <div class="content">
+            <a href="https://colab.research.google.com/github/google/yggdrasil-decision-forests/blob/main/documentation/public/docs/tutorial/usage_example.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg"></a>
+
+            <pre class = "prettyprint">
+            # Install YDF
+            !pip install ydf -U
+
+            import ydf
+            import pandas as pd
+
+            # Load a dataset with Pandas
+            ds_path = "https://raw.githubusercontent.com/google/yggdrasil-decision-forests/main/yggdrasil_decision_forests/test_data/dataset/"
+            train_ds = pd.read_csv(ds_path + "adult_train.csv")
+            test_ds = pd.read_csv(ds_path + "adult_test.csv")
+
+            # Train a Gradient Boosted Trees model
+            model = ydf.GradientBoostedTreesLearner(label="income").train(train_ds)
+
+            # Look at a model (input features, training logs, structure, etc.)
+            model.describe()
+
+            # Evaluate a model (e.g. roc, accuracy, confusion matrix, confidence intervals)
+            model.evaluate(test_ds)
+
+            # Generate predictions
+            model.predict(test_ds)
+
+            # Analyse a model (e.g. partial dependence plot, variable importance)
+            model.analyze(test_ds)
+
+            # Benchmark the inference speed of a model
+            model.benchmark(test_ds)
+
+            # Save the model
+            model.save("/tmp/my_model")
+
+            # Export the model as a TensorFlow Saved Model
+            model.to_tensorflow_saved_model("/tmp/my_saved_model")
+            </pre>
+            </div>
+            </div>
+
+            </div>
