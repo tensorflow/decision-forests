@@ -25,38 +25,27 @@ upper_tabs:
   lower_tabs:
     # Subsite tabs
     other:
-    - name: Guides & Tutorials
+    - name: Guides
       contents:
-      - heading: Guide
-      - title: Installation
-        path: /decision_forests/installation
-      - title: Migrate from neural networks
-        path: /decision_forests/migration
+      - title: Getting started
+        path: /decision_forests/tutorials/beginner_colab
+      - title: Migrating to YDF
+        path: https://ydf.readthedocs.io/en/latest/tutorial/migrating_to_ydf/
+        status: external
+      - title: Hyper-parameters
+        path: https://ydf.readthedocs.io/en/latest/hyperparameters/
+        status: external
       - title: Known issues
         path: /decision_forests/known_issues
-      - title: TensorFlow Serving
-        path: /decision_forests/tensorflow_serving
-      - title: Distributed Training
-        path: /decision_forests/distributed_training
-      - title: Running models in JavaScript
-        path: https://ydf.readthedocs.io/en/latest/js_serving.html
-        status: external
-      - heading: Tutorials
-      - title: Overview
-        path: /decision_forests/tutorials/index
-      - title: Build, train and evaluate
-        path: /decision_forests/tutorials/beginner_colab
+
+      - heading: Guide
+      - title: Migrate from neural networks
+        path: /decision_forests/migration
       - title: Learning to rank
         path: /decision_forests/tutorials/ranking_colab
-      - title: Visualizing Trees
-        path: /decision_forests/tutorials/dtreeviz_colab
-      - title: Text and pre-trained embeddings
-        path: /decision_forests/tutorials/intermediate_colab
-      - title: Making predictions
-        path: /decision_forests/tutorials/predict_colab
       - title: Inspect and debug
         path: /decision_forests/tutorials/advanced_colab
-      - title: Model composition
+      - title: Compose models
         path: /decision_forests/tutorials/model_composition_colab
       - title: Automatic tuning
         path: /decision_forests/tutorials/automatic_tuning_colab
@@ -64,20 +53,27 @@ upper_tabs:
         path: /decision_forests/tutorials/proximities_colab
       - title: Uplift modeling
         path: /decision_forests/tutorials/uplift_colab
-      - title: Run TF-DF models with TensorFlow.js
-        path: /decision_forests/tf_df_in_tf_js
-        status: external
-      - heading: Developer
-      - title: Developer manual
-        path: /decision_forests/developer_manual
-      - title: Directory structure
-        path: /decision_forests/directory_structure
-      - heading: Simple ML for Sheets
+      - title: TensorFlow Serving
+        path: /decision_forests/tensorflow_serving
+      - title: Text and pre-trained embeddings
+        path: /decision_forests/tutorials/intermediate_colab
+      - title: Distributed Training
+        path: /decision_forests/distributed_training
+      - title: Making predictions
+        path: /decision_forests/tutorials/predict_colab
       - title: Introduction
         path: /decision_forests/simple_ml_for_sheets/
-      - title: Tutorial
+
+      - heading: Experimental
+      - title: Run model in JavaScript
+        path: https://ydf.readthedocs.io/en/latest/js_serving.html
         status: external
-        path: https://simplemlforsheets.com/tutorial.html
+      - title: Run model with TensorFlow.js
+        path: /decision_forests/tf_df_in_tf_js
+        status: external
+      - title: Visualizing Trees
+        path: /decision_forests/tutorials/dtreeviz_colab
+
     - name: API Reference
       skip_translation: true
       contents:
