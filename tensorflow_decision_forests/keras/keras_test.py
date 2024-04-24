@@ -909,6 +909,31 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     predictions = model.predict(tf_test)
     logging.info("Predictions: %s", predictions)
 
+  def test_gbt_dataset_mismatch(self):
+    """Ensure an error is thrown when the test dataset is missing a feature.
+    """
+
+    tf_train = keras.pd_dataframe_to_tf_dataset(
+        synthetic_pd_dataset(num_examples=100,
+                             num_numerical_features=5), label="label")
+    tf_validation = keras.pd_dataframe_to_tf_dataset(
+        synthetic_pd_dataset(num_examples=50,
+                             num_numerical_features=5), label="label")
+    tf_test = keras.pd_dataframe_to_tf_dataset(
+        synthetic_pd_dataset(num_examples=50, num_numerical_features=4),
+        label="label")
+
+    model = keras.GradientBoostedTreesModel(num_trees=10,)
+
+    model.compile(metrics=["accuracy"])
+
+    model.fit(x=tf_train, validation_data=tf_validation)
+    model.summary()
+    with self.assertRaises(ValueError):
+      model.evaluate(tf_test)
+    with self.assertRaises(ValueError):
+      model.predict(tf_test)
+
   def test_model_abalone(self):
     """Test on the Abalone dataset.
 
