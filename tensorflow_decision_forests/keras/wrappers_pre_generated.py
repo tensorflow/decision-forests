@@ -257,6 +257,18 @@ class CartModel(core.CoreModel):
       expressed in seconds. Each learning algorithm is free to use this
       parameter at it sees fit. Enabling maximum training duration makes the
       model training non-deterministic. Default: -1.0.
+    mhld_oblique_max_num_attributes: For MHLD oblique splits i.e.
+      `split_axis=MHLD_OBLIQUE`. Maximum number of attributes in the projection.
+      Increasing this value increases the training time. Decreasing this value
+      acts as a regularization. The value should be in [2,
+      num_numerical_features]. If the value is above the total number of
+      numerical features, the value is capped automatically. The value 1 is
+      allowed but results in ordinary (non-oblique) splits. Default: None.
+    mhld_oblique_sample_attributes: For MHLD oblique splits i.e.
+      `split_axis=MHLD_OBLIQUE`. If true, applies the attribute sampling
+      controlled by the "num_candidate_attributes" or
+      "num_candidate_attributes_ratio" parameters. If false, all the attributes
+      are tested. Default: None.
     min_examples: Minimum number of examples in a node. Default: 5.
     missing_value_policy: Method used to handle missing attribute values. -
       `GLOBAL_IMPUTATION`: Missing attribute values are imputed, with the mean
@@ -345,9 +357,11 @@ class CartModel(core.CoreModel):
     split_axis: What structure of split to consider for numerical features. -
       `AXIS_ALIGNED`: Axis aligned splits (i.e. one condition at a time). This
       is the "classical" way to train a tree. Default value. - `SPARSE_OBLIQUE`:
-      Sparse oblique splits (i.e. splits one a small number of features) from
-      "Sparse Projection Oblique Random Forests", Tomita et al., 2020. Default:
-      "AXIS_ALIGNED".
+      Sparse oblique splits (i.e. random splits one a small number of features)
+      from "Sparse Projection Oblique Random Forests", Tomita et al., 2020. -
+      `MHLD_OBLIQUE`: Multi-class Hellinger Linear Discriminant splits from
+      "Classification Based on Multivariate Contrast Patterns", Canete-Sifuentes
+      et al., 2029 Default: "AXIS_ALIGNED".
     uplift_min_examples_in_treatment: For uplift models only. Minimum number of
       examples per treatment in a node. Default: 5.
     uplift_split_score: For uplift models only. Splitter score i.e. score
@@ -402,6 +416,8 @@ class CartModel(core.CoreModel):
       max_num_nodes: Optional[int] = None,
       maximum_model_size_in_memory_in_bytes: Optional[float] = -1.0,
       maximum_training_duration_seconds: Optional[float] = -1.0,
+      mhld_oblique_max_num_attributes: Optional[int] = None,
+      mhld_oblique_sample_attributes: Optional[bool] = None,
       min_examples: Optional[int] = 5,
       missing_value_policy: Optional[str] = "GLOBAL_IMPUTATION",
       num_candidate_attributes: Optional[int] = 0,
@@ -445,6 +461,8 @@ class CartModel(core.CoreModel):
             maximum_model_size_in_memory_in_bytes
         ),
         "maximum_training_duration_seconds": maximum_training_duration_seconds,
+        "mhld_oblique_max_num_attributes": mhld_oblique_max_num_attributes,
+        "mhld_oblique_sample_attributes": mhld_oblique_sample_attributes,
         "min_examples": min_examples,
         "missing_value_policy": missing_value_policy,
         "num_candidate_attributes": num_candidate_attributes,
@@ -1124,6 +1142,18 @@ class GradientBoostedTreesModel(core.CoreModel):
       expressed in seconds. Each learning algorithm is free to use this
       parameter at it sees fit. Enabling maximum training duration makes the
       model training non-deterministic. Default: -1.0.
+    mhld_oblique_max_num_attributes: For MHLD oblique splits i.e.
+      `split_axis=MHLD_OBLIQUE`. Maximum number of attributes in the projection.
+      Increasing this value increases the training time. Decreasing this value
+      acts as a regularization. The value should be in [2,
+      num_numerical_features]. If the value is above the total number of
+      numerical features, the value is capped automatically. The value 1 is
+      allowed but results in ordinary (non-oblique) splits. Default: None.
+    mhld_oblique_sample_attributes: For MHLD oblique splits i.e.
+      `split_axis=MHLD_OBLIQUE`. If true, applies the attribute sampling
+      controlled by the "num_candidate_attributes" or
+      "num_candidate_attributes_ratio" parameters. If false, all the attributes
+      are tested. Default: None.
     min_examples: Minimum number of examples in a node. Default: 5.
     missing_value_policy: Method used to handle missing attribute values. -
       `GLOBAL_IMPUTATION`: Missing attribute values are imputed, with the mean
@@ -1232,9 +1262,11 @@ class GradientBoostedTreesModel(core.CoreModel):
     split_axis: What structure of split to consider for numerical features. -
       `AXIS_ALIGNED`: Axis aligned splits (i.e. one condition at a time). This
       is the "classical" way to train a tree. Default value. - `SPARSE_OBLIQUE`:
-      Sparse oblique splits (i.e. splits one a small number of features) from
-      "Sparse Projection Oblique Random Forests", Tomita et al., 2020. Default:
-      "AXIS_ALIGNED".
+      Sparse oblique splits (i.e. random splits one a small number of features)
+      from "Sparse Projection Oblique Random Forests", Tomita et al., 2020. -
+      `MHLD_OBLIQUE`: Multi-class Hellinger Linear Discriminant splits from
+      "Classification Based on Multivariate Contrast Patterns", Canete-Sifuentes
+      et al., 2029 Default: "AXIS_ALIGNED".
     subsample: Ratio of the dataset (sampling without replacement) used to train
       individual trees for the random sampling method. If \\"subsample\\" is set
       and if \\"sampling_method\\" is NOT set or set to \\"NONE\\", then
@@ -1324,6 +1356,8 @@ class GradientBoostedTreesModel(core.CoreModel):
       max_num_nodes: Optional[int] = None,
       maximum_model_size_in_memory_in_bytes: Optional[float] = -1.0,
       maximum_training_duration_seconds: Optional[float] = -1.0,
+      mhld_oblique_max_num_attributes: Optional[int] = None,
+      mhld_oblique_sample_attributes: Optional[bool] = None,
       min_examples: Optional[int] = 5,
       missing_value_policy: Optional[str] = "GLOBAL_IMPUTATION",
       num_candidate_attributes: Optional[int] = -1,
@@ -1397,6 +1431,8 @@ class GradientBoostedTreesModel(core.CoreModel):
             maximum_model_size_in_memory_in_bytes
         ),
         "maximum_training_duration_seconds": maximum_training_duration_seconds,
+        "mhld_oblique_max_num_attributes": mhld_oblique_max_num_attributes,
+        "mhld_oblique_sample_attributes": mhld_oblique_sample_attributes,
         "min_examples": min_examples,
         "missing_value_policy": missing_value_policy,
         "num_candidate_attributes": num_candidate_attributes,
@@ -2213,6 +2249,18 @@ class RandomForestModel(core.CoreModel):
       expressed in seconds. Each learning algorithm is free to use this
       parameter at it sees fit. Enabling maximum training duration makes the
       model training non-deterministic. Default: -1.0.
+    mhld_oblique_max_num_attributes: For MHLD oblique splits i.e.
+      `split_axis=MHLD_OBLIQUE`. Maximum number of attributes in the projection.
+      Increasing this value increases the training time. Decreasing this value
+      acts as a regularization. The value should be in [2,
+      num_numerical_features]. If the value is above the total number of
+      numerical features, the value is capped automatically. The value 1 is
+      allowed but results in ordinary (non-oblique) splits. Default: None.
+    mhld_oblique_sample_attributes: For MHLD oblique splits i.e.
+      `split_axis=MHLD_OBLIQUE`. If true, applies the attribute sampling
+      controlled by the "num_candidate_attributes" or
+      "num_candidate_attributes_ratio" parameters. If false, all the attributes
+      are tested. Default: None.
     min_examples: Minimum number of examples in a node. Default: 5.
     missing_value_policy: Method used to handle missing attribute values. -
       `GLOBAL_IMPUTATION`: Missing attribute values are imputed, with the mean
@@ -2315,9 +2363,11 @@ class RandomForestModel(core.CoreModel):
     split_axis: What structure of split to consider for numerical features. -
       `AXIS_ALIGNED`: Axis aligned splits (i.e. one condition at a time). This
       is the "classical" way to train a tree. Default value. - `SPARSE_OBLIQUE`:
-      Sparse oblique splits (i.e. splits one a small number of features) from
-      "Sparse Projection Oblique Random Forests", Tomita et al., 2020. Default:
-      "AXIS_ALIGNED".
+      Sparse oblique splits (i.e. random splits one a small number of features)
+      from "Sparse Projection Oblique Random Forests", Tomita et al., 2020. -
+      `MHLD_OBLIQUE`: Multi-class Hellinger Linear Discriminant splits from
+      "Classification Based on Multivariate Contrast Patterns", Canete-Sifuentes
+      et al., 2029 Default: "AXIS_ALIGNED".
     uplift_min_examples_in_treatment: For uplift models only. Minimum number of
       examples per treatment in a node. Default: 5.
     uplift_split_score: For uplift models only. Splitter score i.e. score
@@ -2380,6 +2430,8 @@ class RandomForestModel(core.CoreModel):
       max_num_nodes: Optional[int] = None,
       maximum_model_size_in_memory_in_bytes: Optional[float] = -1.0,
       maximum_training_duration_seconds: Optional[float] = -1.0,
+      mhld_oblique_max_num_attributes: Optional[int] = None,
+      mhld_oblique_sample_attributes: Optional[bool] = None,
       min_examples: Optional[int] = 5,
       missing_value_policy: Optional[str] = "GLOBAL_IMPUTATION",
       num_candidate_attributes: Optional[int] = 0,
@@ -2433,6 +2485,8 @@ class RandomForestModel(core.CoreModel):
             maximum_model_size_in_memory_in_bytes
         ),
         "maximum_training_duration_seconds": maximum_training_duration_seconds,
+        "mhld_oblique_max_num_attributes": mhld_oblique_max_num_attributes,
+        "mhld_oblique_sample_attributes": mhld_oblique_sample_attributes,
         "min_examples": min_examples,
         "missing_value_policy": missing_value_policy,
         "num_candidate_attributes": num_candidate_attributes,

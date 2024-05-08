@@ -16,12 +16,13 @@
 
 This file is used by tools/build_pip_package.sh.
 """
+
 import platform
 import setuptools
 from setuptools.command.install import install
 from setuptools.dist import Distribution
 
-_VERSION = "1.9.0"
+_VERSION = "1.9.1"
 
 with open("README.md", "r", encoding="utf-8") as fh:
   long_description = fh.read()
@@ -35,6 +36,7 @@ REQUIRED_PACKAGES = [
     "wheel",
     "wurlitzer",
     "tf_keras~=2.16",
+    "ydf",
 ]
 
 
@@ -53,6 +55,7 @@ class BinaryDistribution(Distribution):
 
   def is_pure(self):
     return False
+
 
 try:
   from wheel.bdist_wheel import bdist_wheel as _bdist_wheel

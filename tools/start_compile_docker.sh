@@ -58,15 +58,23 @@
 #  ./tools/build_pip_package.sh ALL_VERSIONS_ALREADY_ASSEMBLED
 #
 # https://hub.docker.com/r/tensorflow/build/tags?page=1
-DOCKER=tensorflow/build:2.17-python3.9
 
 # Current directory
 # Useful if Yggdrasil Decision Forests is available locally in a neighbor
 # directory.
 TFDF_DIRNAME=${PWD##*/}
 
-# Download docker
-docker pull ${DOCKER}
+DOCKER_IMAGE=tensorflow/build:2.16-python3.9
+DOCKER_CONTAINER=compile_tfdf
+
+echo "Available containers:"
+sudo sudo docker container ls -a --size
+
+set +e  # Ignore error if the container already exist
+CREATE_DOCKER_FLAGS="-i -t -p 8889:8889 --network host -v ${PWD}/..:/working_dir -w /working_dir/${TFDF_DIRNAME}"
+sudo docker create ${CREATE_DOCKER_FLAGS} --name ${DOCKER_CONTAINER} ${DOCKER_IMAGE}
+sudo docker start ${DOCKER_CONTAINER}
+set -e
 
 # Start docker
-docker run -it -v ${PWD}/..:/working_dir -w /working_dir/${TFDF_DIRNAME} ${DOCKER} $@
+sudo docker exec -it ${DOCKER_CONTAINER} /bin/bash -c $@

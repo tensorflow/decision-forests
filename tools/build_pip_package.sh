@@ -116,15 +116,16 @@ function assemble_files() {
   # Distribution server binaries
   cp ${SRCBIN}/keras/grpc_worker_main ${SRCPK}/tensorflow_decision_forests/keras/
 
-  # YDF's proto wrappers.
-  YDFSRCBIN="bazel-bin/external/ydf/yggdrasil_decision_forests"
-  mkdir -p ${SRCPK}/yggdrasil_decision_forests
-  pushd ${YDFSRCBIN}
-  find . -name \*.py -exec rsync -R -arv {} ${SRCPK}/yggdrasil_decision_forests \;
-  popd
-
-  # Add __init__.py to all exported Yggdrasil sub-directories.
-  find ${SRCPK}/yggdrasil_decision_forests -type d -exec touch {}/__init__.py \;
+  # Note: Starting with TF-DF 0.9.1, the YDF Protos are included by (P)YDF.
+  # TODO: Remove this block.
+  # # YDF's proto wrappers.
+  # YDFSRCBIN="bazel-bin/external/ydf/yggdrasil_decision_forests"
+  # mkdir -p ${SRCPK}/yggdrasil_decision_forests
+  # pushd ${YDFSRCBIN}
+  # find . -name \*.py -exec rsync -R -arv {} ${SRCPK}/yggdrasil_decision_forests \;
+  # popd
+  # # Add __init__.py to all exported Yggdrasil sub-directories.
+  # find ${SRCPK}/yggdrasil_decision_forests -type d -exec touch {}/__init__.py \;
 }
 
 # Build a pip package.

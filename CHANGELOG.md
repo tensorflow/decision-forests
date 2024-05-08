@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.9.1 - 2024-05-07
+
+### Fix
+
+-   Solve dependency collision of YDF Proto between PYDF and TF-DF.
+
 ## 1.9.0 - 2024-03-12
 
 ### Fix
