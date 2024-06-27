@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# -*- coding: utf-8 -*-
 """User entry point for the TensorFlow Decision Forest API.
 
 Basic usage:
@@ -48,7 +49,6 @@ model.save("/tmp/my_saved_model")
 # Load a model: it loads as a generic keras model.
 loaded_model = tf_keras.models.load_model("/tmp/my_saved_model")
 ```
-
 """
 
 __version__ = "1.9.1"
