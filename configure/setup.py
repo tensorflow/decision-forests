@@ -18,11 +18,12 @@ This file is used by tools/build_pip_package.sh.
 """
 
 import platform
+import sys
 import setuptools
 from setuptools.command.install import install
 from setuptools.dist import Distribution
 
-_VERSION = "1.9.1"
+_VERSION = "1.9.2"
 
 with open("README.md", "r", encoding="utf-8") as fh:
   long_description = fh.read()
@@ -30,7 +31,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 REQUIRED_PACKAGES = [
     "numpy",
     "pandas",
-    "tensorflow~=2.16.1",
+    "tensorflow==2.16.2",
     "six",
     "absl_py",
     "wheel",
@@ -57,31 +58,26 @@ class BinaryDistribution(Distribution):
     return False
 
 
-try:
-  from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
-
-  class bdist_wheel(_bdist_wheel):
-
-    def finalize_options(self):
-      _bdist_wheel.finalize_options(self)
-      self.root_is_pure = False
-
-    def get_tag(self):
-      python, abi, plat = _bdist_wheel.get_tag(self)
-      if platform.system() == "Darwin":
-        # Uncomment on of the lines below to adapt the platform string when
-        # cross-compiling.
-        plat = "macosx_12_0_arm64"
-        # plat = "macosx_10_15_x86_64"
-        pass
-      return python, abi, plat
-
-except ImportError:
-  bdist_wheel = None
+if "bdist_wheel" in sys.argv:
+  if "--plat-name" not in sys.argv:
+    if platform.system() == "Darwin":
+      idx = sys.argv.index("bdist_wheel") + 1
+      sys.argv.insert(idx, "--plat-name")
+      if platform.processor() == "arm":
+        sys.argv.insert(idx + 1, "macosx_10_15_x86_64")
+      elif platform.processor() == "i386":
+        sys.argv.insert(idx + 1, "macosx_12_0_arm64")
+      else:
+        raise ValueError(f"Unknown processor {platform.processor()}")
+    else:
+      print("Not on MacOS")
+  else:
+    print("PLAT-NAME Supplied")
+else:
+  print("NO BDIST_WHEEL")
 
 setuptools.setup(
     cmdclass={
-        "bdist_wheel": bdist_wheel,
         "install": InstallPlatlib,
     },
     name="tensorflow_decision_forests",

@@ -289,7 +289,7 @@ class CartModel(core.CoreModel):
       value for Random Forest: `sqrt(number of input attributes)` in case of
       classification and `number_of_input_attributes / 3` in case of regression.
       If `num_candidate_attributes=-1`, all the attributes are tested. Default:
-      0.
+      -1.
     num_candidate_attributes_ratio: Ratio of attributes tested at each node. If
       set, it is equivalent to `num_candidate_attributes =
       number_of_input_features x num_candidate_attributes_ratio`. The possible
@@ -308,7 +308,7 @@ class CartModel(core.CoreModel):
       training. This solution is faster but consumes much more memory than
       IN_NODE. - IN_NODE: The features are sorted just before being used in the
       node. This solution is slow but consumes little amount of memory. .
-      Default: "PRESORT".
+      Default: "IN_NODE".
     sparse_oblique_max_num_projections: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Maximum number of projections (applied after
       the num_projections_exponent). Oblique splits try out
@@ -420,11 +420,11 @@ class CartModel(core.CoreModel):
       mhld_oblique_sample_attributes: Optional[bool] = None,
       min_examples: Optional[int] = 5,
       missing_value_policy: Optional[str] = "GLOBAL_IMPUTATION",
-      num_candidate_attributes: Optional[int] = 0,
+      num_candidate_attributes: Optional[int] = -1,
       num_candidate_attributes_ratio: Optional[float] = -1.0,
       pure_serving_model: Optional[bool] = False,
       random_seed: Optional[int] = 123456,
-      sorting_strategy: Optional[str] = "PRESORT",
+      sorting_strategy: Optional[str] = "IN_NODE",
       sparse_oblique_max_num_projections: Optional[int] = None,
       sparse_oblique_normalization: Optional[str] = None,
       sparse_oblique_num_projections_exponent: Optional[float] = None,

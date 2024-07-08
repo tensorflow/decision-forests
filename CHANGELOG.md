@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.9.2 - 2024-07-04
+
+### Fix
+
+-   Fix compatibility with TF 2.16.2.
+-   Fix build.
+
 ## 1.9.1 - 2024-05-07
 
 ### Fix

@@ -54,6 +54,7 @@ The following table shows the compatibility between
 
 tensorflow_decision_forests | tensorflow
 --------------------------- | ---------------
+1.9.2                       | 2.16.2
 1.9.1                       | 2.16.1
 1.9.0                       | 2.16.1
 1.8.0 - 1.8.1               | 2.15.0
