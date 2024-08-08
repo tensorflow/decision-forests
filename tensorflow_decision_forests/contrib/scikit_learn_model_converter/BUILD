@@ -14,9 +14,9 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
-        # sklearn dep,
-        # TensorFlow Python,
         "//tensorflow_decision_forests",
+        "@pypi_scikit_learn//:pkg",
+        "@release_or_nightly//:tensorflow_pkg",
     ],
 )
 
@@ -30,8 +30,8 @@ py_test(
     deps = [
         ":scikit_learn_model_converter",
         # absl/testing:parameterized dep,
-        # numpy dep,
-        # sklearn dep,
-        # TensorFlow Python,
+        "@pypi_numpy//:pkg",
+        "@pypi_scikit_learn//:pkg",
+        "@release_or_nightly//:tensorflow_pkg",
     ],
 )

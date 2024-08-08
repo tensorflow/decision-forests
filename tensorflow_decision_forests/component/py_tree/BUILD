@@ -40,8 +40,8 @@ py_library(
         ":condition",
         ":value",
         # absl/logging dep,
-        # numpy dep,
-        # six dep,
+        "@pypi_numpy//:pkg",
+        "@pypi_six//:pkg",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
         "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
         "@ydf//yggdrasil_decision_forests/model/decision_tree:decision_tree_py_proto",
@@ -55,8 +55,8 @@ py_library(
     deps = [
         ":dataspec",
         # absl/logging dep,
-        # numpy dep,
-        # six dep,
+        "@pypi_numpy//:pkg",
+        "@pypi_six//:pkg",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
         "@ydf//yggdrasil_decision_forests/model/decision_tree:decision_tree_py_proto",
     ],
@@ -67,8 +67,8 @@ py_library(
     srcs = ["value.py"],
     srcs_version = "PY3",
     deps = [
-        # numpy dep,
-        # six dep,
+        "@pypi_numpy//:pkg",
+        "@pypi_six//:pkg",
         "@ydf//yggdrasil_decision_forests/model/decision_tree:decision_tree_py_proto",
     ],
 )
@@ -79,8 +79,8 @@ py_library(
     srcs_version = "PY3",
     deps = [
         # absl/logging dep,
-        # numpy dep,
-        # six dep,
+        "@pypi_numpy//:pkg",
+        "@pypi_six//:pkg",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
     ],
 )
@@ -90,7 +90,7 @@ py_library(
     srcs = ["objective.py"],
     srcs_version = "PY3",
     deps = [
-        # six dep,
+        "@pypi_six//:pkg",
         "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
     ],
 )
@@ -110,7 +110,7 @@ py_test(
         ":value",
         # absl/logging dep,
         # absl/testing:parameterized dep,
-        # TensorFlow Python,
+        "@release_or_nightly//:tensorflow_pkg",
     ],
 )
 
@@ -125,7 +125,7 @@ py_test(
         ":value",
         # absl/logging dep,
         # absl/testing:parameterized dep,
-        # TensorFlow Python,
+        "@release_or_nightly//:tensorflow_pkg",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
         "@ydf//yggdrasil_decision_forests/model/decision_tree:decision_tree_py_proto",
     ],
@@ -140,7 +140,7 @@ py_test(
         ":dataspec",
         # absl/logging dep,
         # absl/testing:parameterized dep,
-        # TensorFlow Python,
+        "@release_or_nightly//:tensorflow_pkg",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
         "@ydf//yggdrasil_decision_forests/model/decision_tree:decision_tree_py_proto",
     ],
@@ -153,7 +153,7 @@ py_test(
     deps = [
         ":dataspec",
         # absl/testing:parameterized dep,
-        # TensorFlow Python,
+        "@release_or_nightly//:tensorflow_pkg",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
     ],
 )
@@ -166,7 +166,7 @@ py_test(
         ":value",
         # absl/logging dep,
         # absl/testing:parameterized dep,
-        # TensorFlow Python,
+        "@release_or_nightly//:tensorflow_pkg",
         "@ydf//yggdrasil_decision_forests/model/decision_tree:decision_tree_py_proto",
     ],
 )
@@ -180,6 +180,6 @@ py_test(
         ":objective",
         # absl/logging dep,
         # absl/testing:parameterized dep,
-        # TensorFlow Python,
+        "@release_or_nightly//:tensorflow_pkg",
     ],
 )

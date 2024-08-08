@@ -14,8 +14,8 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
-        # TensorFlow Python,
         "//tensorflow_decision_forests",
+        "@release_or_nightly//:tensorflow_pkg",
     ],
 )
 
@@ -29,8 +29,8 @@ py_test(
         ":training_preprocessing",
         # absl/logging dep,
         # absl/testing:parameterized dep,
-        # numpy dep,
-        # TensorFlow Python,
+        "@pypi_numpy//:pkg",
+        "@release_or_nightly//:tensorflow_pkg",
         "//tensorflow_decision_forests",
     ],
 )

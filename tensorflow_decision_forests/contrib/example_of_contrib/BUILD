@@ -27,6 +27,6 @@ py_test(
     python_version = "PY3",
     deps = [
         ":example_of_contrib",
-        # TensorFlow Python,
+        "@release_or_nightly//:tensorflow_pkg",
     ],
 )

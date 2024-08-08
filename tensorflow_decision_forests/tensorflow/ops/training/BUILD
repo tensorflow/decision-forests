@@ -32,8 +32,8 @@ py_library(
     data = [":training.so"],
     srcs_version = "PY3",
     deps = [
-        # TensorFlow Python,
         "//tensorflow_decision_forests/tensorflow:check_version",
+        "@release_or_nightly//:tensorflow_pkg",
     ],
 )
 
@@ -66,8 +66,8 @@ cc_library(
     linkstatic = 1,
     deps = [] + select({
         "@ydf//yggdrasil_decision_forests:tensorflow_with_header_lib": [
-            "@tensorflow_pypi//:libtensorflow_framework",
-            "@tensorflow_pypi//:tf_header_lib",
+            "@release_or_nightly//:tensorflow_libtensorflow_framework",
+            "@release_or_nightly//:tensorflow_tf_header_lib",
         ],
         "//conditions:default": ["@org_tensorflow//tensorflow/core:framework"],
     }),
@@ -123,8 +123,8 @@ cc_library(
         "@ydf//yggdrasil_decision_forests/utils/distribute/implementations/grpc:grpc_worker",
     ] + select({
         "@ydf//yggdrasil_decision_forests:tensorflow_with_header_lib": [
-            "@tensorflow_pypi//:libtensorflow_framework",
-            "@tensorflow_pypi//:tf_header_lib",
+            "@release_or_nightly//:tensorflow_libtensorflow_framework",
+            "@release_or_nightly//:tensorflow_tf_header_lib",
         ],
         "//conditions:default": [
             "@org_tensorflow//tensorflow/core:framework",
@@ -144,6 +144,6 @@ py_test(
     deps = [
         ":op_py",
         # absl/logging dep,
-        # TensorFlow Python,
+        "@release_or_nightly//:tensorflow_pkg",
     ],
 )

@@ -68,5 +68,3 @@ build:macos_intel --config=avx_linux
 build:macos --define std_synchronization_primitives=1
 
 build:windows --config=release_cpu_windows
-
-build:linux --config=release_cpu_linux

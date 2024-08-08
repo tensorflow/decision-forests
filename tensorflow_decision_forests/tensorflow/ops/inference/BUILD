@@ -20,8 +20,8 @@ py_library(
     deps = [
         ":op_py",
         # absl/logging dep,
-        # six dep,
-        # TensorFlow Python,
+        "@pypi_six//:pkg",
+        "@release_or_nightly//:tensorflow_pkg",
         # TensorFlow /eager:context,
         # TensorFlow /framework:ops,
         "//tensorflow_decision_forests/component/inspector",
@@ -37,7 +37,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         # absl/logging dep,
-        # TensorFlow Python,
+        "@release_or_nightly//:tensorflow_pkg",
         "//tensorflow_decision_forests/component/inspector:blob_sequence",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
         "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
@@ -74,8 +74,8 @@ py_library(
     data = [":inference.so"],
     srcs_version = "PY3",
     deps = [
-        # TensorFlow Python,
         "//tensorflow_decision_forests/tensorflow:check_version",
+        "@release_or_nightly//:tensorflow_pkg",
     ],
 )
 
@@ -101,8 +101,8 @@ OP_SRCS = ["op.cc"]
 
 OP_DEPS = select({
     "@ydf//yggdrasil_decision_forests:tensorflow_with_header_lib": [
-        "@tensorflow_pypi//:libtensorflow_framework",
-        "@tensorflow_pypi//:tf_header_lib",
+        "@release_or_nightly//:tensorflow_libtensorflow_framework",
+        "@release_or_nightly//:tensorflow_tf_header_lib",
     ],
     "//conditions:default": ["@org_tensorflow//tensorflow/core:framework"],
 })
@@ -135,8 +135,8 @@ cc_library(
         "@ydf//yggdrasil_decision_forests/utils:tensorflow",
     ] + select({
         "@ydf//yggdrasil_decision_forests:tensorflow_with_header_lib": [
-            "@tensorflow_pypi//:libtensorflow_framework",
-            "@tensorflow_pypi//:tf_header_lib",
+            "@release_or_nightly//:tensorflow_libtensorflow_framework",
+            "@release_or_nightly//:tensorflow_tf_header_lib",
         ],
         "//conditions:default": ["@org_tensorflow//tensorflow/core:framework"],
     }),
@@ -159,7 +159,7 @@ py_test(
         # absl/flags dep,
         # absl/logging dep,
         # absl/testing:parameterized dep,
-        # TensorFlow Python,
+        "@release_or_nightly//:tensorflow_pkg",
     ],
 )
 
@@ -176,6 +176,6 @@ py_test(
         # absl/flags dep,
         # absl/logging dep,
         # absl/testing:parameterized dep,
-        # TensorFlow Python,
+        "@release_or_nightly//:tensorflow_pkg",
     ],
 )

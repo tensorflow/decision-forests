@@ -71,35 +71,15 @@ if is_macos; then
   export PATH="/opt/homebrew/opt/gnu-sed/libexec/gnubin:$PATH"
 fi
 
-# Install Pip dependencies
-${PYTHON} -m ensurepip --upgrade || true
-${PYTHON} -m pip install -q pip setuptools --upgrade
-${PYTHON} -m pip install -q numpy pandas scikit-learn
-
 # Install Tensorflow at the chosen version.
 if [ ${TF_VERSION} == "nightly" ]; then
-  ${PYTHON} -m pip install -q tf-nightly tf-keras-nightly --force-reinstall
-  TF_MINOR="nightly"
+  ${PYTHON} -m pip install -q tf-nightly --force-reinstall
+  sed -i "s/^tensorflow==.*/tf-nightly/" configure/requirements.in
+  sed -i "s/^tf-keras.*/tf-keras-nightly/" configure/requirements.in
+  export IS_NIGHTLY=1
 else
   ${PYTHON} -m pip install -q tensorflow==${TF_VERSION} --force-reinstall
-  TF_MINOR=$(echo $TF_VERSION | grep -oP '[0-9]+\.[0-9]+')
-  if [[ $TF_VERSION == *"rc"* ]]; then
-    # Unfortunately, the TF-Keras RC may not match the TensorFlow RC (e.g. for 2.16).
-    # Just install the latest one that's available and hope for the best.
-    ${PYTHON} -m pip install -q tf-keras --pre --upgrade
-  else
-    ${PYTHON} -m pip install -q tf-keras==${TF_MINOR}
-  fi
-fi
-
-${PYTHON} -m pip list
-
-# For Tensorflow versions > 2.15, apply compatibility patches.
-
-if [[ ${TF_MINOR} != "2.15" ]]; then
-  sed -i "s/tensorflow:tf.patch/tensorflow:tf-216.patch/" WORKSPACE
-  sed -i "s/# patch_args = \[\"-p1\"\],/patch_args = \[\"-p1\"\],/" third_party/yggdrasil_decision_forests/workspace.bzl
-  sed -i 's/# patches = \["@ydf\/\/yggdrasil_decision_forests:ydf.patch"\],/patches = \["\/\/third_party\/yggdrasil_decision_forests:ydf.patch"\],/' third_party/yggdrasil_decision_forests/workspace.bzl
+  sed -i "s/^tensorflow==.*/tensorflow==$TF_VERSION/" configure/requirements.in
 fi
 
 # Get the commit SHA
@@ -117,6 +97,14 @@ sed -i "s/sha256 = \"${prev_shasum}\",//" WORKSPACE
 TENSORFLOW_BAZELRC="tensorflow_bazelrc"
 curl https://raw.githubusercontent.com/tensorflow/tensorflow/${commit_slug}/.bazelrc -o ${TENSORFLOW_BAZELRC}
 
+echo "TF_VERSION=$TF_VERSION"
+REQUIREMENTS_EXTRA_FLAGS="--upgrade"
+if [[ "$TF_VERSION" == *"rc"* ]]; then
+  REQUIREMENTS_EXTRA_FLAGS="$REQUIREMENTS_EXTRA_FLAGS --pre"
+fi
+
+bazel run //configure:requirements.update -- $REQUIREMENTS_EXTRA_FLAGS
+
 # Bazel common flags. Startup flags are already given through STARTUP_FLAGS
 FLAGS=
 
@@ -133,50 +121,6 @@ else
   FLAGS="${FLAGS} --config=linux"
 fi
 
-if [ ${MAC_INTEL_CROSSCOMPILE} == 1 ]; then
-  TFDF_TMPDIR="${TMPDIR}tf_dep"
-  rm -rf ${TFDF_TMPDIR}
-  mkdir -p ${TFDF_TMPDIR}
-  # Download the Intel CPU Tensorflow package
-  if [ ${TF_VERSION} == "nightly" ]; then
-    ${PYTHON} -m pip download --no-deps --platform=macosx_10_15_x86_64 --dest=$TFDF_TMPDIR tf-nightly
-    unzip -q $TFDF_TMPDIR/tf_nightly* -d $TFDF_TMPDIR
-  else
-    ${PYTHON} -m pip download --no-deps --platform=macosx_10_15_x86_64 --dest=$TFDF_TMPDIR tensorflow
-    unzip -q $TFDF_TMPDIR/tensorflow* -d $TFDF_TMPDIR
-  fi
-  # Find the path to the pre-compiled version of TensorFlow installed in the
-  # "tensorflow" pip package.
-  SHARED_LIBRARY_DIR=$(readlink -f $TFDF_TMPDIR/tensorflow)
-  SHARED_LIBRARY_NAME="libtensorflow_cc.2.dylib"
-  HEADER_DIR=$(readlink -f $TFDF_TMPDIR/tensorflow/include)
-else
-  # Find the path to the pre-compiled version of TensorFlow installed in the
-  # "tensorflow" pip package.
-  TF_CFLAGS="$(${PYTHON} -c 'import tensorflow as tf; print(tf.sysconfig.get_compile_flags()[0])')"
-  TF_LFLAGS="$(${PYTHON} -c 'import tensorflow as tf; print(tf.sysconfig.get_link_flags()[0])')"
-
-  HEADER_DIR=${TF_CFLAGS:2}
-  if is_macos; then
-    SHARED_LIBRARY_DIR=${TF_LFLAGS:2}
-    SHARED_LIBRARY_NAME="libtensorflow_framework.2.dylib"
-  elif is_windows; then
-  # Use pywrap_tensorflow's import library on Windows. It is in the same dir as the dll/pyd.
-    SHARED_LIBRARY_NAME="_pywrap_tensorflow_internal.lib"
-    SHARED_LIBRARY_DIR=${TF_CFLAGS:2:-7}"python"
-
-    SHARED_LIBRARY_NAME=${SHARED_LIBRARY_NAME//\\//}
-    SHARED_LIBRARY_DIR=${SHARED_LIBRARY_DIR//\\//}
-    HEADER_DIR=${HEADER_DIR//\\//}
-  else
-    SHARED_LIBRARY_DIR=${TF_LFLAGS:2}
-    SHARED_LIBRARY_NAME="libtensorflow_framework.so.2"
-  fi
-fi
-
-FLAGS="${FLAGS} --action_env TF_HEADER_DIR=${HEADER_DIR}"
-FLAGS="${FLAGS} --action_env TF_SHARED_LIBRARY_DIR=${SHARED_LIBRARY_DIR}"
-FLAGS="${FLAGS} --action_env TF_SHARED_LIBRARY_NAME=${SHARED_LIBRARY_NAME}"
 
 # Bazel
 BAZEL=bazel
@@ -186,11 +130,6 @@ STARTUP_FLAGS="${STARTUP_FLAGS} --bazelrc=${TENSORFLOW_BAZELRC}"
 # Distributed compilation using Remote Build Execution (RBE)
 #
 # FLAGS="$FLAGS --config=rbe_cpu_linux --config=tensorflow_testing_rbe_linux --config=rbe_linux_py3"
-
-if [ ${MAC_INTEL_CROSSCOMPILE} == 1 ]; then
-  # Using darwin_x86_64 fails here, tensorflow expects "darwin".
-  FLAGS="${FLAGS} --cpu=darwin --apple_platform_type=macos"
-fi
 
 if [ "${FULL_COMPILATION}" == 1 ]; then
   BUILD_RULES="//tensorflow_decision_forests/...:all"

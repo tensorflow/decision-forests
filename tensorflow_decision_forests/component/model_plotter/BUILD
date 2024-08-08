@@ -20,12 +20,12 @@ py_library(
     data = ["assets"],
     srcs_version = "PY3",
     deps = [
-        # TensorFlow Python,
         "//tensorflow_decision_forests/component/inspector",
         "//tensorflow_decision_forests/component/py_tree:condition",
         "//tensorflow_decision_forests/component/py_tree:node",
         "//tensorflow_decision_forests/component/py_tree:tree",
         "//tensorflow_decision_forests/component/py_tree:value",
+        "@release_or_nightly//:tensorflow_pkg",
     ],
 )
 
@@ -41,7 +41,7 @@ py_test(
         # absl/flags dep,
         # absl/logging dep,
         # absl/testing:parameterized dep,
-        # TensorFlow Python,
+        "@release_or_nightly//:tensorflow_pkg",
         "//tensorflow_decision_forests/component/py_tree:condition",
         "//tensorflow_decision_forests/component/py_tree:dataspec",
         "//tensorflow_decision_forests/component/py_tree:node",

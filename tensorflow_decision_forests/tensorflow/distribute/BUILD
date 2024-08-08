@@ -18,7 +18,7 @@ py_binary(
         # absl:app dep,
         # absl/flags dep,
         # absl/logging dep,
-        # TensorFlow Python,
+        "@release_or_nightly//:tensorflow_pkg",
         "//tensorflow_decision_forests",
     ],
 )

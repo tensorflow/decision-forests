@@ -1,0 +1,10 @@
+numpy
+pandas
+tensorflow==2.17.0
+six
+absl_py
+wheel
+wurlitzer
+tf_keras
+ydf
+scikit-learn

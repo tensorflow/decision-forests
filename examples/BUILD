@@ -10,11 +10,11 @@ py_binary(
     srcs_version = "PY3",
     deps = [
         # absl:app dep,
-        # numpy dep,
-        # pandas dep,
-        # TensorFlow Python,
+        "@pypi_numpy//:pkg",
+        "@pypi_pandas//:pkg",
+        "@release_or_nightly//:tensorflow_pkg",
         "//tensorflow_decision_forests",
-        # tf_keras dep,
+        "@release_or_nightly//:tf_keras_pkg",
     ],
 )
 
@@ -25,11 +25,11 @@ py_binary(
     srcs_version = "PY3",
     deps = [
         # absl:app dep,
-        # numpy dep,
-        # pandas dep,
-        # TensorFlow Python,
+        "@pypi_numpy//:pkg",
+        "@pypi_pandas//:pkg",
+        "@release_or_nightly//:tensorflow_pkg",
         "//tensorflow_decision_forests",
-        # tf_keras dep,
+        "@release_or_nightly//:tf_keras_pkg",
     ],
 )
 
@@ -41,11 +41,11 @@ py_binary(
     deps = [
         # absl:app dep,
         # absl/logging dep,
-        # numpy dep,
-        # pandas dep,
-        # TensorFlow Python,
+        "@pypi_numpy//:pkg",
+        "@pypi_pandas//:pkg",
+        "@release_or_nightly//:tensorflow_pkg",
         "//tensorflow_decision_forests",
-        # tf_keras dep,
+        "@release_or_nightly//:tf_keras_pkg",
     ],
 )
 
@@ -57,8 +57,8 @@ py_binary(
     deps = [
         # absl:app dep,
         # absl/logging dep,
-        # TensorFlow Python,
+        "@release_or_nightly//:tensorflow_pkg",
         "//tensorflow_decision_forests",
-        # tf_keras dep,
+        "@release_or_nightly//:tf_keras_pkg",
     ],
 )

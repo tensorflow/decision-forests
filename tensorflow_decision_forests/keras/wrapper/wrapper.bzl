@@ -74,7 +74,7 @@ def py_wrap_yggdrasil_learners(
         deps = [
             "//tensorflow_decision_forests/keras:core",
             "//tensorflow_decision_forests/component/tuner",
-            # TensorFlow Python,
+            "@release_or_nightly//:tensorflow_pkg",
             "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
             "@ydf//yggdrasil_decision_forests/learner:abstract_learner_py_proto",
         ],

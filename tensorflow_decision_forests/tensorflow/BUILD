@@ -74,11 +74,11 @@ py_library(
     srcs = ["core_inference.py"],
     srcs_version = "PY3",
     deps = [
-        # numpy dep,
-        # pandas dep,
-        # TensorFlow Python,
-        # tf_keras dep,
         "//tensorflow_decision_forests/component/inspector",
+        "@pypi_numpy//:pkg",
+        "@pypi_pandas//:pkg",
+        "@release_or_nightly//:tensorflow_pkg",
+        "@release_or_nightly//:tf_keras_pkg",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
         "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
     ],
@@ -90,10 +90,10 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":core_inference",
-        # numpy dep,
-        # pandas dep,
-        # TensorFlow Python,
-        # tf_keras dep,
+        "@pypi_numpy//:pkg",
+        "@pypi_pandas//:pkg",
+        "@release_or_nightly//:tensorflow_pkg",
+        "@release_or_nightly//:tf_keras_pkg",
         # TensorFlow /distribute:distribute_lib,
         # TensorFlow /distribute:parameter_server_strategy_v2,
         # TensorFlow /distribute/coordinator:cluster_coordinator,
@@ -114,7 +114,7 @@ py_library(
     srcs = ["check_version.py"],
     srcs_version = "PY3",
     deps = [
-        # TensorFlow Python,
+        "@release_or_nightly//:tensorflow_pkg",
     ],
 )
 
@@ -124,7 +124,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         # absl/logging dep,
-        # TensorFlow Python,
+        "@release_or_nightly//:tensorflow_pkg",
     ],
 )
 
@@ -134,8 +134,8 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":tf_logging",
-        # TensorFlow Python,
         "//tensorflow_decision_forests/tensorflow/ops/training:op_py",
+        "@release_or_nightly//:tensorflow_pkg",
     ],
 )
 
@@ -144,8 +144,8 @@ py_library(
     srcs = ["tf1_compatibility.py"],
     srcs_version = "PY3",
     deps = [
-        # TensorFlow Python,
-        # tf_keras dep,
+        "@release_or_nightly//:tensorflow_pkg",
+        "@release_or_nightly//:tf_keras_pkg",
         # TensorFlow /trackable,
     ],
 )
@@ -161,9 +161,9 @@ py_test(
     deps = [
         ":core",
         # absl/logging dep,
-        # pandas dep,
-        # TensorFlow Python,
-        # tf_keras dep,
+        "@pypi_pandas//:pkg",
+        "@release_or_nightly//:tensorflow_pkg",
+        "@release_or_nightly//:tf_keras_pkg",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
         "@ydf//yggdrasil_decision_forests/model:hyperparameter_py_proto",
     ],
@@ -175,6 +175,6 @@ py_test(
     python_version = "PY3",
     deps = [
         ":check_version",
-        # TensorFlow Python,
+        "@release_or_nightly//:tensorflow_pkg",
     ],
 )
