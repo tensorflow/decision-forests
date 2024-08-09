@@ -120,6 +120,7 @@ cc_library(
     name = "kernel",
     srcs = ["kernel.cc"],
     deps = [
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",

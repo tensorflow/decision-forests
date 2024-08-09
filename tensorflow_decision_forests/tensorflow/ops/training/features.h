@@ -18,6 +18,7 @@
 #ifndef TENSORFLOW_DECISION_FORESTS_TENSORFLOW_OPS_TRAINING_FEATURES_H_
 #define TENSORFLOW_DECISION_FORESTS_TENSORFLOW_OPS_TRAINING_FEATURES_H_
 
+#include "absl/log/log.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/resource_mgr.h"
 #include "yggdrasil_decision_forests/model/abstract_model.h"
@@ -210,7 +211,7 @@ class Feature : public tensorflow::OpKernel {
                                      "The input 1 feature should have rank 1"));
       resource_->Add(ctx->input(0), ctx->input(1));
     } else {
-      YDF_LOG(FATAL) << "Invalid dimensions";
+      LOG(FATAL) << "Invalid dimensions";
     }
   }
 

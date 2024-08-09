@@ -94,6 +94,7 @@ cc_library(
         "//conditions:default": [],
     }),
     deps = [
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/random",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",

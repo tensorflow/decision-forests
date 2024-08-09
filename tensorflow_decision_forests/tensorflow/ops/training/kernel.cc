@@ -21,9 +21,12 @@
 #include <csignal>
 #include <cstdint>
 #include <memory>
-#include <optional>
+#include <string>
+#include <utility>
 
+#include "absl/log/log.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/substitute.h"
 #include "absl/types/optional.h"
 #include "tensorflow/core/framework/op_kernel.h"
@@ -66,7 +69,7 @@ tensorflow::Status YggdrasilModelContainer::LoadModel(
             label_spec, class_idx));
   }
 
-  YDF_LOG(INFO) << "Loading model from " << model_path;
+  LOG(INFO) << "Loading model from " << model_path;
   return absl::OkStatus();
 }
 
@@ -388,8 +391,8 @@ tf::Status FeatureSet::InitializeDatasetFromFeatures(
         return set_num_examples(feature->data().size(), feature->NumBatches());
       }));
 
-  YDF_LOG(INFO) << "Number of batches: " << num_batches;
-  YDF_LOG(INFO) << "Number of examples: " << num_examples;
+  LOG(INFO) << "Number of batches: " << num_batches;
+  LOG(INFO) << "Number of examples: " << num_examples;
 
   if (num_examples <= 0) {
     return tf::Status(
@@ -768,8 +771,8 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
   ~SimpleMLModelTrainer() override = default;
 
   void Compute(tf::OpKernelContext* ctx) override {
-    YDF_LOG(INFO) << "Start Yggdrasil model training";
-    YDF_LOG(INFO) << "Collect training examples";
+    LOG(INFO) << "Start Yggdrasil model training";
+    LOG(INFO) << "Collect training examples";
 
     tf::Tensor* output_tensor = nullptr;
     OP_REQUIRES_OK(
@@ -777,35 +780,34 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
     output_tensor->scalar<int32_t>()() = -1;
 
     if (!HasTrainingExamples(ctx)) {
-      YDF_LOG(WARNING)
-          << "No training example available. Ignore training request.";
+      LOG(WARNING) << "No training example available. Ignore training request.";
       return;
     }
 
-    YDF_LOG(INFO) << "Dataspec guide:\n" << guide_.DebugString();
+    LOG(INFO) << "Dataspec guide:\n" << guide_.DebugString();
 
     auto dataset = absl::make_unique<dataset::VerticalDataset>();
     OP_REQUIRES_OK(
         ctx, BuildVerticalDatasetFromTFResources(ctx, DatasetType::kTraining,
                                                  resource_ids_, dataset.get()));
 
-    YDF_LOG(INFO) << "Training dataset:\n"
-                  << dataset::PrintHumanReadable(dataset->data_spec(), false);
+    LOG(INFO) << "Training dataset:\n"
+              << dataset::PrintHumanReadable(dataset->data_spec(), false);
 
     std::unique_ptr<dataset::VerticalDataset> valid_dataset;
     if (has_validation_dataset_) {
-      YDF_LOG(INFO) << "Collect validation dataset";
+      LOG(INFO) << "Collect validation dataset";
       valid_dataset = absl::make_unique<dataset::VerticalDataset>();
       OP_REQUIRES_OK(ctx, BuildVerticalDatasetFromTFResources(
                               ctx, DatasetType::kValidation, resource_ids_,
                               valid_dataset.get()));
 
-      YDF_LOG(INFO) << "Validation dataset:\n"
-                    << dataset::PrintHumanReadable(valid_dataset->data_spec(),
-                                                   false);
+      LOG(INFO) << "Validation dataset:\n"
+                << dataset::PrintHumanReadable(valid_dataset->data_spec(),
+                                               false);
     }
 
-    YDF_LOG(INFO) << "Configure learner";
+    LOG(INFO) << "Configure learner";
     model::proto::TrainingConfig config = training_config_;
 
     std::unique_ptr<model::AbstractLearner> learner;
@@ -819,11 +821,10 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
       learner->set_log_directory(tf::io::JoinPath(model_dir_, "train_logs"));
     }
 
-    YDF_LOG(INFO) << "Training config:\n"
-                  << learner->training_config().DebugString();
+    LOG(INFO) << "Training config:\n"
+              << learner->training_config().DebugString();
 
-    YDF_LOG(INFO) << "Deployment config:\n"
-                  << learner->deployment().DebugString();
+    LOG(INFO) << "Deployment config:\n" << learner->deployment().DebugString();
 
     // The following commented code snippet exports the dataset and training
     // configuration so it can be run easily in a debugger by running:
@@ -884,7 +885,7 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
     training_state->node_format = this->node_format_;
 
     auto async_train = [training_state]() -> absl::Status {
-      YDF_LOG(INFO) << "Train model";
+      LOG(INFO) << "Train model";
       absl::StatusOr<std::unique_ptr<model::AbstractModel>> model;
       if (training_state->valid_dataset) {
         model = training_state->learner->TrainWithStatus(
@@ -909,23 +910,23 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
         if (df_model) {
           df_model->set_node_format(training_state->node_format);
         } else {
-          YDF_LOG(INFO) << "The node format cannot be set for this model type";
+          LOG(INFO) << "The node format cannot be set for this model type";
         }
       }
 
       // Export model to disk.
       if (!training_state->model_dir.empty()) {
         if (training_state->use_file_prefix) {
-          YDF_LOG(INFO) << "Export model in log directory: "
-                        << training_state->model_dir << " with prefix "
-                        << training_state->model_id;
+          LOG(INFO) << "Export model in log directory: "
+                    << training_state->model_dir << " with prefix "
+                    << training_state->model_id;
           RETURN_IF_ERROR(
               SaveModel(tf::io::JoinPath(training_state->model_dir, "model"),
                         model.value().get(),
                         {/*.file_prefix =*/training_state->model_id}));
         } else {
-          YDF_LOG(INFO) << "Export model in log directory: "
-                        << training_state->model_dir << " without prefix";
+          LOG(INFO) << "Export model in log directory: "
+                    << training_state->model_dir << " without prefix";
           RETURN_IF_ERROR(
               SaveModel(tf::io::JoinPath(training_state->model_dir, "model"),
                         model.value().get()));
@@ -934,7 +935,7 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
 
       // Export model to model resource.
       if (training_state->model_container) {
-        YDF_LOG(INFO) << "Save model in resources";
+        LOG(INFO) << "Save model in resources";
         *training_state->model_container->mutable_model() =
             std::move(model.value());
       }

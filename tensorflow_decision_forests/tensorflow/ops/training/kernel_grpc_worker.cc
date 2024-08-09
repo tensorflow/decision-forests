@@ -15,6 +15,7 @@
 
 #include <cstdint>
 
+#include "absl/log/log.h"
 #include "absl/random/random.h"
 #include "absl/status/status.h"
 #include "tensorflow_decision_forests/tensorflow/ops/training/kernel.h"
@@ -57,7 +58,7 @@ class YDFGRPCServerResource : public ::tensorflow::ResourceBase {
   // Blocking function running the worker.
   void ThreadMain() {
     ydf::distribute::grpc_worker::WaitForGRPCWorkerToShutdown(server_.get());
-    YDF_LOG(INFO) << "YDF GRPC Worker stopped";
+    LOG(INFO) << "YDF GRPC Worker stopped";
   }
 
   // Starts the GRPC in a new thread.
@@ -72,14 +73,14 @@ class YDFGRPCServerResource : public ::tensorflow::ResourceBase {
                      ydf::distribute::grpc_worker::StartGRPCWorker(
                          /*port=*/(force_ydf_port != -1) ? force_ydf_port : 0,
                          /*use_loas=*/false));
-    YDF_LOG(INFO) << "GRPC worker started on port " << server_->port;
+    LOG(INFO) << "GRPC worker started on port " << server_->port;
     thread_ = absl::make_unique<utils::concurrency::Thread>(
         [this]() { return ThreadMain(); });
     return absl::OkStatus();
   }
 
   void StopServer() {
-    YDF_LOG(INFO) << "Stop YDF GRPC Worker";
+    LOG(INFO) << "Stop YDF GRPC Worker";
     if (server_) {
       server_->stop_server.Notify();
     }

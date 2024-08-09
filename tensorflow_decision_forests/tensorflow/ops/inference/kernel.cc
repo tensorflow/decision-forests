@@ -52,6 +52,7 @@
 //
 #include <algorithm>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
@@ -1058,7 +1059,7 @@ class YggdrasilModelResource : public tf::ResourceBase {
         TF_RETURN_IF_ERROR(
             utils::FromUtilStatus(inference_engine_or_status.status()));
         inference_engine_ = std::move(inference_engine_or_status.value());
-        YDF_LOG(INFO) << "Use fast generic engine";
+        LOG(INFO) << "Use fast generic engine";
         return tf::OkStatus();
       }
 
@@ -1076,7 +1077,7 @@ class YggdrasilModelResource : public tf::ResourceBase {
     }
 
     // Slow generic engine.
-    YDF_LOG(INFO) << "Use slow generic engine";
+    LOG(INFO) << "Use slow generic engine";
     inference_engine_ =
         absl::make_unique<GenericInferenceEngine>(std::move(model));
     return tf::OkStatus();
@@ -1176,7 +1177,7 @@ class SimpleMLLoadModelFromPath : public OpKernel {
               ->Lookup(kModelContainer, model_identifier_, &maybe_resource)
               .ok()) {
         maybe_resource->Unref();
-        YDF_LOG(WARNING) << "Model " << model_identifier_ << " already loaded";
+        LOG(WARNING) << "Model " << model_identifier_ << " already loaded";
         return;
       }
     }
@@ -1230,8 +1231,8 @@ class SimpleMLLoadModelFromPathWithHandle : public OpKernel {
                    GetModelResourceFromResourceHandle(ctx, &model_container));
     tf::core::ScopedUnref unref_me(model_container);
 
-    YDF_LOG(INFO) << "Loading model from path " << model_path << " with prefix "
-                  << file_prefix_;
+    LOG(INFO) << "Loading model from path " << model_path << " with prefix "
+              << file_prefix_;
     OP_REQUIRES_OK(ctx, model_container->LoadModelFromDisk(
                             model_path, file_prefix_, output_types_,
                             allow_slow_inference_));

@@ -21,6 +21,7 @@
 
 #include <algorithm>
 
+#include "absl/log/log.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow_decision_forests/tensorflow/ops/training/feature_on_file.h"
 #include "tensorflow_decision_forests/tensorflow/ops/training/kernel.h"
@@ -129,14 +130,13 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
   ~SimpleMLModelTrainerOnFile() override = default;
 
   void Compute(tf::OpKernelContext* ctx) override {
-    YDF_LOG(INFO) << "Start Yggdrasil model training from disk";
+    LOG(INFO) << "Start Yggdrasil model training from disk";
 
     // TODO: Cache the dataspec.
     dataset::proto::DataSpecification data_spec;
     OP_REQUIRES_OK(ctx, utils::FromUtilStatus(dataset::CreateDataSpecWithStatus(
                             train_dataset_path_, false, guide_, &data_spec)));
-    YDF_LOG(INFO) << "Dataset:\n"
-                  << dataset::PrintHumanReadable(data_spec, false);
+    LOG(INFO) << "Dataset:\n" << dataset::PrintHumanReadable(data_spec, false);
 
     std::unique_ptr<model::AbstractLearner> learner;
     OP_REQUIRES_OK(
@@ -148,13 +148,12 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
       learner->set_log_directory(tf::io::JoinPath(model_dir_, "train_logs"));
     }
 
-    YDF_LOG(INFO) << "Training config:\n"
-                  << learner->training_config().DebugString();
+    LOG(INFO) << "Training config:\n"
+              << learner->training_config().DebugString();
 
-    YDF_LOG(INFO) << "Deployment config:\n"
-                  << learner->deployment().DebugString();
+    LOG(INFO) << "Deployment config:\n" << learner->deployment().DebugString();
 
-    YDF_LOG(INFO) << "Guide:\n" << guide_.DebugString();
+    LOG(INFO) << "Guide:\n" << guide_.DebugString();
 
 #ifdef TFDF_STOP_TRAINING_ON_INTERRUPT
     OP_REQUIRES_OK(ctx, interruption::EnableUserInterruption());
@@ -217,23 +216,23 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
         if (df_model) {
           df_model->set_node_format(training_state->node_format);
         } else {
-          YDF_LOG(INFO) << "The node format cannot be set for this model type";
+          LOG(INFO) << "The node format cannot be set for this model type";
         }
       }
 
       // Export model to disk.
       if (!training_state->model_dir.empty()) {
         if (training_state->use_file_prefix) {
-          YDF_LOG(INFO) << "Export model in log directory: "
-                        << training_state->model_dir << " with prefix "
-                        << training_state->model_id;
+          LOG(INFO) << "Export model in log directory: "
+                    << training_state->model_dir << " with prefix "
+                    << training_state->model_id;
           RETURN_IF_ERROR(
               SaveModel(tf::io::JoinPath(training_state->model_dir, "model"),
                         model.value().get(),
                         {/*.file_prefix =*/training_state->model_id}));
         } else {
-          YDF_LOG(INFO) << "Export model in log directory: "
-                        << training_state->model_dir << " without prefix";
+          LOG(INFO) << "Export model in log directory: "
+                    << training_state->model_dir << " without prefix";
           RETURN_IF_ERROR(
               SaveModel(tf::io::JoinPath(training_state->model_dir, "model"),
                         model.value().get()));
@@ -242,7 +241,7 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
 
       // Export model to model resource.
       if (training_state->model_container) {
-        YDF_LOG(INFO) << "Save model in resources";
+        LOG(INFO) << "Save model in resources";
         *training_state->model_container->mutable_model() =
             std::move(model.value());
       }
