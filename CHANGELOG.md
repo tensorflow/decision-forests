@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.10.0 - 2024-08-21
+
+### Fix
+
+-   Fix compatibility with TF 2.17.0.
+-   Fix MacOS build.
+
 ## 1.9.2 - 2024-07-04
 
 ### Fix

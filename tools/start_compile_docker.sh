@@ -64,11 +64,11 @@
 # directory.
 TFDF_DIRNAME=${PWD##*/}
 
-DOCKER_IMAGE=tensorflow/build:2.16-python3.9
+DOCKER_IMAGE=tensorflow/build:2.17-python3.9
 DOCKER_CONTAINER=compile_tfdf
 
 echo "Available containers:"
-sudo sudo docker container ls -a --size
+sudo docker container ls -a --size
 
 set +e  # Ignore error if the container already exist
 CREATE_DOCKER_FLAGS="-i -t -p 8889:8889 --network host -v ${PWD}/..:/working_dir -w /working_dir/${TFDF_DIRNAME}"

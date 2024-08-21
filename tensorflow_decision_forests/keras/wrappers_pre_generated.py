@@ -304,11 +304,13 @@ class CartModel(core.CoreModel):
     random_seed: Random seed for the training of the model. Learners are
       expected to be deterministic by the random seed. Default: 123456.
     sorting_strategy: How are sorted the numerical features in order to find the
-      splits - PRESORT: The features are pre-sorted at the start of the
-      training. This solution is faster but consumes much more memory than
-      IN_NODE. - IN_NODE: The features are sorted just before being used in the
-      node. This solution is slow but consumes little amount of memory. .
-      Default: "IN_NODE".
+      splits - AUTO: Selects the most efficient method among IN_NODE,
+      FORCE_PRESORT, and LAYER. - IN_NODE: The features are sorted just before
+      being used in the node. This solution is slow but consumes little amount
+      of memory. - FORCE_PRESORT: The features are pre-sorted at the start of
+      the training. This solution is faster but consumes much more memory than
+      IN_NODE. - PRESORT: Automatically choose between FORCE_PRESORT and
+      IN_NODE. . Default: "IN_NODE".
     sparse_oblique_max_num_projections: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Maximum number of projections (applied after
       the num_projections_exponent). Oblique splits try out
@@ -721,7 +723,7 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
     shrinkage: Coefficient applied to each tree prediction. A small value (0.02)
       tends to give more accurate results (assuming enough trees are trained),
       but results in larger models. Analogous to neural network learning rate.
-      Default: 0.1.
+      Fixed to 1.0 for DART models. Default: 0.1.
     use_hessian_gain: Use true, uses a formulation of split gain with a hessian
       term i.e. optimizes the splits to minimize the variance of "gradient /
       hessian. Available for all losses except regression. Default: False.
@@ -1029,7 +1031,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       validation dataset. Enabling this feature can increase the training time
       significantly. Default: False.
     dart_dropout: Dropout rate applied when using the DART i.e. when
-      forest_extraction=DART. Default: 0.01.
+      forest_extraction=DART. Default: None.
     early_stopping: Early stopping detects the overfitting of the model and
       halts it training using the validation dataset. If not provided directly,
       the validation dataset is extracted from the training dataset (see
@@ -1207,13 +1209,15 @@ class GradientBoostedTreesModel(core.CoreModel):
     shrinkage: Coefficient applied to each tree prediction. A small value (0.02)
       tends to give more accurate results (assuming enough trees are trained),
       but results in larger models. Analogous to neural network learning rate.
-      Default: 0.1.
+      Fixed to 1.0 for DART models. Default: 0.1.
     sorting_strategy: How are sorted the numerical features in order to find the
-      splits - PRESORT: The features are pre-sorted at the start of the
-      training. This solution is faster but consumes much more memory than
-      IN_NODE. - IN_NODE: The features are sorted just before being used in the
-      node. This solution is slow but consumes little amount of memory. .
-      Default: "PRESORT".
+      splits - AUTO: Selects the most efficient method among IN_NODE,
+      FORCE_PRESORT, and LAYER. - IN_NODE: The features are sorted just before
+      being used in the node. This solution is slow but consumes little amount
+      of memory. - FORCE_PRESORT: The features are pre-sorted at the start of
+      the training. This solution is faster but consumes much more memory than
+      IN_NODE. - PRESORT: Automatically choose between FORCE_PRESORT and
+      IN_NODE. . Default: "PRESORT".
     sparse_oblique_max_num_projections: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Maximum number of projections (applied after
       the num_projections_exponent). Oblique splits try out
@@ -1332,7 +1336,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       categorical_set_split_max_num_items: Optional[int] = -1,
       categorical_set_split_min_item_frequency: Optional[int] = 1,
       compute_permutation_variable_importance: Optional[bool] = False,
-      dart_dropout: Optional[float] = 0.01,
+      dart_dropout: Optional[float] = None,
       early_stopping: Optional[str] = "LOSS_INCREASE",
       early_stopping_initial_iteration: Optional[int] = 10,
       early_stopping_num_trees_look_ahead: Optional[int] = 30,
@@ -2001,7 +2005,7 @@ class MultitaskerModel(core.CoreModel):
 class RandomForestModel(core.CoreModel):
   r"""Random Forest learning algorithm.
 
-  A Random Forest (https://www.stat.berkeley.edu/~breiman/randomforest2001.pdf)
+  A [Random Forest](https://www.stat.berkeley.edu/~breiman/randomforest2001.pdf)
   is a collection of deep CART decision trees trained independently and without
   pruning. Each tree is trained on a random subset of the original training
   dataset (sampled with replacement).
@@ -2310,11 +2314,13 @@ class RandomForestModel(core.CoreModel):
       all the examples are used to train all the trees (you probably do not want
       that). Default: True.
     sorting_strategy: How are sorted the numerical features in order to find the
-      splits - PRESORT: The features are pre-sorted at the start of the
-      training. This solution is faster but consumes much more memory than
-      IN_NODE. - IN_NODE: The features are sorted just before being used in the
-      node. This solution is slow but consumes little amount of memory. .
-      Default: "PRESORT".
+      splits - AUTO: Selects the most efficient method among IN_NODE,
+      FORCE_PRESORT, and LAYER. - IN_NODE: The features are sorted just before
+      being used in the node. This solution is slow but consumes little amount
+      of memory. - FORCE_PRESORT: The features are pre-sorted at the start of
+      the training. This solution is faster but consumes much more memory than
+      IN_NODE. - PRESORT: Automatically choose between FORCE_PRESORT and
+      IN_NODE. . Default: "PRESORT".
     sparse_oblique_max_num_projections: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Maximum number of projections (applied after
       the num_projections_exponent). Oblique splits try out

@@ -20,7 +20,7 @@ TensorFlow Decision Forests is not yet available as a Windows Pip package.
 ## Incompatibility with Keras 3
 
 Compatibility with Keras 3 is not yet implemented. Use tf_keras or a TensorFlow
-version before 2.16.
+version before 2.16. Alternatively, use [ydf](https://pypi.org/project/ydf/).
 
 ## Untested for conda
 
@@ -54,6 +54,7 @@ The following table shows the compatibility between
 
 tensorflow_decision_forests | tensorflow
 --------------------------- | ---------------
+1.10.0                      | 2.17.0
 1.9.2                       | 2.16.2
 1.9.1                       | 2.16.1
 1.9.0                       | 2.16.1

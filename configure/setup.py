@@ -23,7 +23,7 @@ import setuptools
 from setuptools.command.install import install
 from setuptools.dist import Distribution
 
-_VERSION = "1.9.2"
+_VERSION = "1.10.0"
 
 with open("README.md", "r", encoding="utf-8") as fh:
   long_description = fh.read()
@@ -31,12 +31,12 @@ with open("README.md", "r", encoding="utf-8") as fh:
 REQUIRED_PACKAGES = [
     "numpy",
     "pandas",
-    "tensorflow==2.16.2",
+    "tensorflow==2.17.0",
     "six",
     "absl_py",
     "wheel",
     "wurlitzer",
-    "tf_keras~=2.16",
+    "tf_keras~=2.17",
     "ydf",
 ]
 
@@ -64,9 +64,9 @@ if "bdist_wheel" in sys.argv:
       idx = sys.argv.index("bdist_wheel") + 1
       sys.argv.insert(idx, "--plat-name")
       if platform.processor() == "arm":
-        sys.argv.insert(idx + 1, "macosx_10_15_x86_64")
-      elif platform.processor() == "i386":
         sys.argv.insert(idx + 1, "macosx_12_0_arm64")
+      elif platform.processor() == "i386":
+        sys.argv.insert(idx + 1, "macosx_10_15_x86_64")
       else:
         raise ValueError(f"Unknown processor {platform.processor()}")
     else:
