@@ -118,7 +118,7 @@ if is_macos; then
 elif is_windows; then
   FLAGS="${FLAGS} --config=windows"
 else
-  FLAGS="${FLAGS} --config=linux"
+  FLAGS="${FLAGS} --config=linux --config=release_cpu_linux"
 fi
 
 
