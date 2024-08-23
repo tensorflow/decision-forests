@@ -71,8 +71,6 @@ upper_tabs:
       - title: Run model with TensorFlow.js
         path: /decision_forests/tf_df_in_tf_js
         status: external
-      - title: Visualizing Trees
-        path: /decision_forests/tutorials/dtreeviz_colab
 
     - name: API Reference
       skip_translation: true
