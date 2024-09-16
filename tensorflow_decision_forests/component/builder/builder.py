@@ -949,7 +949,7 @@ class GradientBoostedTreeBuilder(AbstractDecisionForestBuilder):
 
     elif isinstance(objective, py_tree.objective.RankingObjective):
       num_trees_per_iter = 1
-      loss = gradient_boosted_trees_pb2.Loss.LAMBDA_MART_NDCG5
+      loss = gradient_boosted_trees_pb2.Loss.LAMBDA_MART_NDCG
       bias = [bias]
 
     elif isinstance(objective, py_tree.objective.AbstractUpliftObjective):
