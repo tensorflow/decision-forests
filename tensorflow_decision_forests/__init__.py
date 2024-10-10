@@ -67,3 +67,58 @@ from tensorflow_decision_forests.component.builder import builder
 from tensorflow_decision_forests.component.inspector import inspector
 from tensorflow_decision_forests.component.model_plotter import model_plotter
 from tensorflow_decision_forests.component.tuner import tuner
+
+import os
+import sys
+
+# Only print the welcome message if TFDF_DISABLE_WELCOME_MESSAGE is not set and
+# if user has notalready imported YDF.
+if (
+    os.getenv("TFDF_DISABLE_WELCOME_MESSAGE") is None
+    and "ydf" not in sys.modules
+):
+
+  if (
+      "IPython" in sys.modules and "google.colab" in sys.modules
+  ):  # Check if executed in a Notebook
+
+    import IPython
+
+    IPython.display.display(IPython.display.HTML("""
+<p style="margin:0px;">🌲 Try <a href="https://ydf.readthedocs.io/en/latest/" target="_blank">YDF</a>, the successor of
+    <a href="https://www.tensorflow.org/decision_forests" target="_blank">TensorFlow
+        Decision Forests</a> using the same algorithm but with more features and faster
+    training!
+</p>
+<div style="display: flex; flex-wrap: wrap; margin:5px;max-width: 880px;">
+    <div style="flex: 1; border-radius: 10px; background-color: F0F0F0; padding: 5px;">
+        <p
+            style="font-weight: bold; margin:0px;text-align: center;border-bottom: 1px solid #C0C0C0;margin-bottom: 4px;">
+            Old code</p>
+        <pre style="overflow-wrap: anywhere; overflow: auto; margin:0px;font-size: 9pt;">
+import tensorflow_decision_forests as tfdf
+
+tf_ds = tfdf.keras.pd_dataframe_to_tf_dataset(ds, label="l")
+model = tfdf.keras.RandomForestModel(label="l")
+model.fit(tf_ds)
+</pre>
+    </div>
+    <div style="width: 5px;"></div>
+    <div style="flex: 1; border-radius: 10px; background-color: F0F0F0; padding: 5px;">
+        <p
+            style="font-weight: bold; margin:0px;text-align: center;border-bottom: 1px solid #C0C0C0;margin-bottom: 4px;">
+            New code</p>
+        <pre style="overflow-wrap: anywhere; overflow: auto; margin:0px;font-size: 9pt;">
+import ydf
+
+model = ydf.RandomForestLearner(label="l").train(ds)
+</pre>
+    </div>
+</div>
+<p style="margin:0px;font-size: 9pt;">(Learn more in the <a
+        href="https://ydf.readthedocs.io/en/latest/tutorial/migrating_to_ydf/" target="_blank">migration
+        guide</a>)</p>
+"""))
+
+  else:
+    pass
