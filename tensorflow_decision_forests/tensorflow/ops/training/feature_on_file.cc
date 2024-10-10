@@ -38,7 +38,7 @@ using dist_dt::dataset_cache::PartialRawColumnFilePath;
 using dist_dt::dataset_cache::proto::PartialDatasetMetadata;
 }  // namespace
 
-tf::Status CreateDoneFile(const std::string& dataset_path) {
+absl::Status CreateDoneFile(const std::string& dataset_path) {
   return WriteStringToFile(tensorflow::Env::Default(),
                            tf::io::JoinPath(dataset_path, kFilenameDone),
                            "done");
@@ -233,8 +233,8 @@ void SimpleMLWorkerFinalizeFeatureOnFile::Compute(
     if (!lookup_status.ok()) {
       OP_REQUIRES_OK(
           ctx,
-          tf::Status(
-              static_cast<tf::errors::Code>(absl::StatusCode::kInvalidArgument),
+          absl::Status(
+              static_cast<absl::StatusCode>(absl::StatusCode::kInvalidArgument),
               absl::StrCat(
                   "Feature resource not found on worker ",
                   ctx->device()->name(),
@@ -262,11 +262,12 @@ void SimpleMLChiefFinalizeFeatureOnFile::Compute(
   }
 
   if (!HasAllRequiredFiles(dataset_path_, feature_names_.size(), num_shards_)) {
-    OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
-                                       absl::StatusCode::kInvalidArgument),
-                                   "The cache is missing content expected to "
-                                   "be created by workers. At least one worker "
-                                   "did not complete it work."));
+    OP_REQUIRES_OK(ctx,
+                   absl::Status(static_cast<absl::StatusCode>(
+                                    absl::StatusCode::kInvalidArgument),
+                                "The cache is missing content expected to "
+                                "be created by workers. At least one worker "
+                                "did not complete it work."));
   }
 
   LOG(INFO) << "Finalizing dataset";

@@ -113,7 +113,7 @@ class SimpleMLCreateYDFGRPCWorker : public tensorflow::OpKernel {
         ctx,
         ctx->resource_manager()->LookupOrCreate<YDFGRPCServerResource, true>(
             kTFContainer, absl::StrCat(key_), &server_resource,
-            [&](YDFGRPCServerResource** resource) -> tensorflow::Status {
+            [&](YDFGRPCServerResource** resource) -> absl::Status {
               *resource = new YDFGRPCServerResource();
               return utils::FromUtilStatus(
                   (*resource)->StartServer(force_ydf_port_));

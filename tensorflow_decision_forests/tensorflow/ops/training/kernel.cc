@@ -56,7 +56,7 @@ namespace dataset = ydf::dataset;
 
 }  // namespace
 
-tensorflow::Status YggdrasilModelContainer::LoadModel(
+absl::Status YggdrasilModelContainer::LoadModel(
     const absl::string_view model_path) {
   TF_RETURN_IF_ERROR_FROM_ABSL_STATUS(model::LoadModel(model_path, &model_));
   // Cache label information.
@@ -85,9 +85,9 @@ class SimpleMLFileModelLoader : public tf::OpKernel {
     const tf::Tensor& model_path_tensor = ctx->input(0);
     const auto model_paths = model_path_tensor.flat<tf::tstring>();
     if (model_paths.size() != 1) {
-      OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
-                                         absl::StatusCode::kInvalidArgument),
-                                     "Wrong number of models"));
+      OP_REQUIRES_OK(ctx, absl::Status(static_cast<absl::StatusCode>(
+                                           absl::StatusCode::kInvalidArgument),
+                                       "Wrong number of models"));
     }
     const std::string model_path = model_paths(0);
 
@@ -134,7 +134,7 @@ REGISTER_KERNEL_BUILDER(Name("SimpleMLHashFeature").Device(tf::DEVICE_CPU),
 
 FeatureSet::~FeatureSet() { Unlink().IgnoreError(); }
 
-tf::Status FeatureSet::Link(
+absl::Status FeatureSet::Link(
     tf::OpKernelContext* ctx, const std::vector<std::string>& resource_ids,
     const dataset::proto::DataSpecification* const existing_dataspec,
     const DatasetType dataset_type) {
@@ -191,8 +191,8 @@ tf::Status FeatureSet::Link(
     } else if (hash_feature) {
       hash_features_.push_back({feature_idx, hash_feature});
     } else {
-      return tf::Status(
-          static_cast<tf::errors::Code>(absl::StatusCode::kInvalidArgument),
+      return absl::Status(
+          static_cast<absl::StatusCode>(absl::StatusCode::kInvalidArgument),
           absl::StrCat("Unsupported type for feature \"",
                        feature->feature_name(), "\""));
     }
@@ -201,7 +201,7 @@ tf::Status FeatureSet::Link(
   return absl::OkStatus();
 }
 
-tf::Status FeatureSet::IterateFeatures(
+absl::Status FeatureSet::IterateFeatures(
     FeatureIterator<SimpleMLNumericalFeature> lambda_numerical,
     FeatureIterator<SimpleMLCategoricalStringFeature> lambda_categorical_string,
     FeatureIterator<SimpleMLCategoricalIntFeature> lambda_categorical_int,
@@ -241,7 +241,7 @@ tf::Status FeatureSet::IterateFeatures(
   return absl::OkStatus();
 }
 
-tf::Status FeatureSet::Unlink() {
+absl::Status FeatureSet::Unlink() {
   TF_RETURN_IF_ERROR(IterateFeatures(
       [](SimpleMLNumericalFeature::Resource* feature, const int feature_idx) {
         feature->Unref();
@@ -282,7 +282,7 @@ tf::Status FeatureSet::Unlink() {
 
 // Initialize a dataset (including the dataset's dataspec) from the linked
 // resource aggregators.
-tf::Status FeatureSet::InitializeDatasetFromFeatures(
+absl::Status FeatureSet::InitializeDatasetFromFeatures(
     tf::OpKernelContext* ctx,
     const dataset::proto::DataSpecificationGuide& guide,
     dataset::VerticalDataset* dataset) {
@@ -291,15 +291,15 @@ tf::Status FeatureSet::InitializeDatasetFromFeatures(
   const auto set_num_examples =
       [&num_examples, &num_batches](
           const int64_t observed_num_examples,
-          const int64_t observed_num_batches) -> tf::Status {
+          const int64_t observed_num_batches) -> absl::Status {
     if (num_examples == -1) {
       num_examples = observed_num_examples;
       num_batches = observed_num_batches;
       return absl::OkStatus();
     }
     if (num_examples != observed_num_examples) {
-      return tf::Status(
-          static_cast<tf::errors::Code>(absl::StatusCode::kInvalidArgument),
+      return absl::Status(
+          static_cast<absl::StatusCode>(absl::StatusCode::kInvalidArgument),
           absl::Substitute("Inconsistent number of training examples for the "
                            "different input features $0 != $1.",
                            num_examples, observed_num_examples));
@@ -314,7 +314,7 @@ tf::Status FeatureSet::InitializeDatasetFromFeatures(
   // Apply the guide on a column. The type of the column should be set.
   const auto apply_guide = [&](const absl::string_view feature_name,
                                dataset::proto::Column* col,
-                               const bool apply_type = false) -> tf::Status {
+                               const bool apply_type = false) -> absl::Status {
     dataset::proto::ColumnGuide col_guide;
     TF_RETURN_IF_ERROR_FROM_ABSL_STATUS(
         dataset::BuildColumnGuide(feature_name, guide, &col_guide).status());
@@ -395,8 +395,8 @@ tf::Status FeatureSet::InitializeDatasetFromFeatures(
   LOG(INFO) << "Number of examples: " << num_examples;
 
   if (num_examples <= 0) {
-    return tf::Status(
-        static_cast<tf::errors::Code>(absl::StatusCode::kInvalidArgument),
+    return absl::Status(
+        static_cast<absl::StatusCode>(absl::StatusCode::kInvalidArgument),
         "No training examples available.");
   }
 
@@ -478,18 +478,18 @@ tf::Status FeatureSet::InitializeDatasetFromFeatures(
   return absl::OkStatus();
 }
 
-tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
+absl::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
     tf::OpKernelContext* ctx, dataset::VerticalDataset* dataset) {
   bool first_set_num_rows = true;
   const auto set_num_rows =
       [&first_set_num_rows, &dataset](
           const int64_t num_rows,
-          const AbstractFeatureResource* feature) -> tf::Status {
+          const AbstractFeatureResource* feature) -> absl::Status {
     if (first_set_num_rows) {
       dataset->set_nrow(num_rows);
     } else if (dataset->nrow() != num_rows) {
-      return tf::Status(
-          static_cast<tf::errors::Code>(absl::StatusCode::kInvalidArgument),
+      return absl::Status(
+          static_cast<absl::StatusCode>(absl::StatusCode::kInvalidArgument),
           absl::Substitute(
               "Inconsistent number of observations "
               "between features for feature $0 != $1. For feature $2.",
@@ -500,7 +500,7 @@ tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
 
   TF_RETURN_IF_ERROR(IterateFeatures(
       [&](SimpleMLNumericalFeature::Resource* feature,
-          const int feature_idx) -> tensorflow::Status {
+          const int feature_idx) -> absl::Status {
         TF_RETURN_IF_ERROR(set_num_rows(feature->data().size(), feature));
         const auto& col = dataset->mutable_data_spec()->columns(feature_idx);
 
@@ -530,7 +530,7 @@ tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
         return absl::OkStatus();
       },
       [&](SimpleMLCategoricalStringFeature::Resource* feature,
-          const int feature_idx) -> tensorflow::Status {
+          const int feature_idx) -> absl::Status {
         TF_RETURN_IF_ERROR(
             set_num_rows(feature->indexed_data().size(), feature));
         const auto& col_spec = dataset->data_spec().columns(feature_idx);
@@ -556,7 +556,7 @@ tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
         return absl::OkStatus();
       },
       [&](SimpleMLCategoricalIntFeature::Resource* feature,
-          const int feature_idx) -> tensorflow::Status {
+          const int feature_idx) -> absl::Status {
         TF_RETURN_IF_ERROR(set_num_rows(feature->data().size(), feature));
         const auto& col_spec = dataset->data_spec().columns(feature_idx);
         TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
@@ -579,7 +579,7 @@ tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
         return absl::OkStatus();
       },
       [&](SimpleMLCategoricalSetStringFeature::Resource* feature,
-          const int feature_idx) -> tensorflow::Status {
+          const int feature_idx) -> absl::Status {
         TF_RETURN_IF_ERROR(set_num_rows(feature->num_examples(), feature));
         const auto& col_spec = dataset->data_spec().columns(feature_idx);
         TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
@@ -618,7 +618,7 @@ tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
         return absl::OkStatus();
       },
       [&](SimpleMLCategoricalSetIntFeature::Resource* feature,
-          const int feature_idx) -> tensorflow::Status {
+          const int feature_idx) -> absl::Status {
         TF_RETURN_IF_ERROR(set_num_rows(feature->num_examples(), feature));
         const auto& col_spec = dataset->data_spec().columns(feature_idx);
         TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
@@ -639,14 +639,14 @@ tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
           for (int value_idx = begin_value_idx; value_idx < end_value_idx;
                value_idx++) {
             if (value_idx < 0 || value_idx >= feature->values().size()) {
-              return tf::Status(
-                  static_cast<tf::errors::Code>(absl::StatusCode::kInternal),
+              return absl::Status(
+                  static_cast<absl::StatusCode>(absl::StatusCode::kInternal),
                   "Internal error");
             }
             auto value = feature->values()[value_idx];
             if (value < dataset::VerticalDataset::CategoricalColumn::kNaValue) {
-              return tf::Status(
-                  static_cast<tf::errors::Code>(
+              return absl::Status(
+                  static_cast<absl::StatusCode>(
                       absl::StatusCode::kInvalidArgument),
                   absl::StrCat("Integer categorical value should "
                                "be >= -1. Found  value",
@@ -670,7 +670,7 @@ tf::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
         return absl::OkStatus();
       },
       [&](SimpleMLHashFeature::Resource* feature,
-          const int feature_idx) -> tensorflow::Status {
+          const int feature_idx) -> absl::Status {
         TF_RETURN_IF_ERROR(set_num_rows(feature->data().size(), feature));
         TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
             auto* col_data,
@@ -705,25 +705,25 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("node_format", &node_format_));
 
     if (model_id_.empty()) {
-      OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
-                                         absl::StatusCode::kInvalidArgument),
-                                     "Model id is empty"));
+      OP_REQUIRES_OK(ctx, absl::Status(static_cast<absl::StatusCode>(
+                                           absl::StatusCode::kInvalidArgument),
+                                       "Model id is empty"));
     }
 
     std::string serialized_guide;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("guide", &serialized_guide));
     if (!guide_.ParseFromString(serialized_guide)) {
-      OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
-                                         absl::StatusCode::kInvalidArgument),
-                                     "Cannot de-serialize guide proto."));
+      OP_REQUIRES_OK(ctx, absl::Status(static_cast<absl::StatusCode>(
+                                           absl::StatusCode::kInvalidArgument),
+                                       "Cannot de-serialize guide proto."));
     }
 
     std::string hparams;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("hparams", &hparams));
     if (!hparams_.ParseFromString(hparams)) {
-      OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
-                                         absl::StatusCode::kInvalidArgument),
-                                     "Cannot de-serialize hparams proto."));
+      OP_REQUIRES_OK(ctx, absl::Status(static_cast<absl::StatusCode>(
+                                           absl::StatusCode::kInvalidArgument),
+                                       "Cannot de-serialize hparams proto."));
     }
     {
       std::string serialized_training_config;
@@ -731,24 +731,27 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
           ctx, ctx->GetAttr("training_config", &serialized_training_config));
       if (!training_config_.MergeFromString(serialized_training_config)) {
         OP_REQUIRES_OK(
-            ctx, tf::Status(static_cast<tf::errors::Code>(
-                                absl::StatusCode::kInvalidArgument),
-                            "Cannot de-serialize training_config proto."));
+            ctx, absl::Status(static_cast<absl::StatusCode>(
+                                  absl::StatusCode::kInvalidArgument),
+                              "Cannot de-serialize training_config proto."));
       }
       if (!training_config_.has_task()) {
-        OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
-                                           absl::StatusCode::kInvalidArgument),
-                                       "\"task\" not set"));
+        OP_REQUIRES_OK(ctx,
+                       absl::Status(static_cast<absl::StatusCode>(
+                                        absl::StatusCode::kInvalidArgument),
+                                    "\"task\" not set"));
       }
       if (!training_config_.has_learner()) {
-        OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
-                                           absl::StatusCode::kInvalidArgument),
-                                       "\"learner\" not set"));
+        OP_REQUIRES_OK(ctx,
+                       absl::Status(static_cast<absl::StatusCode>(
+                                        absl::StatusCode::kInvalidArgument),
+                                    "\"learner\" not set"));
       }
       if (!training_config_.has_label()) {
-        OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
-                                           absl::StatusCode::kInvalidArgument),
-                                       "\"label\" not set"));
+        OP_REQUIRES_OK(ctx,
+                       absl::Status(static_cast<absl::StatusCode>(
+                                        absl::StatusCode::kInvalidArgument),
+                                    "\"label\" not set"));
       }
     }
 
@@ -758,9 +761,9 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
                                        &serialized_deployment_config));
       if (!deployment_config_.MergeFromString(serialized_deployment_config)) {
         OP_REQUIRES_OK(
-            ctx, tf::Status(static_cast<tf::errors::Code>(
-                                absl::StatusCode::kInvalidArgument),
-                            "Cannot de-serialize deployment_config proto."));
+            ctx, absl::Status(static_cast<absl::StatusCode>(
+                                  absl::StatusCode::kInvalidArgument),
+                              "Cannot de-serialize deployment_config proto."));
       }
     }
 
@@ -964,7 +967,7 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
   }
 
  private:
-  tf::Status BuildVerticalDatasetFromTFResources(
+  absl::Status BuildVerticalDatasetFromTFResources(
       tf::OpKernelContext* ctx, const DatasetType dataset_type,
       const std::vector<std::string>& resource_ids,
       dataset::VerticalDataset* dataset) {
@@ -1018,9 +1021,9 @@ class SimpleMLCheckTrainingConfiguration : public tensorflow::OpKernel {
     std::string hparams;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("hparams", &hparams));
     if (!hparams_.ParseFromString(hparams)) {
-      OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
-                                         absl::StatusCode::kInvalidArgument),
-                                     "Cannot de-serialize hparams proto."));
+      OP_REQUIRES_OK(ctx, absl::Status(static_cast<absl::StatusCode>(
+                                           absl::StatusCode::kInvalidArgument),
+                                       "Cannot de-serialize hparams proto."));
     }
 
     {
@@ -1029,9 +1032,9 @@ class SimpleMLCheckTrainingConfiguration : public tensorflow::OpKernel {
           ctx, ctx->GetAttr("training_config", &serialized_training_config));
       if (!training_config_.MergeFromString(serialized_training_config)) {
         OP_REQUIRES_OK(
-            ctx, tf::Status(static_cast<tf::errors::Code>(
-                                absl::StatusCode::kInvalidArgument),
-                            "Cannot de-serialize training_config proto."));
+            ctx, absl::Status(static_cast<absl::StatusCode>(
+                                  absl::StatusCode::kInvalidArgument),
+                              "Cannot de-serialize training_config proto."));
       }
     }
   }
@@ -1040,19 +1043,19 @@ class SimpleMLCheckTrainingConfiguration : public tensorflow::OpKernel {
 
   void Compute(tf::OpKernelContext* ctx) override {
     if (!training_config_.has_task()) {
-      OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
-                                         absl::StatusCode::kInvalidArgument),
-                                     "\"task\" not set"));
+      OP_REQUIRES_OK(ctx, absl::Status(static_cast<absl::StatusCode>(
+                                           absl::StatusCode::kInvalidArgument),
+                                       "\"task\" not set"));
     }
     if (!training_config_.has_learner()) {
-      OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
-                                         absl::StatusCode::kInvalidArgument),
-                                     "\"learner\" not set"));
+      OP_REQUIRES_OK(ctx, absl::Status(static_cast<absl::StatusCode>(
+                                           absl::StatusCode::kInvalidArgument),
+                                       "\"learner\" not set"));
     }
     if (!training_config_.has_label()) {
-      OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
-                                         absl::StatusCode::kInvalidArgument),
-                                     "\"label\" not set"));
+      OP_REQUIRES_OK(ctx, absl::Status(static_cast<absl::StatusCode>(
+                                           absl::StatusCode::kInvalidArgument),
+                                       "\"label\" not set"));
     }
 
     // Check the parameters by creating a learner.
@@ -1111,9 +1114,9 @@ class SimpleMLShowModel : public AbstractSimpleMLModelOp {
   void ComputeModel(tf::OpKernelContext* ctx,
                     const model::AbstractModel* const model) override {
     if (!model) {
-      OP_REQUIRES_OK(ctx, tf::Status(static_cast<tf::errors::Code>(
-                                         absl::StatusCode::kInvalidArgument),
-                                     "The model does not exist."));
+      OP_REQUIRES_OK(ctx, absl::Status(static_cast<absl::StatusCode>(
+                                           absl::StatusCode::kInvalidArgument),
+                                       "The model does not exist."));
     }
 
     tf::Tensor* output_tensor = nullptr;
