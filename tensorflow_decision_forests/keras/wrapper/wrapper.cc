@@ -19,7 +19,6 @@
 #include "absl/strings/str_replace.h"
 #include "absl/strings/substitute.h"
 #include "yggdrasil_decision_forests/learner/learner_library.h"
-#include "yggdrasil_decision_forests/utils/compatibility.h"
 #include "yggdrasil_decision_forests/utils/status_macros.h"
 
 namespace tensorflow {

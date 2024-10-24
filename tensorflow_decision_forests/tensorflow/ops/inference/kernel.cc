@@ -64,7 +64,6 @@
 #include "yggdrasil_decision_forests/model/abstract_model.h"
 #include "yggdrasil_decision_forests/model/decision_tree/decision_forest_interface.h"
 #include "yggdrasil_decision_forests/model/model_library.h"
-#include "yggdrasil_decision_forests/utils/compatibility.h"
 #include "yggdrasil_decision_forests/utils/distribution.pb.h"
 #include "yggdrasil_decision_forests/utils/status_macros.h"
 #include "yggdrasil_decision_forests/utils/tensorflow.h"
@@ -449,7 +448,7 @@ class GenericInferenceEngine : public AbstractInferenceEngine {
                                                                     1) /
                   prediction.classification().distribution().sum();
               outputs->dense_predictions(example_idx, class_idx) =
-                  output_is_proba ? utils::clamp(output, 0.f, 1.f) : output;
+                  output_is_proba ? std::clamp(output, 0.f, 1.f) : output;
             }
           }
         } break;
@@ -750,7 +749,7 @@ class SemiFastGenericInferenceEngine : public AbstractInferenceEngine {
       for (int example_idx = 0; example_idx < inputs.batch_size;
            example_idx++) {
         const float proba =
-            utils::clamp(cache->predictions_[example_idx], 0.f, 1.f);
+            std::clamp(cache->predictions_[example_idx], 0.f, 1.f);
         outputs->dense_predictions(example_idx, 0) = 1.f - proba;
         outputs->dense_predictions(example_idx, 1) = proba;
       }
