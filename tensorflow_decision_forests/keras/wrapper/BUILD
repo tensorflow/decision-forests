@@ -33,9 +33,7 @@ cc_library(
     deps = [
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@ydf//yggdrasil_decision_forests/learner:abstract_learner_cc_proto",
         "@ydf//yggdrasil_decision_forests/learner:learner_library",
-        "@ydf//yggdrasil_decision_forests/utils:compatibility",
         "@ydf//yggdrasil_decision_forests/utils:status_macros",
     ],
 )
