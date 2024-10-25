@@ -1,5 +1,11 @@
 # Changelog
 
+## HEAD
+
+### Fix
+
+-   Some errors are now InvalidArgumentError instead of UnknownError.
+
 ## 1.10.0 - 2024-08-21
 
 ### Fix

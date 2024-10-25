@@ -18,15 +18,21 @@
 #include "tensorflow_decision_forests/tensorflow/ops/training/kernel.h"
 
 #include <algorithm>
+#ifdef TFDF_STOP_TRAINING_ON_INTERRUPT
 #include <csignal>
+#endif
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/log/log.h"
+#include "absl/memory/memory.h"
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"
 #include "absl/types/optional.h"
 #include "tensorflow/core/framework/op_kernel.h"
@@ -43,7 +49,7 @@
 #include "yggdrasil_decision_forests/model/decision_tree/decision_forest_interface.h"
 #include "yggdrasil_decision_forests/model/model_library.h"
 #include "yggdrasil_decision_forests/utils/logging.h"
-#include "yggdrasil_decision_forests/utils/tensorflow.h"
+#include "yggdrasil_decision_forests/utils/status_macros.h"
 
 namespace tensorflow_decision_forests {
 namespace ops {
@@ -51,14 +57,13 @@ namespace {
 namespace tf = ::tensorflow;
 namespace ydf = ::yggdrasil_decision_forests;
 namespace model = ydf::model;
-namespace utils = ydf::utils;
 namespace dataset = ydf::dataset;
 
 }  // namespace
 
 absl::Status YggdrasilModelContainer::LoadModel(
     const absl::string_view model_path) {
-  TF_RETURN_IF_ERROR_FROM_ABSL_STATUS(model::LoadModel(model_path, &model_));
+  RETURN_IF_ERROR(model::LoadModel(model_path, &model_));
   // Cache label information.
   const auto& label_spec = model_->data_spec().columns(model_->label_col_idx());
   num_label_classes_ = label_spec.categorical().number_of_unique_values();
@@ -135,10 +140,10 @@ REGISTER_KERNEL_BUILDER(Name("SimpleMLHashFeature").Device(tf::DEVICE_CPU),
 FeatureSet::~FeatureSet() { Unlink().IgnoreError(); }
 
 absl::Status FeatureSet::Link(
-    tf::OpKernelContext* ctx, const std::vector<std::string>& resource_ids,
+    tf::OpKernelContext* ctx, const std::vector<std::string>& column_ids,
     const dataset::proto::DataSpecification* const existing_dataspec,
     const DatasetType dataset_type) {
-  std::vector<std::string> sorted_resource_ids = resource_ids;
+  std::vector<std::string> sorted_resource_ids = column_ids;
   std::sort(sorted_resource_ids.begin(), sorted_resource_ids.end());
 
   for (const auto& column_id : sorted_resource_ids) {
@@ -153,9 +158,12 @@ absl::Status FeatureSet::Link(
     }
 
     AbstractFeatureResource* feature;
-    TF_RETURN_IF_ERROR(
+    const auto lookup_status =
         ctx->resource_manager()->Lookup<AbstractFeatureResource, true>(
-            kModelContainer, resource_id, &feature));
+            kModelContainer, resource_id, &feature);
+    if (!lookup_status.ok()) {
+      return lookup_status;
+    }
 
     const int feature_idx =
         existing_dataspec ? dataset::GetColumnIdxFromName(
@@ -212,37 +220,35 @@ absl::Status FeatureSet::IterateFeatures(
     FeatureIterator<SimpleMLHashFeature> lambda_hash) {
   for (auto& feature : numerical_features_) {
     tf::mutex_lock l(*feature.second->mutable_mutex());
-    TF_RETURN_IF_ERROR(lambda_numerical(feature.second, feature.first));
+    RETURN_IF_ERROR(lambda_numerical(feature.second, feature.first));
   }
   for (auto& feature : categorical_string_features_) {
     tf::mutex_lock l(*feature.second->mutable_mutex());
-    TF_RETURN_IF_ERROR(
-        lambda_categorical_string(feature.second, feature.first));
+    RETURN_IF_ERROR(lambda_categorical_string(feature.second, feature.first));
   }
   for (auto& feature : categorical_int_features_) {
     tf::mutex_lock l(*feature.second->mutable_mutex());
-    TF_RETURN_IF_ERROR(lambda_categorical_int(feature.second, feature.first));
+    RETURN_IF_ERROR(lambda_categorical_int(feature.second, feature.first));
   }
   for (auto& feature : categorical_set_string_features_) {
     tf::mutex_lock l(*feature.second->mutable_mutex());
-    TF_RETURN_IF_ERROR(
+    RETURN_IF_ERROR(
         lambda_categorical_set_string(feature.second, feature.first));
   }
   for (auto& feature : categorical_set_int_features_) {
     tf::mutex_lock l(*feature.second->mutable_mutex());
-    TF_RETURN_IF_ERROR(
-        lambda_categorical_set_int(feature.second, feature.first));
+    RETURN_IF_ERROR(lambda_categorical_set_int(feature.second, feature.first));
   }
   for (auto& feature : hash_features_) {
     tf::mutex_lock l(*feature.second->mutable_mutex());
-    TF_RETURN_IF_ERROR(lambda_hash(feature.second, feature.first));
+    RETURN_IF_ERROR(lambda_hash(feature.second, feature.first));
   }
 
   return absl::OkStatus();
 }
 
 absl::Status FeatureSet::Unlink() {
-  TF_RETURN_IF_ERROR(IterateFeatures(
+  RETURN_IF_ERROR(IterateFeatures(
       [](SimpleMLNumericalFeature::Resource* feature, const int feature_idx) {
         feature->Unref();
         return absl::OkStatus();
@@ -316,7 +322,7 @@ absl::Status FeatureSet::InitializeDatasetFromFeatures(
                                dataset::proto::Column* col,
                                const bool apply_type = false) -> absl::Status {
     dataset::proto::ColumnGuide col_guide;
-    TF_RETURN_IF_ERROR_FROM_ABSL_STATUS(
+    RETURN_IF_ERROR(
         dataset::BuildColumnGuide(feature_name, guide, &col_guide).status());
     if (apply_type) {
       if (col_guide.has_type()) {
@@ -328,35 +334,35 @@ absl::Status FeatureSet::InitializeDatasetFromFeatures(
         }
       }
     }
-    return utils::FromUtilStatus(
-        dataset::UpdateSingleColSpecWithGuideInfo(col_guide, col));
+    return dataset::UpdateSingleColSpecWithGuideInfo(col_guide, col);
   };
 
-  TF_RETURN_IF_ERROR(IterateFeatures(
-      [&](SimpleMLNumericalFeature::Resource* feature, const int feature_idx) {
+  RETURN_IF_ERROR(IterateFeatures(
+      [&](SimpleMLNumericalFeature::Resource* feature,
+          const int feature_idx) -> absl::Status {
         auto* col = dataset->mutable_data_spec()->mutable_columns(feature_idx);
         col->set_name(feature->feature_name());
         col->set_type(dataset::proto::ColumnType::NUMERICAL);
-        TF_RETURN_IF_ERROR(
+        RETURN_IF_ERROR(
             apply_guide(feature->feature_name(), col, /*apply_type=*/true));
         return set_num_examples(feature->data().size(), feature->NumBatches());
       },
       [&](SimpleMLCategoricalStringFeature::Resource* feature,
-          const int feature_idx) {
+          const int feature_idx) -> absl::Status {
         auto* col = dataset->mutable_data_spec()->mutable_columns(feature_idx);
         col->set_name(feature->feature_name());
         col->set_type(dataset::proto::ColumnType::CATEGORICAL);
-        TF_RETURN_IF_ERROR(apply_guide(feature->feature_name(), col));
-        TF_RETURN_IF_ERROR(set_num_examples(feature->indexed_data().size(),
-                                            feature->NumBatches()));
+        RETURN_IF_ERROR(apply_guide(feature->feature_name(), col));
+        RETURN_IF_ERROR(set_num_examples(feature->indexed_data().size(),
+                                         feature->NumBatches()));
         return absl::OkStatus();
       },
       [&](SimpleMLCategoricalIntFeature::Resource* feature,
-          const int feature_idx) {
+          const int feature_idx) -> absl::Status {
         auto* col = dataset->mutable_data_spec()->mutable_columns(feature_idx);
         col->set_name(feature->feature_name());
         col->set_type(dataset::proto::ColumnType::CATEGORICAL);
-        TF_RETURN_IF_ERROR(apply_guide(feature->feature_name(), col));
+        RETURN_IF_ERROR(apply_guide(feature->feature_name(), col));
         // Both in TF-DF and SimpleML Estimator, integer values are offset by 1.
         // See CATEGORICAL_INTEGER_OFFSET.
         col->mutable_categorical()->set_offset_value_by_one_during_training(
@@ -365,29 +371,30 @@ absl::Status FeatureSet::InitializeDatasetFromFeatures(
         return set_num_examples(feature->data().size(), feature->NumBatches());
       },
       [&](SimpleMLCategoricalSetStringFeature::Resource* feature,
-          const int feature_idx) {
+          const int feature_idx) -> absl::Status {
         auto* col = dataset->mutable_data_spec()->mutable_columns(feature_idx);
         col->set_name(feature->feature_name());
         col->set_type(dataset::proto::ColumnType::CATEGORICAL_SET);
-        TF_RETURN_IF_ERROR(apply_guide(feature->feature_name(), col));
+        RETURN_IF_ERROR(apply_guide(feature->feature_name(), col));
         return set_num_examples(feature->num_examples(),
                                 feature->num_batches());
       },
       [&](SimpleMLCategoricalSetIntFeature::Resource* feature,
-          const int feature_idx) {
+          const int feature_idx) -> absl::Status {
         auto* col = dataset->mutable_data_spec()->mutable_columns(feature_idx);
         col->set_name(feature->feature_name());
         col->set_type(dataset::proto::ColumnType::CATEGORICAL_SET);
-        TF_RETURN_IF_ERROR(apply_guide(feature->feature_name(), col));
+        RETURN_IF_ERROR(apply_guide(feature->feature_name(), col));
         col->mutable_categorical()->set_is_already_integerized(true);
         return set_num_examples(feature->num_examples(),
                                 feature->num_batches());
       },
-      [&](SimpleMLHashFeature::Resource* feature, const int feature_idx) {
+      [&](SimpleMLHashFeature::Resource* feature,
+          const int feature_idx) -> absl::Status {
         auto* col = dataset->mutable_data_spec()->mutable_columns(feature_idx);
         col->set_name(feature->feature_name());
         col->set_type(dataset::proto::ColumnType::HASH);
-        TF_RETURN_IF_ERROR(apply_guide(feature->feature_name(), col));
+        RETURN_IF_ERROR(apply_guide(feature->feature_name(), col));
         return set_num_examples(feature->data().size(), feature->NumBatches());
       }));
 
@@ -400,15 +407,16 @@ absl::Status FeatureSet::InitializeDatasetFromFeatures(
         "No training examples available.");
   }
 
-  TF_RETURN_IF_ERROR_FROM_ABSL_STATUS(dataset->CreateColumnsFromDataspec());
+  RETURN_IF_ERROR(dataset->CreateColumnsFromDataspec());
 
   dataset->mutable_data_spec()->set_created_num_rows(num_examples);
 
   dataset::proto::DataSpecificationAccumulator accumulator;
   dataset::InitializeDataspecAccumulator(dataset->data_spec(), &accumulator);
 
-  TF_RETURN_IF_ERROR(IterateFeatures(
-      [&](SimpleMLNumericalFeature::Resource* feature, const int feature_idx) {
+  RETURN_IF_ERROR(IterateFeatures(
+      [&](SimpleMLNumericalFeature::Resource* feature,
+          const int feature_idx) -> absl::Status {
         auto* col = dataset->mutable_data_spec()->mutable_columns(feature_idx);
         auto* col_acc = accumulator.mutable_columns(feature_idx);
 
@@ -417,7 +425,7 @@ absl::Status FeatureSet::InitializeDatasetFromFeatures(
             col->type() == dataset::proto::ColumnType::DISCRETIZED_NUMERICAL;
 
         for (const auto value : feature->data()) {
-          TF_RETURN_IF_ERROR_FROM_ABSL_STATUS(
+          RETURN_IF_ERROR(
               dataset::UpdateNumericalColumnSpec(value, col, col_acc));
           if (discretized) {
             dataset::UpdateComputeSpecDiscretizedNumerical(value, col, col_acc);
@@ -426,43 +434,42 @@ absl::Status FeatureSet::InitializeDatasetFromFeatures(
         return absl::OkStatus();
       },
       [&](SimpleMLCategoricalStringFeature::Resource* feature,
-          const int feature_idx) {
+          const int feature_idx) -> absl::Status {
         auto* col = dataset->mutable_data_spec()->mutable_columns(feature_idx);
         auto* col_acc = accumulator.mutable_columns(feature_idx);
         const auto& reverse_index = feature->reverse_index();
         for (const auto indexed_value : feature->indexed_data()) {
-          TF_RETURN_IF_ERROR_FROM_ABSL_STATUS(
-              dataset::UpdateCategoricalStringColumnSpec(
-                  reverse_index[indexed_value], col, col_acc));
+          RETURN_IF_ERROR(dataset::UpdateCategoricalStringColumnSpec(
+              reverse_index[indexed_value], col, col_acc));
         }
         return absl::OkStatus();
       },
       [&](SimpleMLCategoricalIntFeature::Resource* feature,
-          const int feature_idx) {
+          const int feature_idx) -> absl::Status {
         auto* col = dataset->mutable_data_spec()->mutable_columns(feature_idx);
         auto* col_acc = accumulator.mutable_columns(feature_idx);
         for (const auto value : feature->data()) {
-          TF_RETURN_IF_ERROR_FROM_ABSL_STATUS(
+          RETURN_IF_ERROR(
               dataset::UpdateCategoricalIntColumnSpec(value, col, col_acc));
         }
         return absl::OkStatus();
       },
       [&](SimpleMLCategoricalSetStringFeature::Resource* feature,
-          const int feature_idx) {
+          const int feature_idx) -> absl::Status {
         auto* col = dataset->mutable_data_spec()->mutable_columns(feature_idx);
         auto* col_acc = accumulator.mutable_columns(feature_idx);
         for (const auto& value : feature->values()) {
-          TF_RETURN_IF_ERROR_FROM_ABSL_STATUS(
+          RETURN_IF_ERROR(
               dataset::UpdateCategoricalStringColumnSpec(value, col, col_acc));
         }
         return absl::OkStatus();
       },
       [&](SimpleMLCategoricalSetIntFeature::Resource* feature,
-          const int feature_idx) {
+          const int feature_idx) -> absl::Status {
         auto* col = dataset->mutable_data_spec()->mutable_columns(feature_idx);
         auto* col_acc = accumulator.mutable_columns(feature_idx);
         for (const auto value : feature->values()) {
-          TF_RETURN_IF_ERROR_FROM_ABSL_STATUS(
+          RETURN_IF_ERROR(
               dataset::UpdateCategoricalIntColumnSpec(value, col, col_acc));
         }
         return absl::OkStatus();
@@ -472,8 +479,8 @@ absl::Status FeatureSet::InitializeDatasetFromFeatures(
         return absl::OkStatus();
       }));
 
-  TF_RETURN_IF_ERROR_FROM_ABSL_STATUS(dataset::FinalizeComputeSpec(
-      guide, accumulator, dataset->mutable_data_spec()));
+  RETURN_IF_ERROR(dataset::FinalizeComputeSpec(guide, accumulator,
+                                               dataset->mutable_data_spec()));
 
   return absl::OkStatus();
 }
@@ -498,10 +505,10 @@ absl::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
     return absl::OkStatus();
   };
 
-  TF_RETURN_IF_ERROR(IterateFeatures(
+  RETURN_IF_ERROR(IterateFeatures(
       [&](SimpleMLNumericalFeature::Resource* feature,
           const int feature_idx) -> absl::Status {
-        TF_RETURN_IF_ERROR(set_num_rows(feature->data().size(), feature));
+        RETURN_IF_ERROR(set_num_rows(feature->data().size(), feature));
         const auto& col = dataset->mutable_data_spec()->columns(feature_idx);
 
         // Is the numerical column discretized?
@@ -509,7 +516,7 @@ absl::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
             col.type() == dataset::proto::ColumnType::DISCRETIZED_NUMERICAL;
         if (discretized) {
           // Copy the discretized numerical values.
-          TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
+          ASSIGN_OR_RETURN(
               auto* col_data,
               dataset->MutableColumnWithCastWithStatus<
                   dataset::VerticalDataset::DiscretizedNumericalColumn>(
@@ -520,7 +527,7 @@ absl::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
           }
         } else {
           // Copy the non discretized values.
-          TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
+          ASSIGN_OR_RETURN(
               auto* col_data,
               dataset->MutableColumnWithCastWithStatus<
                   dataset::VerticalDataset::NumericalColumn>(feature_idx));
@@ -531,10 +538,9 @@ absl::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
       },
       [&](SimpleMLCategoricalStringFeature::Resource* feature,
           const int feature_idx) -> absl::Status {
-        TF_RETURN_IF_ERROR(
-            set_num_rows(feature->indexed_data().size(), feature));
+        RETURN_IF_ERROR(set_num_rows(feature->indexed_data().size(), feature));
         const auto& col_spec = dataset->data_spec().columns(feature_idx);
-        TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
+        ASSIGN_OR_RETURN(
             auto* col_data,
             dataset->MutableColumnWithCastWithStatus<
                 dataset::VerticalDataset::CategoricalColumn>(feature_idx));
@@ -545,7 +551,7 @@ absl::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
           if (value.empty()) {
             col_data->AddNA();
           } else {
-            TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
+            ASSIGN_OR_RETURN(
                 auto int_value,
                 dataset::CategoricalStringToValueWithStatus(value, col_spec));
             col_data->Add(int_value);
@@ -557,9 +563,9 @@ absl::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
       },
       [&](SimpleMLCategoricalIntFeature::Resource* feature,
           const int feature_idx) -> absl::Status {
-        TF_RETURN_IF_ERROR(set_num_rows(feature->data().size(), feature));
+        RETURN_IF_ERROR(set_num_rows(feature->data().size(), feature));
         const auto& col_spec = dataset->data_spec().columns(feature_idx);
-        TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
+        ASSIGN_OR_RETURN(
             auto* col_data,
             dataset->MutableColumnWithCastWithStatus<
                 dataset::VerticalDataset::CategoricalColumn>(feature_idx));
@@ -580,9 +586,9 @@ absl::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
       },
       [&](SimpleMLCategoricalSetStringFeature::Resource* feature,
           const int feature_idx) -> absl::Status {
-        TF_RETURN_IF_ERROR(set_num_rows(feature->num_examples(), feature));
+        RETURN_IF_ERROR(set_num_rows(feature->num_examples(), feature));
         const auto& col_spec = dataset->data_spec().columns(feature_idx);
-        TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
+        ASSIGN_OR_RETURN(
             auto* col_data,
             dataset->MutableColumnWithCastWithStatus<
                 dataset::VerticalDataset::CategoricalSetColumn>(feature_idx));
@@ -600,10 +606,9 @@ absl::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
           for (int value_idx = begin_value_idx; value_idx < end_value_idx;
                value_idx++) {
             const auto& value_str = feature->values()[value_idx];
-            TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
-                const int32_t value,
-                dataset::CategoricalStringToValueWithStatus(value_str,
-                                                            col_spec));
+            ASSIGN_OR_RETURN(const int32_t value,
+                             dataset::CategoricalStringToValueWithStatus(
+                                 value_str, col_spec));
             tmp_value.push_back(value);
           }
 
@@ -619,9 +624,9 @@ absl::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
       },
       [&](SimpleMLCategoricalSetIntFeature::Resource* feature,
           const int feature_idx) -> absl::Status {
-        TF_RETURN_IF_ERROR(set_num_rows(feature->num_examples(), feature));
+        RETURN_IF_ERROR(set_num_rows(feature->num_examples(), feature));
         const auto& col_spec = dataset->data_spec().columns(feature_idx);
-        TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
+        ASSIGN_OR_RETURN(
             auto* col_data,
             dataset->MutableColumnWithCastWithStatus<
                 dataset::VerticalDataset::CategoricalSetColumn>(feature_idx));
@@ -671,8 +676,8 @@ absl::Status FeatureSet::MoveExamplesFromFeaturesToDataset(
       },
       [&](SimpleMLHashFeature::Resource* feature,
           const int feature_idx) -> absl::Status {
-        TF_RETURN_IF_ERROR(set_num_rows(feature->data().size(), feature));
-        TF_ASSIGN_OR_RETURN_FROM_ABSL_STATUS(
+        RETURN_IF_ERROR(set_num_rows(feature->data().size(), feature));
+        ASSIGN_OR_RETURN(
             auto* col_data,
             dataset->MutableColumnWithCastWithStatus<
                 dataset::VerticalDataset::HashColumn>(feature_idx));
@@ -814,10 +819,9 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
     model::proto::TrainingConfig config = training_config_;
 
     std::unique_ptr<model::AbstractLearner> learner;
-    OP_REQUIRES_OK(ctx, utils::FromUtilStatus(GetLearner(config, &learner)));
+    OP_REQUIRES_OK(ctx, GetLearner(config, &learner));
 
-    OP_REQUIRES_OK(
-        ctx, utils::FromUtilStatus(learner->SetHyperParameters(hparams_)));
+    OP_REQUIRES_OK(ctx, learner->SetHyperParameters(hparams_));
 
     *learner->mutable_deployment() = deployment_config_;
     if (!model_dir_.empty()) {
@@ -865,7 +869,7 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
 
     // Create a std::function to train the model.
     //
-    // Note: The capture of std::function should be copiable.
+    // Note: The capture of std::function should be copyable.
     struct TrainingState {
       std::string model_dir;
       bool use_file_prefix;
@@ -899,8 +903,7 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
       }
 
 #ifdef TFDF_STOP_TRAINING_ON_INTERRUPT
-      RETURN_IF_ERROR(
-          utils::ToUtilStatus(interruption::DisableUserInterruption()));
+      RETURN_IF_ERROR(interruption::DisableUserInterruption());
 #endif
 
       RETURN_IF_ERROR(model.status());
@@ -948,7 +951,7 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
 
     auto process_id_or = StartLongRunningProcess(ctx, std::move(async_train));
     if (!process_id_or.ok()) {
-      OP_REQUIRES_OK(ctx, utils::FromUtilStatus(process_id_or.status()));
+      OP_REQUIRES_OK(ctx, process_id_or.status());
     }
     output_tensor->scalar<int32_t>()() = process_id_or.value();
 
@@ -957,7 +960,7 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
         auto status_or =
             GetLongRunningProcessStatus(ctx, process_id_or.value());
         if (!status_or.ok()) {
-          OP_REQUIRES_OK(ctx, utils::FromUtilStatus(status_or.status()));
+          OP_REQUIRES_OK(ctx, status_or.status());
         }
         if (status_or.value() == LongRunningProcessStatus::kSuccess) {
           break;
@@ -972,11 +975,10 @@ class SimpleMLModelTrainer : public tensorflow::OpKernel {
       const std::vector<std::string>& resource_ids,
       dataset::VerticalDataset* dataset) {
     FeatureSet feature_set;
-    TF_RETURN_IF_ERROR(
-        feature_set.Link(ctx, resource_ids, nullptr, dataset_type));
-    TF_RETURN_IF_ERROR(
+    RETURN_IF_ERROR(feature_set.Link(ctx, resource_ids, nullptr, dataset_type));
+    RETURN_IF_ERROR(
         feature_set.InitializeDatasetFromFeatures(ctx, guide_, dataset));
-    TF_RETURN_IF_ERROR(
+    RETURN_IF_ERROR(
         feature_set.MoveExamplesFromFeaturesToDataset(ctx, dataset));
     return absl::OkStatus();
   }
@@ -1060,10 +1062,8 @@ class SimpleMLCheckTrainingConfiguration : public tensorflow::OpKernel {
 
     // Check the parameters by creating a learner.
     std::unique_ptr<model::AbstractLearner> learner;
-    OP_REQUIRES_OK(
-        ctx, utils::FromUtilStatus(GetLearner(training_config_, &learner)));
-    OP_REQUIRES_OK(
-        ctx, utils::FromUtilStatus(learner->SetHyperParameters(hparams_)));
+    OP_REQUIRES_OK(ctx, GetLearner(training_config_, &learner));
+    OP_REQUIRES_OK(ctx, learner->SetHyperParameters(hparams_));
   }
 
   model::proto::GenericHyperParameters hparams_;
@@ -1087,7 +1087,7 @@ class AbstractSimpleMLModelOp : public tensorflow::OpKernel {
   // Called when the op is applied. If "model"==nullptr, the model is not
   // available.
   virtual void ComputeModel(tf::OpKernelContext* ctx,
-                            const model::AbstractModel* const model) = 0;
+                            const model::AbstractModel* model) = 0;
 
   void Compute(tf::OpKernelContext* ctx) override {
     YggdrasilModelContainer* model_container;
@@ -1178,32 +1178,32 @@ REGISTER_KERNEL_BUILDER(
 #ifdef TFDF_STOP_TRAINING_ON_INTERRUPT
 namespace interruption {
 
-tf::Status EnableUserInterruption() {
+absl::Status EnableUserInterruption() {
   // Detect interrupt signals.
   const bool set_signal_handler = active_learners.fetch_add(1) == 0;
   if (set_signal_handler) {
     stop_training = false;
     previous_signal_handler = std::signal(SIGINT, StopTrainingSignalHandler);
     if (previous_signal_handler == SIG_ERR) {
-      TF_RETURN_IF_ERROR(tf::Status(
+      RETURN_IF_ERROR(absl::Status(
           static_cast<tf::errors::Code>(absl::StatusCode::kInvalidArgument),
           "Cannot change the std::signal handler."));
     }
   }
-  return tf::OkStatus();
+  return absl::OkStatus();
 }
 
-tf::Status DisableUserInterruption() {
+absl::Status DisableUserInterruption() {
   const bool restore_signal_handler = active_learners.fetch_sub(1) == 1;
   if (restore_signal_handler) {
     // Restore the previous signal handler.
     if (std::signal(SIGINT, previous_signal_handler) == SIG_ERR) {
-      TF_RETURN_IF_ERROR(tf::Status(
+      RETURN_IF_ERROR(absl::Status(
           static_cast<tf::errors::Code>(absl::StatusCode::kInvalidArgument),
           "Cannot restore the std::signal handler."));
     }
   }
-  return tf::OkStatus();
+  return absl::OkStatus();
 }
 
 }  // namespace interruption

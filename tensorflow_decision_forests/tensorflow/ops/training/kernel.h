@@ -16,10 +16,18 @@
 #ifndef TENSORFLOW_DECISION_FORESTS_TENSORFLOW_OPS_TRAINING_TRAINING_H_
 #define TENSORFLOW_DECISION_FORESTS_TENSORFLOW_OPS_TRAINING_TRAINING_H_
 
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
+#include "absl/strings/string_view.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/resource_mgr.h"
 #include "yggdrasil_decision_forests/model/abstract_model.h"
-#include "yggdrasil_decision_forests/utils/tensorflow.h"
 
 namespace tensorflow_decision_forests {
 namespace ops {
@@ -67,10 +75,10 @@ inline std::atomic<int> active_learners{0};
 inline void StopTrainingSignalHandler(int signal) { stop_training = true; }
 
 // Enables the interruption listener.
-tensorflow::Status EnableUserInterruption();
+absl::Status EnableUserInterruption();
 
 // Disable the interruption listener
-tensorflow::Status DisableUserInterruption();
+absl::Status DisableUserInterruption();
 
 }  // namespace interruption
 #endif
@@ -82,7 +90,7 @@ class YggdrasilModelContainer : public tensorflow::ResourceBase {
 
   std::string DebugString() const override { return "YggdrasilModelContainer"; }
 
-  tensorflow::Status LoadModel(const absl::string_view model_path);
+  absl::Status LoadModel(absl::string_view model_path);
 
   tensorflow::int64 MemoryUsed() const override {
     return approximate_model_size_in_memory_;
@@ -97,7 +105,7 @@ class YggdrasilModelContainer : public tensorflow::ResourceBase {
     return *model_;
   }
 
-  const int num_label_classes() const { return num_label_classes_; }
+  int num_label_classes() const { return num_label_classes_; }
 
   const std::vector<std::string>& output_class_representation() const {
     return output_class_representation_;

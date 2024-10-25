@@ -17,9 +17,21 @@
 //
 // See "op.cc" for the documentation of the ops.
 //
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <string>
+#include <utility>
+
+#include "absl/log/check.h"
+#include "absl/memory/memory.h"
 #include "absl/random/random.h"
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "tensorflow_decision_forests/tensorflow/ops/training/kernel.h"
 #include "yggdrasil_decision_forests/utils/concurrency.h"
+#include "yggdrasil_decision_forests/utils/status_macros.h"
 #include "yggdrasil_decision_forests/utils/synchronization_primitives.h"
 
 namespace tensorflow_decision_forests {
@@ -97,11 +109,8 @@ absl::StatusOr<int32_t> StartLongRunningProcess(
 
   // Start the process.
   auto* process_container = new RunningProcessResource();
-  auto status = ctx->resource_manager()->Create(
-      kProcessContainer, absl::StrCat(process_id), process_container);
-  if (!status.ok()) {
-    return utils::ToUtilStatus(status);
-  }
+  RETURN_IF_ERROR(ctx->resource_manager()->Create(
+      kProcessContainer, absl::StrCat(process_id), process_container));
   process_container->Run(std::move(call));
   return process_id;
 }
@@ -115,7 +124,7 @@ absl::StatusOr<LongRunningProcessStatus> GetLongRunningProcessStatus(
       ctx->resource_manager()->Lookup<RunningProcessResource, true>(
           kProcessContainer, resource_name, &process_container);
   if (!find_container_status.ok()) {
-    return utils::ToUtilStatus(find_container_status);
+    return find_container_status;
   }
 
   auto process_status = process_container->GetStatus();
@@ -124,12 +133,8 @@ absl::StatusOr<LongRunningProcessStatus> GetLongRunningProcessStatus(
   if (!process_status.ok() ||
       process_status.value() == LongRunningProcessStatus::kSuccess) {
     // Release the process container if the run is done (success or failure).
-    auto delete_container_status =
-        ctx->resource_manager()->Delete<RunningProcessResource>(
-            kProcessContainer, resource_name);
-    if (!find_container_status.ok()) {
-      return utils::ToUtilStatus(delete_container_status);
-    }
+    RETURN_IF_ERROR(ctx->resource_manager()->Delete<RunningProcessResource>(
+        kProcessContainer, resource_name));
   }
 
   // Return the status.
@@ -149,7 +154,7 @@ class SimpleMLCheckStatus : public tensorflow::OpKernel {
     // Check process status.
     auto status_or = GetLongRunningProcessStatus(ctx, process_id);
     if (!status_or.ok()) {
-      OP_REQUIRES_OK(ctx, utils::FromUtilStatus(status_or.status()));
+      OP_REQUIRES_OK(ctx, status_or.status());
     }
 
     // Output process status.

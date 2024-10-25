@@ -18,11 +18,23 @@
 #ifndef TENSORFLOW_DECISION_FORESTS_TENSORFLOW_OPS_TRAINING_FEATURES_H_
 #define TENSORFLOW_DECISION_FORESTS_TENSORFLOW_OPS_TRAINING_FEATURES_H_
 
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "absl/base/thread_annotations.h"
+#include "absl/container/flat_hash_map.h"
 #include "absl/log/log.h"
+#include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/resource_mgr.h"
-#include "yggdrasil_decision_forests/model/abstract_model.h"
-#include "yggdrasil_decision_forests/utils/tensorflow.h"
+#include "yggdrasil_decision_forests/dataset/data_spec.h"
+#include "yggdrasil_decision_forests/dataset/vertical_dataset.h"
+#include "yggdrasil_decision_forests/utils/synchronization_primitives.h"
 
 namespace tensorflow_decision_forests {
 namespace ops {
@@ -187,28 +199,24 @@ class Feature : public tensorflow::OpKernel {
           ctx, ctx->resource_manager()
                    ->LookupOrCreate<AbstractFeatureResource, true>(
                        kModelContainer, identifier_, &tmp_abstract_resource,
-                       [&](AbstractFeatureResource** resource)
-                           -> tensorflow::Status {
+                       [&](AbstractFeatureResource** resource) -> absl::Status {
                          *resource = new Resource(feature_name_);
-                         return tensorflow::Status();
+                         return absl::Status();
                        }));
       resource_ = static_cast<Resource*>(tmp_abstract_resource);
     }
     if constexpr (kNumInputs == 1) {
-      OP_REQUIRES(ctx, ctx->input(0).dims() == 1,
-                  tensorflow::Status(static_cast<tsl::errors::Code>(
-                                         absl::StatusCode::kInvalidArgument),
-                                     "The input 0 feature should have rank 1"));
+      OP_REQUIRES(
+          ctx, ctx->input(0).dims() == 1,
+          absl::InvalidArgumentError("The input 0 feature should have rank 1"));
       resource_->Add(ctx->input(0));
     } else if constexpr (kNumInputs == 2) {
-      OP_REQUIRES(ctx, ctx->input(0).dims() == 1,
-                  tensorflow::Status(static_cast<tsl::errors::Code>(
-                                         absl::StatusCode::kInvalidArgument),
-                                     "The input 0 feature should have rank 1"));
-      OP_REQUIRES(ctx, ctx->input(1).dims() == 1,
-                  tensorflow::Status(static_cast<tsl::errors::Code>(
-                                         absl::StatusCode::kInvalidArgument),
-                                     "The input 1 feature should have rank 1"));
+      OP_REQUIRES(
+          ctx, ctx->input(0).dims() == 1,
+          absl::InvalidArgumentError("The input 0 feature should have rank 1"));
+      OP_REQUIRES(
+          ctx, ctx->input(1).dims() == 1,
+          absl::InvalidArgumentError("The input 1 feature should have rank 1"));
       resource_->Add(ctx->input(0), ctx->input(1));
     } else {
       LOG(FATAL) << "Invalid dimensions";
@@ -364,20 +372,20 @@ class FeatureSet {
   //  existing_dataspec: Optional existing dataspec to use as guide for the
   //    dataspec feature idx.
   //  dataset_type: The function of the dataset.
-  tensorflow::Status Link(
+  absl::Status Link(
       tensorflow::OpKernelContext* ctx,
       const std::vector<std::string>& column_ids,
-      const ::yggdrasil_decision_forests::dataset::proto::
-          DataSpecification* const existing_dataspec,
-      const DatasetType dataset_type = DatasetType::kTraining);
+      const ::yggdrasil_decision_forests::dataset::proto::DataSpecification*
+          existing_dataspec,
+      DatasetType dataset_type = DatasetType::kTraining);
 
-  tensorflow::Status Unlink();
+  absl::Status Unlink();
 
   template <typename T>
-  using FeatureIterator = std::function<tensorflow::Status(
-      typename T::Resource*, const int feature_idx)>;
+  using FeatureIterator =
+      std::function<absl::Status(typename T::Resource*, const int feature_idx)>;
 
-  tensorflow::Status IterateFeatures(
+  absl::Status IterateFeatures(
       FeatureIterator<SimpleMLNumericalFeature> lambda_numerical,
       FeatureIterator<SimpleMLCategoricalStringFeature>
           lambda_categorical_string,
@@ -390,7 +398,7 @@ class FeatureSet {
 
   // Initialize a dataset (including the dataset's dataspec) from the linked
   // resource aggregators.
-  tensorflow::Status InitializeDatasetFromFeatures(
+  absl::Status InitializeDatasetFromFeatures(
       tensorflow::OpKernelContext* ctx,
       const ::yggdrasil_decision_forests::dataset::proto::
           DataSpecificationGuide& guide,
@@ -398,7 +406,7 @@ class FeatureSet {
 
   // Moves the feature values contained in the aggregators into the dataset.
   // Following this call, the feature aggregators are empty.
-  tensorflow::Status MoveExamplesFromFeaturesToDataset(
+  absl::Status MoveExamplesFromFeaturesToDataset(
       tensorflow::OpKernelContext* ctx,
       ::yggdrasil_decision_forests::dataset::VerticalDataset* dataset);
 

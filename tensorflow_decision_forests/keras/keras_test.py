@@ -2923,7 +2923,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
   def test_check_parameters(self):
     with self.assertRaisesRegex(
-        ValueError, 'The parameter "num_trees" is smaller than the minimum'
+        tf.errors.InvalidArgumentError,
+        'The parameter "num_trees" is smaller than the minimum',
     ):
       keras.RandomForestModel(num_trees=-10)
 
@@ -3041,7 +3042,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     pd_dataset = pd.DataFrame({"f": [0, 1], "l": [0, 1]})
     tf_dataset = keras.pd_dataframe_to_tf_dataset(pd_dataset, label="l")
     with self.assertRaisesRegex(
-        tf.errors.UnknownError,
+        tf.errors.InvalidArgumentError,
         "The learner CART does not support monotonic constraints",
     ):
       model.fit(tf_dataset)
@@ -3053,7 +3054,7 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     pd_dataset = pd.DataFrame({"f": [0, 1], "l": [0, 1]})
     tf_dataset = keras.pd_dataframe_to_tf_dataset(pd_dataset, label="l")
     with self.assertRaisesRegex(
-        tf.errors.UnknownError,
+        tf.errors.InvalidArgumentError,
         "Gradient Boosted Trees does not support monotonic constraints with"
         " use_hessian_gain=false",
     ):

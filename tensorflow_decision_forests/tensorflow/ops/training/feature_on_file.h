@@ -31,6 +31,15 @@
 #ifndef TENSORFLOW_DECISION_FORESTS_TENSORFLOW_OPS_TRAINING_FEATURE_ON_FILE_H_
 #define TENSORFLOW_DECISION_FORESTS_TENSORFLOW_OPS_TRAINING_FEATURE_ON_FILE_H_
 
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <type_traits>
+#include <vector>
+
+#include "absl/container/flat_hash_map.h"
+#include "absl/log/log.h"
+#include "absl/status/status.h"
 #include "tensorflow/core/framework/device.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/resource_mgr.h"
@@ -39,7 +48,7 @@
 #include "yggdrasil_decision_forests/learner/distributed_decision_tree/dataset_cache/column_cache.h"
 #include "yggdrasil_decision_forests/learner/distributed_decision_tree/dataset_cache/dataset_cache.pb.h"
 #include "yggdrasil_decision_forests/model/abstract_model.h"
-#include "yggdrasil_decision_forests/utils/tensorflow.h"
+#include "yggdrasil_decision_forests/utils/synchronization_primitives.h"
 
 namespace tensorflow_decision_forests {
 namespace ops {
@@ -49,7 +58,7 @@ namespace ops {
 constexpr char kFilenameDone[] = "partial_done";
 
 // Create a done file in "dataset_path".
-::tensorflow::Status CreateDoneFile(const std::string& dataset_path);
+absl::Status CreateDoneFile(const std::string& dataset_path);
 
 // Checks is a done file exist in "dataset_path".
 bool HasDoneFile(const std::string& dataset_path);
@@ -212,9 +221,7 @@ class FeatureOnFileOp : public tensorflow::OpKernel {
     auto* device = dynamic_cast<tensorflow::Device*>(ctx->device());
     if (device == nullptr) {
       OP_REQUIRES_OK(ctx,
-                     tensorflow::Status(static_cast<tsl::errors::Code>(
-                                            absl::StatusCode::kInvalidArgument),
-                                        "Cannot find the worker idx"));
+                     absl::InvalidArgumentError("Cannot find the worker idx"));
     }
     worker_idx_ = device->parsed_name().task;
 
@@ -234,17 +241,14 @@ class FeatureOnFileOp : public tensorflow::OpKernel {
   const std::string& feature_name() const { return feature_name_; }
 
   void Compute(tensorflow::OpKernelContext* ctx) override {
-    using ::yggdrasil_decision_forests::utils::FromUtilStatus;
-
     if (dataset_already_on_disk_) {
       return;
     }
 
     tensorflow::mutex_lock l(mu_);
-    OP_REQUIRES(ctx, ctx->input(0).dims() == 1,
-                tensorflow::Status(static_cast<tsl::errors::Code>(
-                                       absl::StatusCode::kInvalidArgument),
-                                   "The input 0 feature should have rank 1"));
+    OP_REQUIRES(
+        ctx, ctx->input(0).dims() == 1,
+        absl::InvalidArgumentError("The input 0 feature should have rank 1"));
     if (!resource_) {
       AbstractFeatureResourceOnFile* abstract_resource;
       OP_REQUIRES_OK(
@@ -252,18 +256,16 @@ class FeatureOnFileOp : public tensorflow::OpKernel {
                    ->LookupOrCreate<AbstractFeatureResourceOnFile, true>(
                        kModelContainer, resource_id_, &abstract_resource,
                        [&](AbstractFeatureResourceOnFile** resource)
-                           -> tensorflow::Status {
+                           -> absl::Status {
                          *resource = new Resource(feature_idx_, feature_name_,
                                                   dataset_path_, worker_idx_);
-                         return FromUtilStatus((*resource)->Begin());
+                         return (*resource)->Begin();
                        }));
       resource_ = static_cast<Resource*>(abstract_resource);
     }
     OP_REQUIRES(ctx, ctx->input(0).dims() == 1,
-                tensorflow::Status(static_cast<tsl::errors::Code>(
-                                       absl::StatusCode::kInvalidArgument),
-                                   "The input should have rank 1"));
-    OP_REQUIRES_OK(ctx, FromUtilStatus(resource_->AddValue(ctx->input(0))));
+                absl::InvalidArgumentError("The input should have rank 1"));
+    OP_REQUIRES_OK(ctx, resource_->AddValue(ctx->input(0)));
   }
 
  private:

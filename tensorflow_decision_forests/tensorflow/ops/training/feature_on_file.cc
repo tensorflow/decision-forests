@@ -15,16 +15,28 @@
 
 #include "tensorflow_decision_forests/tensorflow/ops/training/feature_on_file.h"
 
+#include <cmath>
+#include <cstdint>
+#include <limits>
+#include <string>
+#include <vector>
+
 #include "absl/log/log.h"
+#include "absl/memory/memory.h"
+#include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
+#include "absl/types/span.h"
+#include "tensorflow_decision_forests/tensorflow/ops/training/features.h"
+#include "yggdrasil_decision_forests/learner/distributed_decision_tree/dataset_cache/column_cache.h"
 #include "yggdrasil_decision_forests/learner/distributed_decision_tree/dataset_cache/dataset_cache_common.h"
 #include "yggdrasil_decision_forests/utils/logging.h"
+#include "yggdrasil_decision_forests/utils/status_macros.h"
 
 namespace tensorflow_decision_forests {
 namespace ops {
 namespace {
 
 namespace tf = ::tensorflow;
-namespace utils = ::yggdrasil_decision_forests::utils;
 namespace dist_dt =
     ::yggdrasil_decision_forests::model::distributed_decision_tree;
 
@@ -60,19 +72,18 @@ absl::Status AbstractFeatureResourceOnFile::End() {
   PartialColumnShardMetadata meta_data;
   RETURN_IF_ERROR(EndImp(&meta_data));
 
-  RETURN_IF_ERROR(utils::ToUtilStatus(WriteBinaryProto(
+  RETURN_IF_ERROR(WriteBinaryProto(
       tensorflow::Env::Default(),
       absl::StrCat(
           PartialRawColumnFilePath(dataset_path_, feature_idx_, worker_idx_),
           kFilenameMetaDataPostfix),
-      meta_data)));
+      meta_data));
   return absl::OkStatus();
 }
 
 absl::Status NumericalResourceOnFile::Begin() {
-  RETURN_IF_ERROR(
-      utils::ToUtilStatus(tensorflow::Env::Default()->RecursivelyCreateDir(
-          PartialRawColumnFileDirectory(dataset_path_, feature_idx_))));
+  RETURN_IF_ERROR(tensorflow::Env::Default()->RecursivelyCreateDir(
+      PartialRawColumnFileDirectory(dataset_path_, feature_idx_)));
 
   writer_ = absl::make_unique<FloatColumnWriter>();
   return writer_->Open(
@@ -122,9 +133,8 @@ absl::Status NumericalResourceOnFile::EndImp(
 }
 
 absl::Status CategoricalResourceOnFile::Begin() {
-  RETURN_IF_ERROR(
-      utils::ToUtilStatus(tensorflow::Env::Default()->RecursivelyCreateDir(
-          PartialRawColumnFileDirectory(dataset_path_, feature_idx_))));
+  RETURN_IF_ERROR(tensorflow::Env::Default()->RecursivelyCreateDir(
+      PartialRawColumnFileDirectory(dataset_path_, feature_idx_)));
 
   writer_ = absl::make_unique<IntegerColumnWriter>();
   return writer_->Open(
@@ -163,9 +173,8 @@ absl::Status CategoricalResourceOnFile::EndImp(
 }
 
 absl::Status CategoricalStringResourceOnFile::Begin() {
-  RETURN_IF_ERROR(
-      utils::ToUtilStatus(tensorflow::Env::Default()->RecursivelyCreateDir(
-          PartialRawColumnFileDirectory(dataset_path_, feature_idx_))));
+  RETURN_IF_ERROR(tensorflow::Env::Default()->RecursivelyCreateDir(
+      PartialRawColumnFileDirectory(dataset_path_, feature_idx_)));
 
   writer_ = absl::make_unique<IntegerColumnWriter>();
   return writer_->Open(
@@ -247,7 +256,7 @@ void SimpleMLWorkerFinalizeFeatureOnFile::Compute(
                   "finalization.")));
       return;
     }
-    OP_REQUIRES_OK(ctx, utils::FromUtilStatus(abstract_resource->End()));
+    OP_REQUIRES_OK(ctx, abstract_resource->End());
     abstract_resource->Unref();
   }
 }

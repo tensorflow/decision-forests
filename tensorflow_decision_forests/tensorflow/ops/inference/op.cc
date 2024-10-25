@@ -29,7 +29,9 @@
 
 #include "tensorflow/core/framework/op.h"
 
+#include "absl/status/status.h"
 #include "tensorflow/core/framework/common_shape_fns.h"
+#include "yggdrasil_decision_forests/utils/status_macros.h"
 
 namespace tensorflow {
 
@@ -54,7 +56,7 @@ path: Path to the Yggdrasil model. Note: a Yggdrasil model directory should
 Returns a type-less OP that loads the model when called.
 )")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-      return OkStatus();
+      return absl::OkStatus();
     });
 
 REGISTER_OP("SimpleMLLoadModelFromPathWithHandle")
@@ -86,19 +88,19 @@ allow_slow_inference: The model inference engine is selected automatically
   run with a fast inference engine.
 )")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-      return OkStatus();
+      return absl::OkStatus();
     });
 
-Status SimpleMLInferenceOpSetShapeGeneric(shape_inference::InferenceContext* c,
+absl::Status SimpleMLInferenceOpSetShapeGeneric(shape_inference::InferenceContext* c,
                                           const bool output_leaves) {
   // Check the rank of the input features.
   ::tensorflow::shape_inference::ShapeHandle tmp_shape;
-  TF_RETURN_IF_ERROR(c->WithRank(c->input(0), 2, &tmp_shape));
-  TF_RETURN_IF_ERROR(c->WithRank(c->input(1), 2, &tmp_shape));
-  TF_RETURN_IF_ERROR(c->WithRank(c->input(2), 2, &tmp_shape));
-  TF_RETURN_IF_ERROR(c->WithRank(c->input(3), 1, &tmp_shape));
-  TF_RETURN_IF_ERROR(c->WithRank(c->input(4), 1, &tmp_shape));
-  TF_RETURN_IF_ERROR(c->WithRank(c->input(5), 1, &tmp_shape));
+  RETURN_IF_ERROR(c->WithRank(c->input(0), 2, &tmp_shape));
+  RETURN_IF_ERROR(c->WithRank(c->input(1), 2, &tmp_shape));
+  RETURN_IF_ERROR(c->WithRank(c->input(2), 2, &tmp_shape));
+  RETURN_IF_ERROR(c->WithRank(c->input(3), 1, &tmp_shape));
+  RETURN_IF_ERROR(c->WithRank(c->input(4), 1, &tmp_shape));
+  RETURN_IF_ERROR(c->WithRank(c->input(5), 1, &tmp_shape));
 
   // Get the output batch dimension from the batch dimension of the input
   // features. Input batch dimension can be set or unknown. The special
@@ -125,8 +127,7 @@ Status SimpleMLInferenceOpSetShapeGeneric(shape_inference::InferenceContext* c,
       if (known_batch_size == -1) {
         known_batch_size = value;
       } else if (known_batch_size != value) {
-        return Status(
-            static_cast<tsl::errors::Code>(absl::StatusCode::kInvalidArgument),
+        return absl::InvalidArgumentError(
             "The batch size of the input features are inconsistent");
       }
     }
@@ -137,22 +138,22 @@ Status SimpleMLInferenceOpSetShapeGeneric(shape_inference::InferenceContext* c,
     }
   }
   if (output_leaves) {
-    TF_RETURN_IF_ERROR(
+    RETURN_IF_ERROR(
         c->set_output("leaves", {c->Matrix(batch_size, c->UnknownDim())}));
   } else {
     int dense_output_dim;
-    TF_RETURN_IF_ERROR(c->GetAttr("dense_output_dim", &dense_output_dim));
+    RETURN_IF_ERROR(c->GetAttr("dense_output_dim", &dense_output_dim));
 
     // Check the tensor shapes.
-    TF_RETURN_IF_ERROR(c->set_output(
-        "dense_predictions", {c->Matrix(batch_size, dense_output_dim)}));
-    TF_RETURN_IF_ERROR(c->set_output("dense_col_representation",
-                                     {c->Vector(dense_output_dim)}));
+    RETURN_IF_ERROR(c->set_output("dense_predictions",
+                                  {c->Matrix(batch_size, dense_output_dim)}));
+    RETURN_IF_ERROR(c->set_output("dense_col_representation",
+                                  {c->Vector(dense_output_dim)}));
   }
-  return OkStatus();
+  return absl::OkStatus();
 }
 
-Status SimpleMLInferenceOpSetShape(shape_inference::InferenceContext* c) {
+absl::Status SimpleMLInferenceOpSetShape(shape_inference::InferenceContext* c) {
   return SimpleMLInferenceOpSetShapeGeneric(c, /*output_leaves=*/false);
 }
 
@@ -228,7 +229,7 @@ REGISTER_OP("SimpleMLInferenceOpWithHandle")
     .Output("dense_col_representation: string")
     .SetShapeFn(SimpleMLInferenceOpSetShape);
 
-Status SimpleMLInferenceOpSetShapeLeafIndex(
+absl::Status SimpleMLInferenceOpSetShapeLeafIndex(
     shape_inference::InferenceContext* c) {
   return SimpleMLInferenceOpSetShapeGeneric(c, /*output_leaves=*/true);
 }
@@ -242,9 +243,9 @@ REGISTER_OP("SimpleMLInferenceLeafIndexOpWithHandle")
     .Output("leaves: int32")
     .SetShapeFn(SimpleMLInferenceOpSetShapeLeafIndex);
 
-Status ScalarOutput(shape_inference::InferenceContext* c) {
+absl::Status ScalarOutput(shape_inference::InferenceContext* c) {
   c->set_output(0, c->Scalar());
-  return OkStatus();
+  return absl::OkStatus();
 }
 
 REGISTER_OP("SimpleMLCreateModelResource")

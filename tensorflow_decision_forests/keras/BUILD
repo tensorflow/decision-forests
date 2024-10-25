@@ -215,7 +215,6 @@ py_test(
         "@pypi_pandas//:pkg",
         "@pypi_portpicker//:pkg",
         "@release_or_nightly//:tensorflow_pkg",
-        "@release_or_nightly//:tf_keras_pkg",
         # TensorFlow /distribute:distribute_lib,
         "//tensorflow_decision_forests",
         "@ydf//yggdrasil_decision_forests/learner/distributed_gradient_boosted_trees:dgbt_py_proto",

@@ -19,11 +19,22 @@
 // dataset reader is registered).
 //
 
-#include <algorithm>
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <utility>
 
 #include "absl/log/log.h"
+#include "absl/status/status.h"
+#include "absl/types/optional.h"
 #include "tensorflow/core/framework/op_kernel.h"
+#include "tensorflow/core/framework/op_requires.h"
+#include "tensorflow/core/framework/tensor.h"
+#include "tensorflow/core/framework/tensor_shape.h"
+#include "tensorflow/core/framework/types.h"
+#include "tensorflow/core/platform/path.h"
 #include "tensorflow_decision_forests/tensorflow/ops/training/feature_on_file.h"
+#include "tensorflow_decision_forests/tensorflow/ops/training/features.h"
 #include "tensorflow_decision_forests/tensorflow/ops/training/kernel.h"
 #include "yggdrasil_decision_forests/dataset/data_spec.h"
 #include "yggdrasil_decision_forests/dataset/data_spec.pb.h"
@@ -34,14 +45,13 @@
 #include "yggdrasil_decision_forests/model/decision_tree/decision_forest_interface.h"
 #include "yggdrasil_decision_forests/model/model_library.h"
 #include "yggdrasil_decision_forests/utils/logging.h"
-#include "yggdrasil_decision_forests/utils/tensorflow.h"
+#include "yggdrasil_decision_forests/utils/status_macros.h"
 
 namespace tensorflow_decision_forests {
 namespace ops {
 
 namespace tf = ::tensorflow;
 namespace model = ::yggdrasil_decision_forests::model;
-namespace utils = ::yggdrasil_decision_forests::utils;
 namespace dataset = ::yggdrasil_decision_forests::dataset;
 
 REGISTER_KERNEL_BUILDER(
@@ -81,25 +91,21 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("node_format", &node_format_));
 
     if (model_id_.empty()) {
-      OP_REQUIRES_OK(ctx, absl::Status(static_cast<absl::StatusCode>(
-                                           absl::StatusCode::kInvalidArgument),
-                                       "Model id is empty"));
+      OP_REQUIRES_OK(ctx, absl::InvalidArgumentError("Model id is empty"));
     }
 
     std::string serialized_guide;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("guide", &serialized_guide));
     if (!guide_.ParseFromString(serialized_guide)) {
-      OP_REQUIRES_OK(ctx, absl::Status(static_cast<absl::StatusCode>(
-                                           absl::StatusCode::kInvalidArgument),
-                                       "Cannot de-serialize guide proto."));
+      OP_REQUIRES_OK(
+          ctx, absl::InvalidArgumentError("Cannot de-serialize guide proto."));
     }
 
     std::string hparams;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("hparams", &hparams));
     if (!hparams_.ParseFromString(hparams)) {
-      OP_REQUIRES_OK(ctx, absl::Status(static_cast<absl::StatusCode>(
-                                           absl::StatusCode::kInvalidArgument),
-                                       "Cannot de-serialize hparams proto."));
+      OP_REQUIRES_OK(ctx, absl::InvalidArgumentError(
+                              "Cannot de-serialize hparams proto."));
     }
 
     {
@@ -107,10 +113,8 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
       OP_REQUIRES_OK(
           ctx, ctx->GetAttr("training_config", &serialized_training_config));
       if (!training_config_.MergeFromString(serialized_training_config)) {
-        OP_REQUIRES_OK(
-            ctx, absl::Status(static_cast<absl::StatusCode>(
-                                  absl::StatusCode::kInvalidArgument),
-                              "Cannot de-serialize training_config proto."));
+        OP_REQUIRES_OK(ctx, absl::InvalidArgumentError(
+                                "Cannot de-serialize training_config proto."));
       }
     }
 
@@ -119,10 +123,9 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
       OP_REQUIRES_OK(ctx, ctx->GetAttr("deployment_config",
                                        &serialized_deployment_config));
       if (!deployment_config_.MergeFromString(serialized_deployment_config)) {
-        OP_REQUIRES_OK(
-            ctx, absl::Status(static_cast<absl::StatusCode>(
-                                  absl::StatusCode::kInvalidArgument),
-                              "Cannot de-serialize deployment_config proto."));
+        OP_REQUIRES_OK(ctx,
+                       absl::InvalidArgumentError(
+                           "Cannot de-serialize deployment_config proto."));
       }
     }
   }
@@ -134,15 +137,13 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
 
     // TODO: Cache the dataspec.
     dataset::proto::DataSpecification data_spec;
-    OP_REQUIRES_OK(ctx, utils::FromUtilStatus(dataset::CreateDataSpecWithStatus(
-                            train_dataset_path_, false, guide_, &data_spec)));
+    OP_REQUIRES_OK(ctx, dataset::CreateDataSpecWithStatus(
+                            train_dataset_path_, false, guide_, &data_spec));
     LOG(INFO) << "Dataset:\n" << dataset::PrintHumanReadable(data_spec, false);
 
     std::unique_ptr<model::AbstractLearner> learner;
-    OP_REQUIRES_OK(
-        ctx, utils::FromUtilStatus(GetLearner(training_config_, &learner)));
-    OP_REQUIRES_OK(
-        ctx, utils::FromUtilStatus(learner->SetHyperParameters(hparams_)));
+    OP_REQUIRES_OK(ctx, GetLearner(training_config_, &learner));
+    OP_REQUIRES_OK(ctx, learner->SetHyperParameters(hparams_));
     *learner->mutable_deployment() = deployment_config_;
     if (!model_dir_.empty()) {
       learner->set_log_directory(tf::io::JoinPath(model_dir_, "train_logs"));
@@ -169,7 +170,7 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
 
     // Create a std::function to train the model.
     //
-    // Note: The capture of std::function should be copiable.
+    // Note: The capture of std::function should be copyable.
     struct TrainingState {
       std::string model_dir;
       std::string train_dataset_path;
@@ -202,8 +203,7 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
           training_state->valid_dataset_path);
 
 #ifdef TFDF_STOP_TRAINING_ON_INTERRUPT
-      RETURN_IF_ERROR(
-          utils::ToUtilStatus(interruption::DisableUserInterruption()));
+      RETURN_IF_ERROR(interruption::DisableUserInterruption());
 #endif
 
       RETURN_IF_ERROR(model.status());
@@ -251,7 +251,7 @@ class SimpleMLModelTrainerOnFile : public tensorflow::OpKernel {
 
     auto process_id_or = StartLongRunningProcess(ctx, std::move(async_train));
     if (!process_id_or.ok()) {
-      OP_REQUIRES_OK(ctx, utils::FromUtilStatus(process_id_or.status()));
+      OP_REQUIRES_OK(ctx, process_id_or.status());
     }
 
     tf::Tensor* output_tensor = nullptr;

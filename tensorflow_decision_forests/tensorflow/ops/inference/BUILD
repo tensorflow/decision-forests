@@ -111,7 +111,11 @@ cc_library(
     name = "op",
     srcs = OP_SRCS,
     linkstatic = 1,
-    deps = OP_DEPS,
+    deps = OP_DEPS + [
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@ydf//yggdrasil_decision_forests/utils:status_macros",
+    ],
     alwayslink = 1,
 )
 
@@ -133,7 +137,6 @@ cc_library(
         "@ydf//yggdrasil_decision_forests/utils:compatibility",
         "@ydf//yggdrasil_decision_forests/utils:distribution_cc_proto",
         "@ydf//yggdrasil_decision_forests/utils:status_macros",
-        "@ydf//yggdrasil_decision_forests/utils:tensorflow",
     ] + select({
         "@ydf//yggdrasil_decision_forests:tensorflow_with_header_lib": [
             "@release_or_nightly//:tensorflow_libtensorflow_framework",

@@ -706,7 +706,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
     model = tfdf.keras.DistributedGradientBoostedTreesModel(worker_logs=False)
 
     with self.assertRaisesRegex(
-        tf.errors.UnknownError,
+        tf.errors.InvalidArgumentError,
         "does not support training from in-memory datasets",
     ):
       model.fit(dataset)

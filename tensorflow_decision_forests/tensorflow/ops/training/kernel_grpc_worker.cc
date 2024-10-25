@@ -14,15 +14,19 @@
  */
 
 #include <cstdint>
+#include <memory>
+#include <string>
 
 #include "absl/log/log.h"
-#include "absl/random/random.h"
+#include "absl/memory/memory.h"
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "tensorflow_decision_forests/tensorflow/ops/training/kernel.h"
 #include "yggdrasil_decision_forests/utils/concurrency.h"
 #include "yggdrasil_decision_forests/utils/distribute/implementations/grpc/grpc_manager.h"
 #include "yggdrasil_decision_forests/utils/distribute/implementations/grpc/grpc_worker.h"
 #include "yggdrasil_decision_forests/utils/logging.h"
+#include "yggdrasil_decision_forests/utils/status_macros.h"
 #include "yggdrasil_decision_forests/utils/synchronization_primitives.h"
 
 namespace tensorflow_decision_forests {
@@ -115,8 +119,7 @@ class SimpleMLCreateYDFGRPCWorker : public tensorflow::OpKernel {
             kTFContainer, absl::StrCat(key_), &server_resource,
             [&](YDFGRPCServerResource** resource) -> absl::Status {
               *resource = new YDFGRPCServerResource();
-              return utils::FromUtilStatus(
-                  (*resource)->StartServer(force_ydf_port_));
+              return (*resource)->StartServer(force_ydf_port_);
             }));
 
     // Returns the server port.
