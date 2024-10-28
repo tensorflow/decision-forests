@@ -1,11 +1,15 @@
 # Known Issues
 
-The underlying engine behind the decision forests algorithms used by TensorFlow
-Decision Forests have been extensively production-tested. This file lists some
-of the known issues.
+## Prefer YDF for new projects
 
-See also the [migration guide](migration.md) for behavior that is different from
-other algorithms.
+[YDF](https://github.com/google/yggdrasil-decision-forests) is Google's new
+library to train Decision Forests.
+
+YDF extends the power of TF-DF, offering new features, a simplified API, faster
+training times, updated documentation, and enhanced compatibility with popular
+ML libraries.
+
+Some of the issues mentioned below are fixed in YDF.
 
 ## Windows Pip package is not available
 
@@ -54,6 +58,7 @@ The following table shows the compatibility between
 
 tensorflow_decision_forests | tensorflow
 --------------------------- | ---------------
+1.11.0                      | 2.18.0
 1.10.0                      | 2.17.0
 1.9.2                       | 2.16.2
 1.9.1                       | 2.16.1

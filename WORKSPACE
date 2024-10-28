@@ -20,25 +20,28 @@ http_archive(
 # absl used by tensorflow.
 http_archive(
     name = "org_tensorflow",
-    strip_prefix = "tensorflow-2.17.0",
-    sha256 = "9cc4d5773b8ee910079baaecb4086d0c28939f024dd74b33fc5e64779b6533dc",
-    urls = ["https://github.com/tensorflow/tensorflow/archive/v2.17.0.tar.gz"],
+    sha256 = "d7876f4bb0235cac60eb6316392a7c48676729860da1ab659fb440379ad5186d",
+    strip_prefix = "tensorflow-2.18.0",
+    urls = ["https://github.com/tensorflow/tensorflow/archive/v2.18.0.tar.gz"],
 )
-
 
 load("//tensorflow_decision_forests:tensorflow_decision_forests.bzl", "py_deps_profile")
 
 py_deps_profile(
     name = "release_or_nightly",
-    requirements_in = "//configure:requirements.in",
-    pip_repo_name = "pypi",
     deps_map = {
-        "tensorflow": ["tf-nightly", "tf_header_lib", "libtensorflow_framework"],
-        "tf-keras": ["tf-keras-nightly"]
+        "tensorflow": [
+            "tf-nightly",
+            "tf_header_lib",
+            "libtensorflow_framework",
+        ],
+        "tf-keras": ["tf-keras-nightly"],
     },
+    pip_repo_name = "pypi",
+    requirements_in = "//configure:requirements.in",
     switch = {
-        "IS_NIGHTLY": "nightly"
-    }
+        "IS_NIGHTLY": "nightly",
+    },
 )
 
 # Initialize hermetic Python
@@ -49,12 +52,12 @@ python_init_rules()
 load("@org_tensorflow//third_party/py:python_init_repositories.bzl", "python_init_repositories")
 
 python_init_repositories(
+    default_python_version = "system",
     requirements = {
         "3.9": "//configure:requirements_lock_3_9.txt",
         "3.10": "//configure:requirements_lock_3_10.txt",
         "3.11": "//configure:requirements_lock_3_11.txt",
     },
-    default_python_version = "system",
 )
 
 load("@org_tensorflow//third_party/py:python_init_toolchains.bzl", "python_init_toolchains")
@@ -140,16 +143,20 @@ nccl_configure(name = "local_config_nccl")
 # ========================================
 
 # Third party libraries
-load("//third_party/absl_py:workspace.bzl", absl_py = "deps")
 load("//third_party/absl:workspace.bzl", absl = "deps")
+load("//third_party/absl_py:workspace.bzl", absl_py = "deps")
 load("//third_party/benchmark:workspace.bzl", benchmark = "deps")
 load("//third_party/gtest:workspace.bzl", gtest = "deps")
 load("//third_party/protobuf:workspace.bzl", protobuf = "deps")
 
 absl()
+
 absl_py()
+
 benchmark()
+
 gtest()
+
 protobuf()
 
 # Yggdrasil Decision Forests
@@ -170,7 +177,7 @@ ydf_load_deps(
         "pybind11",
         "pybind11_abseil",
         "pybind11_protobuf",
-        "tensorflow"
+        "tensorflow",
     ],
     repo_name = "@ydf",
 )

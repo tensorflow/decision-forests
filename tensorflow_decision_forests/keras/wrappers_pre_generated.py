@@ -359,7 +359,7 @@ class CartModel(core.CoreModel):
     split_axis: What structure of split to consider for numerical features. -
       `AXIS_ALIGNED`: Axis aligned splits (i.e. one condition at a time). This
       is the "classical" way to train a tree. Default value. - `SPARSE_OBLIQUE`:
-      Sparse oblique splits (i.e. random splits one a small number of features)
+      Sparse oblique splits (i.e. random splits on a small number of features)
       from "Sparse Projection Oblique Random Forests", Tomita et al., 2020. -
       `MHLD_OBLIQUE`: Multi-class Hellinger Linear Discriminant splits from
       "Classification Based on Multivariate Contrast Patterns", Canete-Sifuentes
@@ -1030,6 +1030,9 @@ class GradientBoostedTreesModel(core.CoreModel):
       variable importance of the model at the end of the training using the
       validation dataset. Enabling this feature can increase the training time
       significantly. Default: False.
+    cross_entropy_ndcg_truncation: Truncation of the cross-entropy NDCG loss
+      (default 5). Only used with cross-entropy NDCG loss i.e.
+      `loss="XE_NDCG_MART"` Default: 5.
     dart_dropout: Dropout rate applied when using the DART i.e. when
       forest_extraction=DART. Default: None.
     early_stopping: Early stopping detects the overfitting of the model and
@@ -1048,12 +1051,12 @@ class GradientBoostedTreesModel(core.CoreModel):
       Default: 10.
     early_stopping_num_trees_look_ahead: Rolling number of trees used to detect
       validation loss increase and trigger early stopping. Default: 30.
-    focal_loss_alpha: EXPERIMENTAL. Weighting parameter for focal loss, positive
-      samples weighted by alpha, negative samples by (1-alpha). The default 0.5
-      value means no active class-level weighting. Only used with focal loss
-      i.e. `loss="BINARY_FOCAL_LOSS"` Default: 0.5.
-    focal_loss_gamma: EXPERIMENTAL. Exponent of the misprediction exponent term
-      in focal loss, corresponds to gamma parameter in
+    focal_loss_alpha: EXPERIMENTAL, default 0.5. Weighting parameter for focal
+      loss, positive samples weighted by alpha, negative samples by (1-alpha).
+      The default 0.5 value means no active class-level weighting. Only used
+      with focal loss i.e. `loss="BINARY_FOCAL_LOSS"` Default: 0.5.
+    focal_loss_gamma: EXPERIMENTAL, default 2.0. Exponent of the misprediction
+      exponent term in focal loss, corresponds to gamma parameter in
       https://arxiv.org/pdf/1708.02002.pdf. Only used with focal loss i.e.
         `loss="BINARY_FOCAL_LOSS"` Default: 2.0.
     forest_extraction: How to construct the forest: - MART: For Multiple
@@ -1122,12 +1125,13 @@ class GradientBoostedTreesModel(core.CoreModel):
       likelihood loss. Mainly used for counting problems. Only valid for
       regression. - `MULTINOMIAL_LOG_LIKELIHOOD`: Multinomial log likelihood
       i.e. cross-entropy. Only valid for binary or multi-class classification. -
-      `LAMBDA_MART_NDCG5`: LambdaMART with NDCG5. - `XE_NDCG_MART`:  Cross
+      `LAMBDA_MART_NDCG`: LambdaMART with NDCG@5. - `XE_NDCG_MART`:  Cross
       Entropy Loss NDCG. See arxiv.org/abs/1911.09798. - `BINARY_FOCAL_LOSS`:
       Focal loss. Only valid for binary classification. See
       https://arxiv.org/pdf/1708.02002.pdf. - `POISSON`: Poisson log likelihood.
         Only valid for regression. - `MEAN_AVERAGE_ERROR`: Mean average error
-        a.k.a. MAE.
+        a.k.a. MAE. - `LAMBDA_MART_NDCG5`: DEPRECATED, use LAMBDA_MART_NDCG.
+        LambdaMART with NDCG@5.
         Default: "DEFAULT".
     max_depth: Maximum depth of the tree. `max_depth=1` means that all trees
       will be roots. `max_depth=-1` means that tree depth is not restricted by
@@ -1170,6 +1174,8 @@ class GradientBoostedTreesModel(core.CoreModel):
       et al. in "Random Survival Forests"
       (https://projecteuclid.org/download/pdfview_1/euclid.aoas/1223908043).
         Default: "GLOBAL_IMPUTATION".
+    ndcg_truncation: Truncation of the NDCG loss (default 5). Only used with
+      NDCG loss i.e. `loss="LAMBDA_MART_NDCG". ` Default: 5.
     num_candidate_attributes: Number of unique valid attributes tested for each
       node. An attribute is valid if it has at least a valid split. If
       `num_candidate_attributes=0`, the value is set to the classical default
@@ -1266,7 +1272,7 @@ class GradientBoostedTreesModel(core.CoreModel):
     split_axis: What structure of split to consider for numerical features. -
       `AXIS_ALIGNED`: Axis aligned splits (i.e. one condition at a time). This
       is the "classical" way to train a tree. Default value. - `SPARSE_OBLIQUE`:
-      Sparse oblique splits (i.e. random splits one a small number of features)
+      Sparse oblique splits (i.e. random splits on a small number of features)
       from "Sparse Projection Oblique Random Forests", Tomita et al., 2020. -
       `MHLD_OBLIQUE`: Multi-class Hellinger Linear Discriminant splits from
       "Classification Based on Multivariate Contrast Patterns", Canete-Sifuentes
@@ -1336,6 +1342,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       categorical_set_split_max_num_items: Optional[int] = -1,
       categorical_set_split_min_item_frequency: Optional[int] = 1,
       compute_permutation_variable_importance: Optional[bool] = False,
+      cross_entropy_ndcg_truncation: Optional[int] = 5,
       dart_dropout: Optional[float] = None,
       early_stopping: Optional[str] = "LOSS_INCREASE",
       early_stopping_initial_iteration: Optional[int] = 10,
@@ -1364,6 +1371,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       mhld_oblique_sample_attributes: Optional[bool] = None,
       min_examples: Optional[int] = 5,
       missing_value_policy: Optional[str] = "GLOBAL_IMPUTATION",
+      ndcg_truncation: Optional[int] = 5,
       num_candidate_attributes: Optional[int] = -1,
       num_candidate_attributes_ratio: Optional[float] = -1.0,
       num_trees: Optional[int] = 300,
@@ -1407,6 +1415,7 @@ class GradientBoostedTreesModel(core.CoreModel):
         "compute_permutation_variable_importance": (
             compute_permutation_variable_importance
         ),
+        "cross_entropy_ndcg_truncation": cross_entropy_ndcg_truncation,
         "dart_dropout": dart_dropout,
         "early_stopping": early_stopping,
         "early_stopping_initial_iteration": early_stopping_initial_iteration,
@@ -1439,6 +1448,7 @@ class GradientBoostedTreesModel(core.CoreModel):
         "mhld_oblique_sample_attributes": mhld_oblique_sample_attributes,
         "min_examples": min_examples,
         "missing_value_policy": missing_value_policy,
+        "ndcg_truncation": ndcg_truncation,
         "num_candidate_attributes": num_candidate_attributes,
         "num_candidate_attributes_ratio": num_candidate_attributes_ratio,
         "num_trees": num_trees,
@@ -2369,7 +2379,7 @@ class RandomForestModel(core.CoreModel):
     split_axis: What structure of split to consider for numerical features. -
       `AXIS_ALIGNED`: Axis aligned splits (i.e. one condition at a time). This
       is the "classical" way to train a tree. Default value. - `SPARSE_OBLIQUE`:
-      Sparse oblique splits (i.e. random splits one a small number of features)
+      Sparse oblique splits (i.e. random splits on a small number of features)
       from "Sparse Projection Oblique Random Forests", Tomita et al., 2020. -
       `MHLD_OBLIQUE`: Multi-class Hellinger Linear Discriminant splits from
       "Classification Based on Multivariate Contrast Patterns", Canete-Sifuentes

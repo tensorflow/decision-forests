@@ -1,10 +1,18 @@
 # Changelog
 
-## HEAD
+## 1.11.0 - 2024-10-28
+
+### Feature
+
+-   Renamed LAMBDA_MART_NDCG5 loss to LAMBDA_MART_NDCG. The old loss is still
+    available. The ndcg truncation can now be modified via a hyperparameter.
+-   Notify users about ydf during startup. This message can be disabled by
+    setting Environment variable TFDF_DISABLE_WELCOME_MESSAGE.
 
 ### Fix
 
 -   Some errors are now InvalidArgumentError instead of UnknownError.
+-   Fix compatibility with TF 2.18.0.
 
 ## 1.10.0 - 2024-08-21
 
