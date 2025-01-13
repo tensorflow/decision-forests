@@ -24,7 +24,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from typing import Optional, Iterator
+from typing import Iterator, Optional
 
 import tensorflow as tf
 
@@ -56,9 +56,22 @@ class Reader(object):
     if magic != b"BS":
       raise ValueError(f"Invalid blob sequence file {path}")
     version = int.from_bytes(self.file_.read(2), byteorder="little")
-    if version != 0:
-      raise ValueError(f"Non supported blob sequence version {path}")
-    reserved = self.file_.read(4)
+    if version == 0:
+      reserved = self.file_.read(4)
+    elif version == 1:
+      compression = int.from_bytes(self.file_.read(1), byteorder="little")
+      if compression != 0:
+        return ValueError(
+            "The TF-DF inspector does not support this format of model"
+            " (blob-sequence-v1 with compression). Use the format"
+            " blob-sequence-v1 without compression instead."
+        )
+      reserved = self.file_.read(3)
+    else:
+      raise ValueError(
+          f"Non supported blob sequence version {version} for file {path}. The"
+          " model was created with a more recent vesion of YDF / TF-DF."
+      )
     del reserved
 
   def close(self):
