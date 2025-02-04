@@ -9,7 +9,6 @@ package(
 py_library(
     name = "inspector",
     srcs = ["inspector.py"],
-    srcs_version = "PY3",
     deps = [
         ":blob_sequence",
         "//tensorflow_decision_forests/component/py_tree",
@@ -30,7 +29,6 @@ py_library(
 py_library(
     name = "blob_sequence",
     srcs = ["blob_sequence.py"],
-    srcs_version = "PY3",
     deps = [
         "@release_or_nightly//:tensorflow_pkg",
     ],
@@ -44,7 +42,6 @@ py_test(
     timeout = "long",
     srcs = ["inspector_test.py"],
     data = ["@ydf//yggdrasil_decision_forests/test_data"],
-    python_version = "PY3",
     shard_count = 10,
     deps = [
         ":inspector",
@@ -64,7 +61,6 @@ py_test(
     name = "blob_sequence_test",
     srcs = ["blob_sequence_test.py"],
     data = ["@ydf//yggdrasil_decision_forests/test_data"],
-    python_version = "PY3",
     deps = [
         ":blob_sequence",
         # absl/flags dep,

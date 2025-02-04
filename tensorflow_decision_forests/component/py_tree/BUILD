@@ -11,7 +11,6 @@ package(
 py_library(
     name = "py_tree",
     srcs = ["__init__.py"],
-    srcs_version = "PY3",
     deps = [
         ":condition",
         ":dataspec",
@@ -28,14 +27,12 @@ py_library(
 py_library(
     name = "tree",
     srcs = ["tree.py"],
-    srcs_version = "PY3",
     deps = [":node"],
 )
 
 py_library(
     name = "node",
     srcs = ["node.py"],
-    srcs_version = "PY3",
     deps = [
         ":condition",
         ":value",
@@ -51,7 +48,6 @@ py_library(
 py_library(
     name = "condition",
     srcs = ["condition.py"],
-    srcs_version = "PY3",
     deps = [
         ":dataspec",
         # absl/logging dep,
@@ -65,7 +61,6 @@ py_library(
 py_library(
     name = "value",
     srcs = ["value.py"],
-    srcs_version = "PY3",
     deps = [
         "@pypi_numpy//:pkg",
         "@pypi_six//:pkg",
@@ -76,7 +71,6 @@ py_library(
 py_library(
     name = "dataspec",
     srcs = ["dataspec.py"],
-    srcs_version = "PY3",
     deps = [
         # absl/logging dep,
         "@pypi_numpy//:pkg",
@@ -88,7 +82,6 @@ py_library(
 py_library(
     name = "objective",
     srcs = ["objective.py"],
-    srcs_version = "PY3",
     deps = [
         "@pypi_six//:pkg",
         "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
@@ -101,7 +94,6 @@ py_library(
 py_test(
     name = "tree_test",
     srcs = ["tree_test.py"],
-    python_version = "PY3",
     deps = [
         ":condition",
         ":dataspec",
@@ -117,7 +109,6 @@ py_test(
 py_test(
     name = "node_test",
     srcs = ["node_test.py"],
-    python_version = "PY3",
     deps = [
         ":condition",
         ":dataspec",
@@ -134,7 +125,6 @@ py_test(
 py_test(
     name = "condition_test",
     srcs = ["condition_test.py"],
-    python_version = "PY3",
     deps = [
         ":condition",
         ":dataspec",
@@ -149,7 +139,6 @@ py_test(
 py_test(
     name = "dataspec_test",
     srcs = ["dataspec_test.py"],
-    python_version = "PY3",
     deps = [
         ":dataspec",
         # absl/testing:parameterized dep,
@@ -161,7 +150,6 @@ py_test(
 py_test(
     name = "value_test",
     srcs = ["value_test.py"],
-    python_version = "PY3",
     deps = [
         ":value",
         # absl/logging dep,
@@ -174,7 +162,6 @@ py_test(
 py_test(
     name = "objective_test",
     srcs = ["objective_test.py"],
-    python_version = "PY3",
     deps = [
         ":dataspec",
         ":objective",

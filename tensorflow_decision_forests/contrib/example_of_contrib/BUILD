@@ -12,7 +12,6 @@ py_library(
         "__init__.py",
         "example_of_contrib.py",
     ],
-    srcs_version = "PY3",
     deps = [
         "//tensorflow_decision_forests",
     ],
@@ -24,7 +23,6 @@ py_library(
 py_test(
     name = "example_of_contrib_test",
     srcs = ["example_of_contrib_test.py"],
-    python_version = "PY3",
     deps = [
         ":example_of_contrib",
         "@release_or_nightly//:tensorflow_pkg",

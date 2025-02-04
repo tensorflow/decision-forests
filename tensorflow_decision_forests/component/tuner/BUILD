@@ -9,7 +9,6 @@ package(
 py_library(
     name = "tuner",
     srcs = ["tuner.py"],
-    srcs_version = "PY3",
     deps = [
         "@ydf//yggdrasil_decision_forests/learner/hyperparameters_optimizer:hyperparameters_optimizer_py_proto",
         "@ydf//yggdrasil_decision_forests/learner/hyperparameters_optimizer/optimizers:random_py_proto",
@@ -25,7 +24,6 @@ py_test(
     timeout = "long",
     srcs = ["tuner_test.py"],
     data = ["@ydf//yggdrasil_decision_forests/test_data"],
-    python_version = "PY3",
     shard_count = 4,
     deps = [
         ":tuner",

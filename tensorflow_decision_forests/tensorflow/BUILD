@@ -72,7 +72,6 @@ bzl_library(
 py_library(
     name = "core_inference",
     srcs = ["core_inference.py"],
-    srcs_version = "PY3",
     deps = [
         "//tensorflow_decision_forests/component/inspector",
         "@pypi_numpy//:pkg",
@@ -87,7 +86,6 @@ py_library(
 py_library(
     name = "core",
     srcs = ["core.py"],
-    srcs_version = "PY3",
     deps = [
         ":core_inference",
         "@pypi_numpy//:pkg",
@@ -112,7 +110,6 @@ py_library(
 py_library(
     name = "check_version",
     srcs = ["check_version.py"],
-    srcs_version = "PY3",
     deps = [
         "@release_or_nightly//:tensorflow_pkg",
     ],
@@ -121,7 +118,6 @@ py_library(
 py_library(
     name = "tf_logging",
     srcs = ["tf_logging.py"],
-    srcs_version = "PY3",
     deps = [
         # absl/logging dep,
         "@release_or_nightly//:tensorflow_pkg",
@@ -131,7 +127,6 @@ py_library(
 py_library(
     name = "cc_logging",
     srcs = ["cc_logging.py"],
-    srcs_version = "PY3",
     deps = [
         ":tf_logging",
         "//tensorflow_decision_forests/tensorflow/ops/training:op_py",
@@ -142,7 +137,6 @@ py_library(
 py_library(
     name = "tf1_compatibility",
     srcs = ["tf1_compatibility.py"],
-    srcs_version = "PY3",
     deps = [
         "@release_or_nightly//:tensorflow_pkg",
         "@release_or_nightly//:tf_keras_pkg",
@@ -157,7 +151,6 @@ py_test(
     name = "core_test",
     srcs = ["core_test.py"],
     data = ["@ydf//yggdrasil_decision_forests/test_data"],
-    python_version = "PY3",
     deps = [
         ":core",
         # absl/logging dep,
@@ -172,7 +165,6 @@ py_test(
 py_test(
     name = "check_version_test",
     srcs = ["check_version_test.py"],
-    python_version = "PY3",
     deps = [
         ":check_version",
         "@release_or_nightly//:tensorflow_pkg",

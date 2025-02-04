@@ -16,7 +16,6 @@ package(
 py_library(
     name = "api_py",
     srcs = ["api.py"],
-    srcs_version = "PY3",
     deps = [
         ":op_py",
         # absl/logging dep,
@@ -34,7 +33,6 @@ py_library(
 py_library(
     name = "test_utils",
     srcs = ["test_utils.py"],
-    srcs_version = "PY3",
     deps = [
         # absl/logging dep,
         "@release_or_nightly//:tensorflow_pkg",
@@ -54,7 +52,6 @@ py_library(
 py_library(
     name = "op_py",
     srcs = ["op.py"],
-    srcs_version = "PY3",
     deps = [
     ] + select({
         "@ydf//yggdrasil_decision_forests:tensorflow_with_header_lib": [":op_py_dynamic"],
@@ -72,7 +69,6 @@ py_library(
     name = "op_py_dynamic",
     srcs = ["op_dynamic.py"],
     data = [":inference.so"],
-    srcs_version = "PY3",
     deps = [
         "//tensorflow_decision_forests/tensorflow:check_version",
         "@release_or_nightly//:tensorflow_pkg",
@@ -156,7 +152,6 @@ py_test(
     data = [
         "@ydf//yggdrasil_decision_forests/test_data",
     ],
-    python_version = "PY3",
     deps = [
         ":api_py",
         ":test_utils",
@@ -173,7 +168,6 @@ py_test(
     data = [
         "@ydf//yggdrasil_decision_forests/test_data",
     ],
-    python_version = "PY3",
     deps = [
         ":api_py",
         ":test_utils",

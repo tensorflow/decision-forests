@@ -9,7 +9,6 @@ package(
 py_library(
     name = "builder",
     srcs = ["builder.py"],
-    srcs_version = "PY3",
     deps = [
         "//tensorflow_decision_forests/component/inspector",
         "//tensorflow_decision_forests/component/inspector:blob_sequence",
@@ -34,7 +33,6 @@ py_test(
     timeout = "long",
     srcs = ["builder_test.py"],
     data = ["@ydf//yggdrasil_decision_forests/test_data"],
-    python_version = "PY3",
     shard_count = 10,
     deps = [
         ":builder",

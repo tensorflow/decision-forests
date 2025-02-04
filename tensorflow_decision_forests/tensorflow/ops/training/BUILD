@@ -12,7 +12,6 @@ package(
 py_library(
     name = "op_py",
     srcs = ["op.py"],
-    srcs_version = "PY3",
     deps = [
     ] + select({
         "@ydf//yggdrasil_decision_forests:tensorflow_with_header_lib": [":op_py_dynamic"],
@@ -30,7 +29,6 @@ py_library(
     name = "op_py_dynamic",
     srcs = ["op_dynamic.py"],
     data = [":training.so"],
-    srcs_version = "PY3",
     deps = [
         "//tensorflow_decision_forests/tensorflow:check_version",
         "@release_or_nightly//:tensorflow_pkg",
@@ -146,7 +144,6 @@ cc_library(
 py_test(
     name = "op_test",
     srcs = ["op_test.py"],
-    python_version = "PY3",
     deps = [
         ":op_py",
         # absl/logging dep,

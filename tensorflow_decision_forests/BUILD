@@ -12,7 +12,6 @@ exports_files(["LICENSE"])
 py_library(
     name = "tensorflow_decision_forests",
     srcs = ["__init__.py"],
-    srcs_version = "PY3",
     visibility = [
         "//learning/lib/ami/simple_ml:__subpackages__",
         "//tensorflow_decision_forests:__subpackages__",

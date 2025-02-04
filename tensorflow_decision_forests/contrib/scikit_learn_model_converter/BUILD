@@ -12,7 +12,6 @@ py_library(
         "__init__.py",
         "scikit_learn_model_converter.py",
     ],
-    srcs_version = "PY3",
     deps = [
         "//tensorflow_decision_forests",
         "@pypi_scikit_learn//:pkg",
@@ -26,7 +25,6 @@ py_library(
 py_test(
     name = "scikit_learn_model_converter_test",
     srcs = ["scikit_learn_model_converter_test.py"],
-    srcs_version = "PY3",
     deps = [
         ":scikit_learn_model_converter",
         # absl/testing:parameterized dep,

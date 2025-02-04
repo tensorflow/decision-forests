@@ -12,8 +12,6 @@ py_binary(
     name = "tensorflow_std_server_py",
     srcs = ["tensorflow_std_server.py"],
     main = "tensorflow_std_server.py",
-    python_version = "PY3",
-    srcs_version = "PY3",
     deps = [
         # absl:app dep,
         # absl/flags dep,

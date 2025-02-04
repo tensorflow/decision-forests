@@ -19,7 +19,6 @@ cc_library(
 py_library(
     name = "keras",
     srcs = ["__init__.py"],
-    srcs_version = "PY3",
     deps = [
         ":yggdrasil_decision_forests_protos",
         ":core",
@@ -31,7 +30,6 @@ py_library(
 # Yggdrasil Decision Forests protos included in the package.
 py_library(
     name = "yggdrasil_decision_forests_protos",
-    srcs_version = "PY3",
     deps = [
         "@ydf//yggdrasil_decision_forests/learner/decision_tree:decision_tree_py_proto",
         "@ydf//yggdrasil_decision_forests/learner/gradient_boosted_trees:gradient_boosted_trees_py_proto",
@@ -51,7 +49,6 @@ py_wrap_yggdrasil_learners(
 py_library(
     name = "wrappers_pre_generated",
     srcs = ["wrappers_pre_generated.py"],
-    srcs_version = "PY3",
     deps = [
         ":core",
         "//tensorflow_decision_forests/component/tuner",
@@ -65,7 +62,6 @@ py_library(
 py_library(
     name = "core_inference",
     srcs = ["core_inference.py"],
-    srcs_version = "PY3",
     tags = [
         # Certain deps are not provided on purpose, so this cannot be a python_strict_library.
         "ignore_for_dep=third_party.tensorflow.python.framework.type_spec_registry",
@@ -90,7 +86,6 @@ py_library(
 py_library(
     name = "core",
     srcs = ["core.py"],
-    srcs_version = "PY3",
     deps = [
         ":core_inference",
         ":keras_internal",
@@ -115,7 +110,6 @@ py_library(
 py_library(
     name = "keras_internal",
     srcs = ["keras_internal.py"],
-    srcs_version = "PY3",
     deps = [
         "@release_or_nightly//:tf_keras_pkg",
         # tf_keras/engine dep,
@@ -140,7 +134,6 @@ py_test(
         "//tensorflow_decision_forests/test_data",
         "@ydf//yggdrasil_decision_forests/test_data",
     ],
-    python_version = "PY3",
     shard_count = 50,
     deps = [
         ":core",
@@ -170,7 +163,6 @@ py_test(
     size = "large",
     srcs = ["keras_tuner_test.py"],
     data = ["@ydf//yggdrasil_decision_forests/test_data"],
-    python_version = "PY3",
     shard_count = 2,
     deps = [
         ":core",
@@ -200,7 +192,6 @@ py_test(
         ":grpc_worker_main",
         "@ydf//yggdrasil_decision_forests/test_data",
     ],
-    python_version = "PY3",
     shard_count = 10,
     tags = [
         # This test is notoriously flaky.
@@ -225,8 +216,6 @@ py_binary(
     name = "test_runner",
     srcs = ["test_runner.py"],
     data = ["@ydf//yggdrasil_decision_forests/test_data"],
-    python_version = "PY3",
-    srcs_version = "PY3",
     deps = [
         # absl:app dep,
         # absl/flags dep,
@@ -260,7 +249,6 @@ tf_cc_binary(
 py_test(
     name = "keras_internal_test",
     srcs = ["keras_internal_test.py"],
-    python_version = "PY3",
     deps = [
         ":keras_internal",
         "@release_or_nightly//:tensorflow_pkg",

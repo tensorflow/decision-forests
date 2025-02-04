@@ -12,7 +12,6 @@ py_library(
         "__init__.py",
         "training_preprocessing.py",
     ],
-    srcs_version = "PY3",
     deps = [
         "//tensorflow_decision_forests",
         "@release_or_nightly//:tensorflow_pkg",
