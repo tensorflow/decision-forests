@@ -132,6 +132,7 @@ cc_library(
         "@ydf//yggdrasil_decision_forests/model/decision_tree:decision_forest_interface",
         "@ydf//yggdrasil_decision_forests/utils:compatibility",
         "@ydf//yggdrasil_decision_forests/utils:distribution_cc_proto",
+        "@ydf//yggdrasil_decision_forests/utils:filesystem_tensorflow_impl",  # keep
         "@ydf//yggdrasil_decision_forests/utils:status_macros",
     ] + select({
         "@ydf//yggdrasil_decision_forests:tensorflow_with_header_lib": [

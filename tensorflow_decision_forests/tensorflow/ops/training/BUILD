@@ -120,6 +120,7 @@ cc_library(
         "@ydf//yggdrasil_decision_forests/model/random_forest",
         "@ydf//yggdrasil_decision_forests/utils:concurrency",
         "@ydf//yggdrasil_decision_forests/utils:distribution_cc_proto",
+        "@ydf//yggdrasil_decision_forests/utils:filesystem_tensorflow_impl",  # keep
         "@ydf//yggdrasil_decision_forests/utils:logging",
         "@ydf//yggdrasil_decision_forests/utils:status_macros",
         "@ydf//yggdrasil_decision_forests/utils:synchronization_primitives",
