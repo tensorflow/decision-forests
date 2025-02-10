@@ -239,7 +239,7 @@ if [ ${INSTALL_PYENV} == "INSTALL_PYENV" ]; then
     fi
     git clone https://github.com/pyenv/pyenv.git
     (
-      cd pyenv && git checkout 74f923b5fca82054b3c579f9eb936338c7f5a394
+      cd pyenv && git checkout b3dad5887e1daef68a73360546082ad4eb4b82b8
     )
     PYENV_ROOT="$(pwd)/pyenv"
     export PATH="$PYENV_ROOT/bin:$PATH"
@@ -265,20 +265,23 @@ elif [ ${ARG} == "ALL_VERSIONS" ]; then
   # Compile with all the version of python using pyenv.
   assemble_files
   eval "$(pyenv init -)"
-  e2e_pyenv 3.9.12
-  e2e_pyenv 3.10.4
-  e2e_pyenv 3.11.0
+  e2e_pyenv 3.9.19
+  e2e_pyenv 3.10.14
+  e2e_pyenv 3.11.6
+  e2e_pyenv 3.12.0
 elif [ ${ARG} == "ALL_VERSIONS_ALREADY_ASSEMBLED" ]; then
   eval "$(pyenv init -)"
-  e2e_pyenv 3.9.12
-  e2e_pyenv 3.10.4
-  e2e_pyenv 3.11.0
+  e2e_pyenv 3.9.19
+  e2e_pyenv 3.10.14
+  e2e_pyenv 3.11.6
+  e2e_pyenv 3.12.0
 elif [ ${ARG} == "ALL_VERSIONS_MAC_INTEL_CROSSCOMPILE" ]; then
   eval "$(pyenv init -)"
   assemble_files
-  e2e_pyenv 3.9.12
-  e2e_pyenv 3.10.4
-  e2e_pyenv 3.11.0
+  e2e_pyenv 3.9.19
+  e2e_pyenv 3.10.14
+  e2e_pyenv 3.11.6
+  e2e_pyenv 3.12.0
 else
   # Compile with a specific version of python provided in the call arguments.
   assemble_files
