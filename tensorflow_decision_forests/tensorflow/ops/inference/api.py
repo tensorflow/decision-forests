@@ -178,6 +178,7 @@ from tensorflow.python.framework import ops
 # pylint: enable=g-direct-tensorflow-import
 
 from tensorflow_decision_forests.component.inspector import inspector as inspector_lib
+from tensorflow_decision_forests.component.py_tree import dataspec as dataspec_lib
 from tensorflow_decision_forests.tensorflow import tf1_compatibility
 from tensorflow_decision_forests.tensorflow.ops.inference import op
 from yggdrasil_decision_forests.dataset import data_spec_pb2
@@ -670,7 +671,9 @@ class _InferenceArgsBuilder(AutoTrackable):
         # handled by the hashmap directly.
         vocabulary = [
             (key, item.index)
-            for key, item in feature_spec.categorical.items.items()
+            for key, item in dataspec_lib.categorical_vocab_iterator(
+                feature_spec.categorical
+            )
             if item.index != 0
         ]
         # Missing value.

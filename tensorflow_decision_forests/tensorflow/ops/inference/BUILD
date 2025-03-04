@@ -24,6 +24,7 @@ py_library(
         # TensorFlow /eager:context,
         # TensorFlow /framework:ops,
         "//tensorflow_decision_forests/component/inspector",
+        "//tensorflow_decision_forests/component/py_tree:dataspec",
         "//tensorflow_decision_forests/tensorflow:tf1_compatibility",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
         "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",

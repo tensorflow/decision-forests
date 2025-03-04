@@ -72,9 +72,6 @@ py_library(
     name = "dataspec",
     srcs = ["dataspec.py"],
     deps = [
-        # absl/logging dep,
-        "@pypi_numpy//:pkg",
-        "@pypi_six//:pkg",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
     ],
 )

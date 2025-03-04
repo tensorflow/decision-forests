@@ -19,7 +19,7 @@ dataset.
 """
 
 import math
-from typing import NamedTuple, Union, Optional, List
+from typing import Iterator, List, NamedTuple, Optional, Tuple, Union
 
 from yggdrasil_decision_forests.dataset import data_spec_pb2
 
@@ -54,8 +54,9 @@ def make_simple_column_spec(dataspec: data_spec_pb2.DataSpecification,
   return SimpleColumnSpec(column_spec.name, column_spec.type, col_idx)
 
 
-def categorical_value_idx_to_value(column_spec: data_spec_pb2.Column,
-                                   value_idx: int) -> Union[int, str]:
+def categorical_value_idx_to_value(
+    column_spec: data_spec_pb2.Column, value_idx: int
+) -> Union[int, str]:
   """Gets the representation value of a categorical value stored as integer.
 
   If the categorical value is an integer, returns the input value.
@@ -73,9 +74,9 @@ def categorical_value_idx_to_value(column_spec: data_spec_pb2.Column,
   if column_spec.categorical.is_already_integerized:
     return value_idx
   else:
-    for key, value in column_spec.categorical.items.items():
+    for key, value in categorical_vocab_iterator(column_spec.categorical):
       if value.index == value_idx:
-        return key
+        return key.decode()
     return OUT_OF_DICTIONARY
 
 
@@ -85,6 +86,9 @@ def categorical_column_dictionary_to_list(
 
   Fails if the column does not contains a dictionary, or if the dictionary is
   incomplete.
+
+  Fails if a categorical column has classes not encoded in unicode. This case
+  is not supported in TF-DF but might be supported in YDF.
 
   Args:
     column_spec: Dataspec column.
@@ -99,15 +103,19 @@ def categorical_column_dictionary_to_list(
 
   items = [None] * column_spec.categorical.number_of_unique_values
 
-  for key, value in column_spec.categorical.items.items():
+  for key, value in categorical_vocab_iterator(
+      column_spec.categorical
+  ):
     if items[value.index] is not None:
       raise ValueError(f"Duplicated index {value.index} in dictionary")
-    items[value.index] = key
+    items[value.index] = key.decode()
 
   for index, value in enumerate(items):
     if value is None:
-      raise ValueError(f"Invalid dictionary. Non value for index {index} "
-                       f"in column {column_spec}")
+      raise ValueError(
+          f"Invalid dictionary. No value for index {index} "
+          f"in column {column_spec}"
+      )
 
   return items  # pytype: disable=bad-return-type
 
@@ -158,3 +166,29 @@ def column_name_to_column_idx(name: str,
     if name == column.name:
       return idx
   raise ValueError(f"Unknown column {name}")
+
+
+def categorical_vocab_iterator(
+    categorical_spec: data_spec_pb2.CategoricalSpec,
+) -> Iterator[Tuple[bytes, data_spec_pb2.CategoricalSpec.VocabValue]]:
+  """Returns a categorical spec's vocabulary as a list.
+
+  The data spec currently encodes the vocabulary as a map from string to
+  VocabValue. If a key of this map is of type bytes, protobuf's python
+  implementation may fail to retrieve the values from this map. This is a helper
+  function to work around this limitation.
+
+  Note that this function is internal and may change or be removed at any time.
+
+  Args:
+    categorical_spec: A categorical spec.
+
+  Yields:
+    The vocabulary as (key, value) tuples.
+  """
+  serialized_message = categorical_spec.SerializeToString()
+  fixed_message = data_spec_pb2.CategoricalSpec.InternalCategoricalSpecWithoutMap.FromString(
+      serialized_message
+  )
+  for item in fixed_message.items:
+    yield (item.key, item.value)

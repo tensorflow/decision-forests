@@ -1249,7 +1249,7 @@ def yggdrasil_model_to_keras_model(
     src_path = temp_directory.name
 
   inspector = inspector_lib.make_inspector(src_path, file_prefix=file_prefix)
-  objective = inspector.objective()
+  objective = inspector.objective(extract_classification_label_info=False)
 
   model = InferenceCoreModel(
       task=objective.task,

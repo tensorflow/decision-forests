@@ -217,8 +217,21 @@ class AbstractInspector(object):
 
     return self._header.task
 
-  def objective(self) -> py_tree.objective.AbstractObjective:
-    """Objective solved by the model i.e. Task + extra information."""
+  def objective(
+      self, extract_classification_label_info=True
+  ) -> py_tree.objective.AbstractObjective:
+    """Objective solved by the model i.e. Task + extra information.
+
+    Args:
+      extract_classification_label_info: If true, and if the task is
+        classification, extract the label classes. If false, the label classes
+        are not extracted and set to two. This allows extracting the objective
+        even if the label classes are non-unicode (and therefore not readable by
+        TF-DF).
+
+    Returns:
+      The objective of the model.
+    """
 
     label = self.label()
 
@@ -228,21 +241,31 @@ class AbstractInspector(object):
         raise ValueError("Categorical type expected for classification label."
                          f" Got {label_column.type} instead.")
 
-      if label_column.categorical.is_already_integerized:
-        # The dictionary returned in the objective does not contains the
-        # out-of-dictionary item. However, "number_of_unique_values" take into
-        # account the OOD item e.g. number_of_unique_values=3 for a binary
-        # classification.
-        return py_tree.objective.ClassificationObjective(
-            label=label.name,
-            num_classes=label_column.categorical.number_of_unique_values - 1)
+      if extract_classification_label_info:
+        if label_column.categorical.is_already_integerized:
+          # The dictionary returned in the objective does not contains the
+          # out-of-dictionary item. However, "number_of_unique_values" take into
+          # account the OOD item e.g. number_of_unique_values=3 for a binary
+          # classification.
+          return py_tree.objective.ClassificationObjective(
+              label=label.name,
+              num_classes=label_column.categorical.number_of_unique_values - 1,
+          )
+        else:
+          # The first element is the "out-of-vocabulary" that is not used in
+          # labels.
+          label_classes = (
+              py_tree.dataspec.categorical_column_dictionary_to_list(
+                  label_column
+              )[1:]
+          )
+          return py_tree.objective.ClassificationObjective(
+              label=label.name, classes=label_classes
+          )
       else:
-        # The first element is the "out-of-vocabulary" that is not used in
-        # labels.
-        label_classes = py_tree.dataspec.categorical_column_dictionary_to_list(
-            label_column)[1:]
         return py_tree.objective.ClassificationObjective(
-            label=label.name, classes=label_classes)
+            label=label.name, num_classes=2
+        )
 
     elif self.task == Task.REGRESSION:
       return py_tree.objective.RegressionObjective(label=label.name)
