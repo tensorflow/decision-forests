@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.12.0 - 2025-03-13
+
+### Features
+
+-   Added support for Python 3.12.
+-   New hyperparameters for configuring sparse oblique splits:
+    `sparse_oblique_max_num_features`, `sparse_oblique_weights_integer_maximum`,`sparse_oblique_weights_integer_minimum`,
+    `sparse_oblique_weights_power_of_two_max_exponent`, `sparse_oblique_weights_power_of_two_min_exponent`.
+
+### Fix
+
+-   Fix compatibility with TF 2.19.0.
+-   Fix handling of categorical variables with non-unicode values.
+-   Fix compatibility with new YDF models.
+-   Various documentation improvements.
+
 ## 1.11.0 - 2024-10-28
 
 ### Feature

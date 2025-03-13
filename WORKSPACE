@@ -20,9 +20,9 @@ http_archive(
 # absl used by tensorflow.
 http_archive(
     name = "org_tensorflow",
-    sha256 = "d7876f4bb0235cac60eb6316392a7c48676729860da1ab659fb440379ad5186d",
-    strip_prefix = "tensorflow-2.18.0",
-    urls = ["https://github.com/tensorflow/tensorflow/archive/v2.18.0.tar.gz"],
+    sha256 = "4691b18e8c914cdf6759b80f1b3b7f3e17be41099607ed0143134f38836d058e",
+    strip_prefix = "tensorflow-2.19.0",
+    urls = ["https://github.com/tensorflow/tensorflow/archive/v2.19.0.tar.gz"],
 )
 
 load("//tensorflow_decision_forests:tensorflow_decision_forests.bzl", "py_deps_profile")

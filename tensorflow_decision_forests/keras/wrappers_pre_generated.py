@@ -186,14 +186,14 @@ class CartModel(core.CoreModel):
       dictionary), the "random" algorithm is a good alternative. - `ONE_HOT`:
       One-hot encoding. Find the optimal categorical split of the form
       "attribute == param". This method is similar (but more efficient) than
-      converting converting each possible categorical value into a boolean
-      feature. This method is available for comparison purpose and generally
-      performs worse than other alternatives. - `RANDOM`: Best splits among a
-      set of random candidate. Find the a categorical split of the form "value
-      \\in mask" using a random search. This solution can be seen as an
-      approximation of the CART algorithm. This method is a strong alternative
-      to CART. This algorithm is inspired from section "5.1 Categorical
-      Variables" of "Random Forest", 2001.
+      converting each possible categorical value into a boolean feature. This
+      method is available for comparison purpose and generally performs worse
+      than other alternatives. - `RANDOM`: Best splits among a set of random
+      candidate. Find the a categorical split of the form "value \\in mask"
+      using a random search. This solution can be seen as an approximation of
+      the CART algorithm. This method is a strong alternative to CART. This
+      algorithm is inspired from section "5.1 Categorical Variables" of "Random
+      Forest", 2001.
         Default: "CART".
     categorical_set_split_greedy_sampling: For categorical set splits e.g.
       texts. Probability for a categorical value to be a candidate for the
@@ -295,6 +295,16 @@ class CartModel(core.CoreModel):
       number_of_input_features x num_candidate_attributes_ratio`. The possible
       values are between ]0, and 1] as well as -1. If not set or equal to -1,
       the `num_candidate_attributes` is used. Default: -1.0.
+    numerical_vector_sequence_num_examples: For datasets with
+      NUMERICAL_VECTOR_SEQUENCE features (i.e., sequence of fixed-size numerical
+      vectors). Maximum number of examples to use to find splits. A larger value
+      can improve the model quality but takes longer to train.
+      Default: 1000.
+    numerical_vector_sequence_num_random_anchors: For datasets with
+      NUMERICAL_VECTOR_SEQUENCE features (i.e., sequence of fixed-size numerical
+      vectors). The number of randomly generated anchor values. A larger value
+      can improve the model quality but takes longer to train.
+      Default: 100.
     pure_serving_model: Clear the model from any information that is not
       required for model serving. This includes debugging, model interpretation
       and other meta-data. The size of the serialized model can be reduced
@@ -311,6 +321,11 @@ class CartModel(core.CoreModel):
       the training. This solution is faster but consumes much more memory than
       IN_NODE. - PRESORT: Automatically choose between FORCE_PRESORT and
       IN_NODE. . Default: "IN_NODE".
+    sparse_oblique_max_num_features: For sparse oblique splits i.e.
+      `split_axis=SPARSE_OBLIQUE`. Controls the maximum number of features in a
+      split.Set to -1 for no maximum. Use only if a hard maximum on the number
+      of variables is needed, otherwise prefer `projection_density_factor` for
+      controlling the number of features per projection. Default: None.
     sparse_oblique_max_num_projections: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Maximum number of projections (applied after
       the num_projections_exponent). Oblique splits try out
@@ -318,7 +333,7 @@ class CartModel(core.CoreModel):
       for choosing a split, where p is the number of numerical features.
       Increasing "max_num_projections" increases the training time but not the
       inference time. In late stage model development, if every bit of accuracy
-      if important, increase this value. The paper "Sparse Projection Oblique
+      is important, increase this value. The paper "Sparse Projection Oblique
       Random Forests" (Tomita et al, 2020) does not define this hyperparameter.
       Default: None.
     sparse_oblique_normalization: For sparse oblique splits i.e.
@@ -331,8 +346,8 @@ class CartModel(core.CoreModel):
     sparse_oblique_num_projections_exponent: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Controls of the number of random projections
       to test at each node. Increasing this value very likely improves the
-      quality of the model, drastically increases the training time, and doe not
-      impact the inference time. Oblique splits try out
+      quality of the model, drastically increases the training time, and does
+      not impact the inference time. Oblique splits try out
       max(p^num_projections_exponent, max_num_projections) random projections
       for choosing a split, where p is the number of numerical features.
       Therefore, increasing this `num_projections_exponent` and possibly
@@ -353,9 +368,33 @@ class CartModel(core.CoreModel):
       inference time (on average). This value is best tuned for each dataset.
       Default: None.
     sparse_oblique_weights: For sparse oblique splits i.e.
-      `split_axis=SPARSE_OBLIQUE`. Possible values: - `BINARY`: The oblique
-      weights are sampled in {-1,1} (default). - `CONTINUOUS`: The oblique
-      weights are be sampled in [-1,1]. Default: None.
+      `split_axis=SPARSE_OBLIQUE`. Note that normalization is applied after
+      sampling the weights, e.g. binary weights are only guaranteed binary if
+      normalization is NONE.  Possible values: - `BINARY`: The oblique weights
+      are sampled in {-1,1} (default). - `CONTINUOUS`: The oblique weights are
+      be sampled in [-1,1]. - `POWER_OF_TWO`: The oblique weights are powers of
+      two. The exponents are sampled uniformly in
+      [sparse_oblique_weights_power_of_two_min_exponent,
+      sparse_oblique_weights_power_of_two_max_exponent], the sign is uniformly
+      sampled. - `INTEGER`: The weights are integers sampled uniformly from the
+      range [sparse_oblique_weights_integer_minimum,
+      sparse_oblique_weights_integer_maximum]. Default: None.
+    sparse_oblique_weights_integer_maximum: For sparse oblique splits i.e.
+      `split_axis=SPARSE_OBLIQUE` with integer weights i.e.
+      `sparse_oblique_weights=INTEGER`. Maximum value of the weights Default:
+      None.
+    sparse_oblique_weights_integer_minimum: For sparse oblique splits i.e.
+      `split_axis=SPARSE_OBLIQUE` with integer weights i.e.
+      `sparse_oblique_weights=INTEGER`. Minimum value of the weights. Default:
+      None.
+    sparse_oblique_weights_power_of_two_max_exponent: For sparse oblique splits
+      i.e. `split_axis=SPARSE_OBLIQUE` with power-of-two weights i.e.
+      `sparse_oblique_weights=POWER_OF_TWO`. Maximum exponent of the weights
+      Default: None.
+    sparse_oblique_weights_power_of_two_min_exponent: For sparse oblique splits
+      i.e. `split_axis=SPARSE_OBLIQUE` with power-of-two weights i.e.
+      `sparse_oblique_weights=POWER_OF_TWO`. Minimum exponent of the weights
+      Default: None.
     split_axis: What structure of split to consider for numerical features. -
       `AXIS_ALIGNED`: Axis aligned splits (i.e. one condition at a time). This
       is the "classical" way to train a tree. Default value. - `SPARSE_OBLIQUE`:
@@ -363,7 +402,7 @@ class CartModel(core.CoreModel):
       from "Sparse Projection Oblique Random Forests", Tomita et al., 2020. -
       `MHLD_OBLIQUE`: Multi-class Hellinger Linear Discriminant splits from
       "Classification Based on Multivariate Contrast Patterns", Canete-Sifuentes
-      et al., 2029 Default: "AXIS_ALIGNED".
+      et al., 2019 Default: "AXIS_ALIGNED".
     uplift_min_examples_in_treatment: For uplift models only. Minimum number of
       examples per treatment in a node. Default: 5.
     uplift_split_score: For uplift models only. Splitter score i.e. score
@@ -424,14 +463,21 @@ class CartModel(core.CoreModel):
       missing_value_policy: Optional[str] = "GLOBAL_IMPUTATION",
       num_candidate_attributes: Optional[int] = -1,
       num_candidate_attributes_ratio: Optional[float] = -1.0,
+      numerical_vector_sequence_num_examples: Optional[int] = 1000,
+      numerical_vector_sequence_num_random_anchors: Optional[int] = 100,
       pure_serving_model: Optional[bool] = False,
       random_seed: Optional[int] = 123456,
       sorting_strategy: Optional[str] = "IN_NODE",
+      sparse_oblique_max_num_features: Optional[int] = None,
       sparse_oblique_max_num_projections: Optional[int] = None,
       sparse_oblique_normalization: Optional[str] = None,
       sparse_oblique_num_projections_exponent: Optional[float] = None,
       sparse_oblique_projection_density_factor: Optional[float] = None,
       sparse_oblique_weights: Optional[str] = None,
+      sparse_oblique_weights_integer_maximum: Optional[int] = None,
+      sparse_oblique_weights_integer_minimum: Optional[int] = None,
+      sparse_oblique_weights_power_of_two_max_exponent: Optional[int] = None,
+      sparse_oblique_weights_power_of_two_min_exponent: Optional[int] = None,
       split_axis: Optional[str] = "AXIS_ALIGNED",
       uplift_min_examples_in_treatment: Optional[int] = 5,
       uplift_split_score: Optional[str] = "KULLBACK_LEIBLER",
@@ -469,9 +515,16 @@ class CartModel(core.CoreModel):
         "missing_value_policy": missing_value_policy,
         "num_candidate_attributes": num_candidate_attributes,
         "num_candidate_attributes_ratio": num_candidate_attributes_ratio,
+        "numerical_vector_sequence_num_examples": (
+            numerical_vector_sequence_num_examples
+        ),
+        "numerical_vector_sequence_num_random_anchors": (
+            numerical_vector_sequence_num_random_anchors
+        ),
         "pure_serving_model": pure_serving_model,
         "random_seed": random_seed,
         "sorting_strategy": sorting_strategy,
+        "sparse_oblique_max_num_features": sparse_oblique_max_num_features,
         "sparse_oblique_max_num_projections": (
             sparse_oblique_max_num_projections
         ),
@@ -483,6 +536,18 @@ class CartModel(core.CoreModel):
             sparse_oblique_projection_density_factor
         ),
         "sparse_oblique_weights": sparse_oblique_weights,
+        "sparse_oblique_weights_integer_maximum": (
+            sparse_oblique_weights_integer_maximum
+        ),
+        "sparse_oblique_weights_integer_minimum": (
+            sparse_oblique_weights_integer_minimum
+        ),
+        "sparse_oblique_weights_power_of_two_max_exponent": (
+            sparse_oblique_weights_power_of_two_max_exponent
+        ),
+        "sparse_oblique_weights_power_of_two_min_exponent": (
+            sparse_oblique_weights_power_of_two_min_exponent
+        ),
         "split_axis": split_axis,
         "uplift_min_examples_in_treatment": uplift_min_examples_in_treatment,
         "uplift_split_score": uplift_split_score,
@@ -670,8 +735,16 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
     apply_link_function: If true, applies the link function (a.k.a. activation
       function), if any, before returning the model prediction. If false,
       returns the pre-link function model output. For example, in the case of
-      binary classification, the pre-link function output is a logic while the
+      binary classification, the pre-link function output is a logit while the
       post-link function is a probability. Default: True.
+    focal_loss_alpha: EXPERIMENTAL, default 0.5. Weighting parameter for focal
+      loss, positive samples weighted by alpha, negative samples by (1-alpha).
+      The default 0.5 value means no active class-level weighting. Only used
+      with focal loss i.e. `loss="BINARY_FOCAL_LOSS"` Default: 0.5.
+    focal_loss_gamma: EXPERIMENTAL, default 2.0. Exponent of the misprediction
+      exponent term in focal loss, corresponds to gamma parameter in
+      https://arxiv.org/pdf/1708.02002.pdf. Only used with focal loss i.e.
+        `loss="BINARY_FOCAL_LOSS"` Default: 2.0.
     force_numerical_discretization: If false, only the numerical column
       safisfying "max_unique_values_for_discretized_numerical" will be
       discretized. If true, all the numerical columns will be discretized.
@@ -679,6 +752,25 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
       unique values will be approximated with
       "max_unique_values_for_discretized_numerical" bins. This parameter will
       impact the model training. Default: False.
+    loss: The loss optimized by the model. If not specified (DEFAULT) the loss
+      is selected automatically according to the \\"task\\" and label
+      statistics. For example, if task=CLASSIFICATION and the label has two
+      possible values, the loss will be set to BINOMIAL_LOG_LIKELIHOOD. Possible
+      values are: - `DEFAULT`: Select the loss automatically according to the
+      task and label statistics. - `BINOMIAL_LOG_LIKELIHOOD`: Binomial log
+      likelihood. Only valid for binary classification. - `SQUARED_ERROR`: Least
+      square loss. Only valid for regression. - `POISSON`: Poisson log
+      likelihood loss. Mainly used for counting problems. Only valid for
+      regression. - `MULTINOMIAL_LOG_LIKELIHOOD`: Multinomial log likelihood
+      i.e. cross-entropy. Only valid for binary or multi-class classification. -
+      `LAMBDA_MART_NDCG`: LambdaMART with NDCG@5. - `XE_NDCG_MART`:  Cross
+      Entropy Loss NDCG. See arxiv.org/abs/1911.09798. - `BINARY_FOCAL_LOSS`:
+      Focal loss. Only valid for binary classification. See
+      https://arxiv.org/pdf/1708.02002.pdf. - `POISSON`: Poisson log likelihood.
+        Only valid for regression. - `MEAN_AVERAGE_ERROR`: Mean average error
+        a.k.a. MAE. - `LAMBDA_MART_NDCG5`: DEPRECATED, use LAMBDA_MART_NDCG.
+        LambdaMART with NDCG@5.
+        Default: "DEFAULT".
     max_depth: Maximum depth of the tree. `max_depth=1` means that all trees
       will be roots. `max_depth=-1` means that tree depth is not restricted by
       this parameter. Values <= -2 will be ignored. Default: 6.
@@ -711,7 +803,9 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
       values are between ]0, and 1] as well as -1. If not set or equal to -1,
       the `num_candidate_attributes` is used. Default: -1.0.
     num_trees: Maximum number of decision trees. The effective number of trained
-      tree can be smaller if early stopping is enabled. Default: 300.
+      tree can be smaller if early stopping is enabled. For multi-class
+      classification problems, the number of decision trees is at most this
+      parameter times the number of classes. Default: 300.
     pure_serving_model: Clear the model from any information that is not
       required for model serving. This includes debugging, model interpretation
       and other meta-data. The size of the serialized model can be reduced
@@ -724,7 +818,7 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
       tends to give more accurate results (assuming enough trees are trained),
       but results in larger models. Analogous to neural network learning rate.
       Fixed to 1.0 for DART models. Default: 0.1.
-    use_hessian_gain: Use true, uses a formulation of split gain with a hessian
+    use_hessian_gain: If true, uses a formulation of split gain with a hessian
       term i.e. optimizes the splits to minimize the variance of "gradient /
       hessian. Available for all losses except regression. Default: False.
     worker_logs: If true, workers will print training logs. Default: True.
@@ -755,7 +849,10 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
       num_discretized_numerical_bins: int = 255,
       multitask: Optional[List[MultiTaskItem]] = None,
       apply_link_function: Optional[bool] = True,
+      focal_loss_alpha: Optional[float] = 0.5,
+      focal_loss_gamma: Optional[float] = 2.0,
       force_numerical_discretization: Optional[bool] = False,
+      loss: Optional[str] = "DEFAULT",
       max_depth: Optional[int] = 6,
       max_unique_values_for_discretized_numerical: Optional[int] = 16000,
       maximum_model_size_in_memory_in_bytes: Optional[float] = -1.0,
@@ -774,7 +871,10 @@ class DistributedGradientBoostedTreesModel(core.CoreModel):
 
     learner_params = {
         "apply_link_function": apply_link_function,
+        "focal_loss_alpha": focal_loss_alpha,
+        "focal_loss_gamma": focal_loss_gamma,
         "force_numerical_discretization": force_numerical_discretization,
+        "loss": loss,
         "max_depth": max_depth,
         "max_unique_values_for_discretized_numerical": (
             max_unique_values_for_discretized_numerical
@@ -984,8 +1084,8 @@ class GradientBoostedTreesModel(core.CoreModel):
       (i.e. the second selement of the dataset) should be a dictionary of
       label_key:label_values. Only one of `multitask` and `task` can be set.
     adapt_subsample_for_maximum_training_duration: Control how the maximum
-      training duration (if set) is applied. If false, the training stop when
-      the time is used. If true, the size of the sampled datasets used train
+      training duration (if set) is applied. If false, the training stops when
+      the time is used. If true, the size of the sampled datasets used to train
       individual trees are adapted dynamically so that all the trees are trained
       in time. Default: False.
     allow_na_conditions: If true, the tree training evaluates conditions of the
@@ -993,7 +1093,7 @@ class GradientBoostedTreesModel(core.CoreModel):
     apply_link_function: If true, applies the link function (a.k.a. activation
       function), if any, before returning the model prediction. If false,
       returns the pre-link function model output. For example, in the case of
-      binary classification, the pre-link function output is a logic while the
+      binary classification, the pre-link function output is a logit while the
       post-link function is a probability. Default: True.
     categorical_algorithm: How to learn splits on categorical attributes. -
       `CART`: CART algorithm. Find categorical splits of the form "value \\in
@@ -1003,14 +1103,14 @@ class GradientBoostedTreesModel(core.CoreModel):
       dictionary), the "random" algorithm is a good alternative. - `ONE_HOT`:
       One-hot encoding. Find the optimal categorical split of the form
       "attribute == param". This method is similar (but more efficient) than
-      converting converting each possible categorical value into a boolean
-      feature. This method is available for comparison purpose and generally
-      performs worse than other alternatives. - `RANDOM`: Best splits among a
-      set of random candidate. Find the a categorical split of the form "value
-      \\in mask" using a random search. This solution can be seen as an
-      approximation of the CART algorithm. This method is a strong alternative
-      to CART. This algorithm is inspired from section "5.1 Categorical
-      Variables" of "Random Forest", 2001.
+      converting each possible categorical value into a boolean feature. This
+      method is available for comparison purpose and generally performs worse
+      than other alternatives. - `RANDOM`: Best splits among a set of random
+      candidate. Find the a categorical split of the form "value \\in mask"
+      using a random search. This solution can be seen as an approximation of
+      the CART algorithm. This method is a strong alternative to CART. This
+      algorithm is inspired from section "5.1 Categorical Variables" of "Random
+      Forest", 2001.
         Default: "CART".
     categorical_set_split_greedy_sampling: For categorical set splits e.g.
       texts. Probability for a categorical value to be a candidate for the
@@ -1036,7 +1136,7 @@ class GradientBoostedTreesModel(core.CoreModel):
     dart_dropout: Dropout rate applied when using the DART i.e. when
       forest_extraction=DART. Default: None.
     early_stopping: Early stopping detects the overfitting of the model and
-      halts it training using the validation dataset. If not provided directly,
+      halts its training using the validation dataset. If not provided directly,
       the validation dataset is extracted from the training dataset (see
       "validation_ratio" parameter): - `NONE`: No early stopping. All the
       num_trees are trained and kept. - `MIN_LOSS_FINAL`: All the num_trees are
@@ -1106,9 +1206,9 @@ class GradientBoostedTreesModel(core.CoreModel):
       model interpretation as well as hyper parameter tuning. This can take lots
       of space, sometimes accounting for half of the model size. Default: True.
     l1_regularization: L1 regularization applied to the training loss. Impact
-      the tree structures and lead values. Default: 0.0.
+      the tree structures and leaf values. Default: 0.0.
     l2_categorical_regularization: L2 regularization applied to the training
-      loss for categorical features. Impact the tree structures and lead values.
+      loss for categorical features. Impact the tree structures and leaf values.
       Default: 1.0.
     l2_regularization: L2 regularization applied to the training loss for all
       features except the categorical ones. Default: 0.0.
@@ -1189,7 +1289,19 @@ class GradientBoostedTreesModel(core.CoreModel):
       values are between ]0, and 1] as well as -1. If not set or equal to -1,
       the `num_candidate_attributes` is used. Default: -1.0.
     num_trees: Maximum number of decision trees. The effective number of trained
-      tree can be smaller if early stopping is enabled. Default: 300.
+      tree can be smaller if early stopping is enabled. For multi-class
+      classification problems, the number of decision trees is at most this
+      parameter times the number of classes. Default: 300.
+    numerical_vector_sequence_num_examples: For datasets with
+      NUMERICAL_VECTOR_SEQUENCE features (i.e., sequence of fixed-size numerical
+      vectors). Maximum number of examples to use to find splits. A larger value
+      can improve the model quality but takes longer to train.
+      Default: 1000.
+    numerical_vector_sequence_num_random_anchors: For datasets with
+      NUMERICAL_VECTOR_SEQUENCE features (i.e., sequence of fixed-size numerical
+      vectors). The number of randomly generated anchor values. A larger value
+      can improve the model quality but takes longer to train.
+      Default: 100.
     pure_serving_model: Clear the model from any information that is not
       required for model serving. This includes debugging, model interpretation
       and other meta-data. The size of the serialized model can be reduced
@@ -1224,6 +1336,11 @@ class GradientBoostedTreesModel(core.CoreModel):
       the training. This solution is faster but consumes much more memory than
       IN_NODE. - PRESORT: Automatically choose between FORCE_PRESORT and
       IN_NODE. . Default: "PRESORT".
+    sparse_oblique_max_num_features: For sparse oblique splits i.e.
+      `split_axis=SPARSE_OBLIQUE`. Controls the maximum number of features in a
+      split.Set to -1 for no maximum. Use only if a hard maximum on the number
+      of variables is needed, otherwise prefer `projection_density_factor` for
+      controlling the number of features per projection. Default: None.
     sparse_oblique_max_num_projections: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Maximum number of projections (applied after
       the num_projections_exponent). Oblique splits try out
@@ -1231,7 +1348,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       for choosing a split, where p is the number of numerical features.
       Increasing "max_num_projections" increases the training time but not the
       inference time. In late stage model development, if every bit of accuracy
-      if important, increase this value. The paper "Sparse Projection Oblique
+      is important, increase this value. The paper "Sparse Projection Oblique
       Random Forests" (Tomita et al, 2020) does not define this hyperparameter.
       Default: None.
     sparse_oblique_normalization: For sparse oblique splits i.e.
@@ -1244,8 +1361,8 @@ class GradientBoostedTreesModel(core.CoreModel):
     sparse_oblique_num_projections_exponent: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Controls of the number of random projections
       to test at each node. Increasing this value very likely improves the
-      quality of the model, drastically increases the training time, and doe not
-      impact the inference time. Oblique splits try out
+      quality of the model, drastically increases the training time, and does
+      not impact the inference time. Oblique splits try out
       max(p^num_projections_exponent, max_num_projections) random projections
       for choosing a split, where p is the number of numerical features.
       Therefore, increasing this `num_projections_exponent` and possibly
@@ -1266,9 +1383,33 @@ class GradientBoostedTreesModel(core.CoreModel):
       inference time (on average). This value is best tuned for each dataset.
       Default: None.
     sparse_oblique_weights: For sparse oblique splits i.e.
-      `split_axis=SPARSE_OBLIQUE`. Possible values: - `BINARY`: The oblique
-      weights are sampled in {-1,1} (default). - `CONTINUOUS`: The oblique
-      weights are be sampled in [-1,1]. Default: None.
+      `split_axis=SPARSE_OBLIQUE`. Note that normalization is applied after
+      sampling the weights, e.g. binary weights are only guaranteed binary if
+      normalization is NONE.  Possible values: - `BINARY`: The oblique weights
+      are sampled in {-1,1} (default). - `CONTINUOUS`: The oblique weights are
+      be sampled in [-1,1]. - `POWER_OF_TWO`: The oblique weights are powers of
+      two. The exponents are sampled uniformly in
+      [sparse_oblique_weights_power_of_two_min_exponent,
+      sparse_oblique_weights_power_of_two_max_exponent], the sign is uniformly
+      sampled. - `INTEGER`: The weights are integers sampled uniformly from the
+      range [sparse_oblique_weights_integer_minimum,
+      sparse_oblique_weights_integer_maximum]. Default: None.
+    sparse_oblique_weights_integer_maximum: For sparse oblique splits i.e.
+      `split_axis=SPARSE_OBLIQUE` with integer weights i.e.
+      `sparse_oblique_weights=INTEGER`. Maximum value of the weights Default:
+      None.
+    sparse_oblique_weights_integer_minimum: For sparse oblique splits i.e.
+      `split_axis=SPARSE_OBLIQUE` with integer weights i.e.
+      `sparse_oblique_weights=INTEGER`. Minimum value of the weights. Default:
+      None.
+    sparse_oblique_weights_power_of_two_max_exponent: For sparse oblique splits
+      i.e. `split_axis=SPARSE_OBLIQUE` with power-of-two weights i.e.
+      `sparse_oblique_weights=POWER_OF_TWO`. Maximum exponent of the weights
+      Default: None.
+    sparse_oblique_weights_power_of_two_min_exponent: For sparse oblique splits
+      i.e. `split_axis=SPARSE_OBLIQUE` with power-of-two weights i.e.
+      `sparse_oblique_weights=POWER_OF_TWO`. Minimum exponent of the weights
+      Default: None.
     split_axis: What structure of split to consider for numerical features. -
       `AXIS_ALIGNED`: Axis aligned splits (i.e. one condition at a time). This
       is the "classical" way to train a tree. Default value. - `SPARSE_OBLIQUE`:
@@ -1276,7 +1417,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       from "Sparse Projection Oblique Random Forests", Tomita et al., 2020. -
       `MHLD_OBLIQUE`: Multi-class Hellinger Linear Discriminant splits from
       "Classification Based on Multivariate Contrast Patterns", Canete-Sifuentes
-      et al., 2029 Default: "AXIS_ALIGNED".
+      et al., 2019 Default: "AXIS_ALIGNED".
     subsample: Ratio of the dataset (sampling without replacement) used to train
       individual trees for the random sampling method. If \\"subsample\\" is set
       and if \\"sampling_method\\" is NOT set or set to \\"NONE\\", then
@@ -1293,7 +1434,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       `KL`: - p log (p/q) - `EUCLIDEAN_DISTANCE` or `ED`: (p-q)^2 -
       `CHI_SQUARED` or `CS`: (p-q)^2/q
         Default: "KULLBACK_LEIBLER".
-    use_hessian_gain: Use true, uses a formulation of split gain with a hessian
+    use_hessian_gain: If true, uses a formulation of split gain with a hessian
       term i.e. optimizes the splits to minimize the variance of "gradient /
       hessian. Available for all losses except regression. Default: False.
     validation_interval_in_trees: Evaluate the model on the validation set every
@@ -1375,17 +1516,24 @@ class GradientBoostedTreesModel(core.CoreModel):
       num_candidate_attributes: Optional[int] = -1,
       num_candidate_attributes_ratio: Optional[float] = -1.0,
       num_trees: Optional[int] = 300,
+      numerical_vector_sequence_num_examples: Optional[int] = 1000,
+      numerical_vector_sequence_num_random_anchors: Optional[int] = 100,
       pure_serving_model: Optional[bool] = False,
       random_seed: Optional[int] = 123456,
       sampling_method: Optional[str] = "RANDOM",
       selective_gradient_boosting_ratio: Optional[float] = 0.01,
       shrinkage: Optional[float] = 0.1,
       sorting_strategy: Optional[str] = "PRESORT",
+      sparse_oblique_max_num_features: Optional[int] = None,
       sparse_oblique_max_num_projections: Optional[int] = None,
       sparse_oblique_normalization: Optional[str] = None,
       sparse_oblique_num_projections_exponent: Optional[float] = None,
       sparse_oblique_projection_density_factor: Optional[float] = None,
       sparse_oblique_weights: Optional[str] = None,
+      sparse_oblique_weights_integer_maximum: Optional[int] = None,
+      sparse_oblique_weights_integer_minimum: Optional[int] = None,
+      sparse_oblique_weights_power_of_two_max_exponent: Optional[int] = None,
+      sparse_oblique_weights_power_of_two_min_exponent: Optional[int] = None,
       split_axis: Optional[str] = "AXIS_ALIGNED",
       subsample: Optional[float] = 1.0,
       uplift_min_examples_in_treatment: Optional[int] = 5,
@@ -1452,12 +1600,19 @@ class GradientBoostedTreesModel(core.CoreModel):
         "num_candidate_attributes": num_candidate_attributes,
         "num_candidate_attributes_ratio": num_candidate_attributes_ratio,
         "num_trees": num_trees,
+        "numerical_vector_sequence_num_examples": (
+            numerical_vector_sequence_num_examples
+        ),
+        "numerical_vector_sequence_num_random_anchors": (
+            numerical_vector_sequence_num_random_anchors
+        ),
         "pure_serving_model": pure_serving_model,
         "random_seed": random_seed,
         "sampling_method": sampling_method,
         "selective_gradient_boosting_ratio": selective_gradient_boosting_ratio,
         "shrinkage": shrinkage,
         "sorting_strategy": sorting_strategy,
+        "sparse_oblique_max_num_features": sparse_oblique_max_num_features,
         "sparse_oblique_max_num_projections": (
             sparse_oblique_max_num_projections
         ),
@@ -1469,6 +1624,18 @@ class GradientBoostedTreesModel(core.CoreModel):
             sparse_oblique_projection_density_factor
         ),
         "sparse_oblique_weights": sparse_oblique_weights,
+        "sparse_oblique_weights_integer_maximum": (
+            sparse_oblique_weights_integer_maximum
+        ),
+        "sparse_oblique_weights_integer_minimum": (
+            sparse_oblique_weights_integer_minimum
+        ),
+        "sparse_oblique_weights_power_of_two_max_exponent": (
+            sparse_oblique_weights_power_of_two_max_exponent
+        ),
+        "sparse_oblique_weights_power_of_two_min_exponent": (
+            sparse_oblique_weights_power_of_two_min_exponent
+        ),
         "split_axis": split_axis,
         "subsample": subsample,
         "uplift_min_examples_in_treatment": uplift_min_examples_in_treatment,
@@ -2162,14 +2329,14 @@ class RandomForestModel(core.CoreModel):
       (i.e. the second selement of the dataset) should be a dictionary of
       label_key:label_values. Only one of `multitask` and `task` can be set.
     adapt_bootstrap_size_ratio_for_maximum_training_duration: Control how the
-      maximum training duration (if set) is applied. If false, the training stop
-      when the time is used. If true, adapts the size of the sampled dataset
-      used to train each tree such that `num_trees` will train within
+      maximum training duration (if set) is applied. If false, the training
+      stops when the time is used. If true, adapts the size of the sampled
+      dataset used to train each tree such that `num_trees` will train within
       `maximum_training_duration`. Has no effect if there is no maximum training
       duration specified. Default: False.
     allow_na_conditions: If true, the tree training evaluates conditions of the
       type `X is NA` i.e. `X is missing`. Default: False.
-    bootstrap_size_ratio: Number of examples used to train each trees; expressed
+    bootstrap_size_ratio: Number of examples used to train each tree; expressed
       as a ratio of the training dataset size. Default: 1.0.
     bootstrap_training_dataset: If true (default), each tree is trained on a
       separate dataset sampled with replacement from the original dataset. If
@@ -2186,14 +2353,14 @@ class RandomForestModel(core.CoreModel):
       dictionary), the "random" algorithm is a good alternative. - `ONE_HOT`:
       One-hot encoding. Find the optimal categorical split of the form
       "attribute == param". This method is similar (but more efficient) than
-      converting converting each possible categorical value into a boolean
-      feature. This method is available for comparison purpose and generally
-      performs worse than other alternatives. - `RANDOM`: Best splits among a
-      set of random candidate. Find the a categorical split of the form "value
-      \\in mask" using a random search. This solution can be seen as an
-      approximation of the CART algorithm. This method is a strong alternative
-      to CART. This algorithm is inspired from section "5.1 Categorical
-      Variables" of "Random Forest", 2001.
+      converting each possible categorical value into a boolean feature. This
+      method is available for comparison purpose and generally performs worse
+      than other alternatives. - `RANDOM`: Best splits among a set of random
+      candidate. Find the a categorical split of the form "value \\in mask"
+      using a random search. This solution can be seen as an approximation of
+      the CART algorithm. This method is a strong alternative to CART. This
+      algorithm is inspired from section "5.1 Categorical Variables" of "Random
+      Forest", 2001.
         Default: "CART".
     categorical_set_split_greedy_sampling: For categorical set splits e.g.
       texts. Probability for a categorical value to be a candidate for the
@@ -2309,6 +2476,16 @@ class RandomForestModel(core.CoreModel):
     num_trees: Number of individual decision trees. Increasing the number of
       trees can increase the quality of the model at the expense of size,
       training speed, and inference latency. Default: 300.
+    numerical_vector_sequence_num_examples: For datasets with
+      NUMERICAL_VECTOR_SEQUENCE features (i.e., sequence of fixed-size numerical
+      vectors). Maximum number of examples to use to find splits. A larger value
+      can improve the model quality but takes longer to train.
+      Default: 1000.
+    numerical_vector_sequence_num_random_anchors: For datasets with
+      NUMERICAL_VECTOR_SEQUENCE features (i.e., sequence of fixed-size numerical
+      vectors). The number of randomly generated anchor values. A larger value
+      can improve the model quality but takes longer to train.
+      Default: 100.
     pure_serving_model: Clear the model from any information that is not
       required for model serving. This includes debugging, model interpretation
       and other meta-data. The size of the serialized model can be reduced
@@ -2331,6 +2508,11 @@ class RandomForestModel(core.CoreModel):
       the training. This solution is faster but consumes much more memory than
       IN_NODE. - PRESORT: Automatically choose between FORCE_PRESORT and
       IN_NODE. . Default: "PRESORT".
+    sparse_oblique_max_num_features: For sparse oblique splits i.e.
+      `split_axis=SPARSE_OBLIQUE`. Controls the maximum number of features in a
+      split.Set to -1 for no maximum. Use only if a hard maximum on the number
+      of variables is needed, otherwise prefer `projection_density_factor` for
+      controlling the number of features per projection. Default: None.
     sparse_oblique_max_num_projections: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Maximum number of projections (applied after
       the num_projections_exponent). Oblique splits try out
@@ -2338,7 +2520,7 @@ class RandomForestModel(core.CoreModel):
       for choosing a split, where p is the number of numerical features.
       Increasing "max_num_projections" increases the training time but not the
       inference time. In late stage model development, if every bit of accuracy
-      if important, increase this value. The paper "Sparse Projection Oblique
+      is important, increase this value. The paper "Sparse Projection Oblique
       Random Forests" (Tomita et al, 2020) does not define this hyperparameter.
       Default: None.
     sparse_oblique_normalization: For sparse oblique splits i.e.
@@ -2351,8 +2533,8 @@ class RandomForestModel(core.CoreModel):
     sparse_oblique_num_projections_exponent: For sparse oblique splits i.e.
       `split_axis=SPARSE_OBLIQUE`. Controls of the number of random projections
       to test at each node. Increasing this value very likely improves the
-      quality of the model, drastically increases the training time, and doe not
-      impact the inference time. Oblique splits try out
+      quality of the model, drastically increases the training time, and does
+      not impact the inference time. Oblique splits try out
       max(p^num_projections_exponent, max_num_projections) random projections
       for choosing a split, where p is the number of numerical features.
       Therefore, increasing this `num_projections_exponent` and possibly
@@ -2373,9 +2555,33 @@ class RandomForestModel(core.CoreModel):
       inference time (on average). This value is best tuned for each dataset.
       Default: None.
     sparse_oblique_weights: For sparse oblique splits i.e.
-      `split_axis=SPARSE_OBLIQUE`. Possible values: - `BINARY`: The oblique
-      weights are sampled in {-1,1} (default). - `CONTINUOUS`: The oblique
-      weights are be sampled in [-1,1]. Default: None.
+      `split_axis=SPARSE_OBLIQUE`. Note that normalization is applied after
+      sampling the weights, e.g. binary weights are only guaranteed binary if
+      normalization is NONE.  Possible values: - `BINARY`: The oblique weights
+      are sampled in {-1,1} (default). - `CONTINUOUS`: The oblique weights are
+      be sampled in [-1,1]. - `POWER_OF_TWO`: The oblique weights are powers of
+      two. The exponents are sampled uniformly in
+      [sparse_oblique_weights_power_of_two_min_exponent,
+      sparse_oblique_weights_power_of_two_max_exponent], the sign is uniformly
+      sampled. - `INTEGER`: The weights are integers sampled uniformly from the
+      range [sparse_oblique_weights_integer_minimum,
+      sparse_oblique_weights_integer_maximum]. Default: None.
+    sparse_oblique_weights_integer_maximum: For sparse oblique splits i.e.
+      `split_axis=SPARSE_OBLIQUE` with integer weights i.e.
+      `sparse_oblique_weights=INTEGER`. Maximum value of the weights Default:
+      None.
+    sparse_oblique_weights_integer_minimum: For sparse oblique splits i.e.
+      `split_axis=SPARSE_OBLIQUE` with integer weights i.e.
+      `sparse_oblique_weights=INTEGER`. Minimum value of the weights. Default:
+      None.
+    sparse_oblique_weights_power_of_two_max_exponent: For sparse oblique splits
+      i.e. `split_axis=SPARSE_OBLIQUE` with power-of-two weights i.e.
+      `sparse_oblique_weights=POWER_OF_TWO`. Maximum exponent of the weights
+      Default: None.
+    sparse_oblique_weights_power_of_two_min_exponent: For sparse oblique splits
+      i.e. `split_axis=SPARSE_OBLIQUE` with power-of-two weights i.e.
+      `sparse_oblique_weights=POWER_OF_TWO`. Minimum exponent of the weights
+      Default: None.
     split_axis: What structure of split to consider for numerical features. -
       `AXIS_ALIGNED`: Axis aligned splits (i.e. one condition at a time). This
       is the "classical" way to train a tree. Default value. - `SPARSE_OBLIQUE`:
@@ -2383,7 +2589,7 @@ class RandomForestModel(core.CoreModel):
       from "Sparse Projection Oblique Random Forests", Tomita et al., 2020. -
       `MHLD_OBLIQUE`: Multi-class Hellinger Linear Discriminant splits from
       "Classification Based on Multivariate Contrast Patterns", Canete-Sifuentes
-      et al., 2029 Default: "AXIS_ALIGNED".
+      et al., 2019 Default: "AXIS_ALIGNED".
     uplift_min_examples_in_treatment: For uplift models only. Minimum number of
       examples per treatment in a node. Default: 5.
     uplift_split_score: For uplift models only. Splitter score i.e. score
@@ -2454,15 +2660,22 @@ class RandomForestModel(core.CoreModel):
       num_candidate_attributes_ratio: Optional[float] = -1.0,
       num_oob_variable_importances_permutations: Optional[int] = 1,
       num_trees: Optional[int] = 300,
+      numerical_vector_sequence_num_examples: Optional[int] = 1000,
+      numerical_vector_sequence_num_random_anchors: Optional[int] = 100,
       pure_serving_model: Optional[bool] = False,
       random_seed: Optional[int] = 123456,
       sampling_with_replacement: Optional[bool] = True,
       sorting_strategy: Optional[str] = "PRESORT",
+      sparse_oblique_max_num_features: Optional[int] = None,
       sparse_oblique_max_num_projections: Optional[int] = None,
       sparse_oblique_normalization: Optional[str] = None,
       sparse_oblique_num_projections_exponent: Optional[float] = None,
       sparse_oblique_projection_density_factor: Optional[float] = None,
       sparse_oblique_weights: Optional[str] = None,
+      sparse_oblique_weights_integer_maximum: Optional[int] = None,
+      sparse_oblique_weights_integer_minimum: Optional[int] = None,
+      sparse_oblique_weights_power_of_two_max_exponent: Optional[int] = None,
+      sparse_oblique_weights_power_of_two_min_exponent: Optional[int] = None,
       split_axis: Optional[str] = "AXIS_ALIGNED",
       uplift_min_examples_in_treatment: Optional[int] = 5,
       uplift_split_score: Optional[str] = "KULLBACK_LEIBLER",
@@ -2511,10 +2724,17 @@ class RandomForestModel(core.CoreModel):
             num_oob_variable_importances_permutations
         ),
         "num_trees": num_trees,
+        "numerical_vector_sequence_num_examples": (
+            numerical_vector_sequence_num_examples
+        ),
+        "numerical_vector_sequence_num_random_anchors": (
+            numerical_vector_sequence_num_random_anchors
+        ),
         "pure_serving_model": pure_serving_model,
         "random_seed": random_seed,
         "sampling_with_replacement": sampling_with_replacement,
         "sorting_strategy": sorting_strategy,
+        "sparse_oblique_max_num_features": sparse_oblique_max_num_features,
         "sparse_oblique_max_num_projections": (
             sparse_oblique_max_num_projections
         ),
@@ -2526,6 +2746,18 @@ class RandomForestModel(core.CoreModel):
             sparse_oblique_projection_density_factor
         ),
         "sparse_oblique_weights": sparse_oblique_weights,
+        "sparse_oblique_weights_integer_maximum": (
+            sparse_oblique_weights_integer_maximum
+        ),
+        "sparse_oblique_weights_integer_minimum": (
+            sparse_oblique_weights_integer_minimum
+        ),
+        "sparse_oblique_weights_power_of_two_max_exponent": (
+            sparse_oblique_weights_power_of_two_max_exponent
+        ),
+        "sparse_oblique_weights_power_of_two_min_exponent": (
+            sparse_oblique_weights_power_of_two_min_exponent
+        ),
         "split_axis": split_axis,
         "uplift_min_examples_in_treatment": uplift_min_examples_in_treatment,
         "uplift_split_score": uplift_split_score,

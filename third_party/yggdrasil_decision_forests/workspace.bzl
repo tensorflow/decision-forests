@@ -4,15 +4,15 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 def deps(from_git_repo = True):
     if from_git_repo:
-        YDF_VERSION = "1.9.0"
-        YDF_SHA = "4b102dc3a08989aa069e1a830f58331e0b17d0a73df98bc3351e3378f2cfebc2"
+        YDF_VERSION = "1.11.0"
+        YDF_SHA = "8553a7bfcb96dcdf19f4e9ce7bc5aca1a72df38bd29dfff53e9a58b317bba0c0"
         http_archive(
             name = "ydf",
             urls = ["https://github.com/google/yggdrasil-decision-forests/archive/refs/tags/v{version}.tar.gz".format(version = YDF_VERSION)],
             strip_prefix = "yggdrasil-decision-forests-{version}".format(version = YDF_VERSION),
             sha256 = YDF_SHA,
-            # patch_args = ["-p1"],
-            # patches = ["@ydf//yggdrasil_decision_forests:ydf.patch"],
+            patch_args = ["-p1"],
+            patches = ["@ydf//yggdrasil_decision_forests:ydf.patch"],
         )
     else:
         # You can also clone the YDF repository manually.

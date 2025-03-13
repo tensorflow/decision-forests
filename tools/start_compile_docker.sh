@@ -64,7 +64,7 @@
 # directory.
 TFDF_DIRNAME=${PWD##*/}
 
-DOCKER_IMAGE=tensorflow/build:2.18-python3.9
+DOCKER_IMAGE=tensorflow/build:2.19-python3.9
 DOCKER_CONTAINER=compile_tfdf
 
 echo "Available containers:"

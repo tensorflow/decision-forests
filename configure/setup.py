@@ -23,7 +23,7 @@ import setuptools
 from setuptools.command.install import install
 from setuptools.dist import Distribution
 
-_VERSION = "1.11.0"
+_VERSION = "1.12.0"
 
 with open("README.md", "r", encoding="utf-8") as fh:
   long_description = fh.read()
@@ -31,13 +31,13 @@ with open("README.md", "r", encoding="utf-8") as fh:
 REQUIRED_PACKAGES = [
     "numpy",
     "pandas",
-    "tensorflow==2.18.0",
+    "tensorflow==2.19.0",
     "six",
     "absl_py",
     "wheel",
     "wurlitzer",
-    "tf_keras~=2.17",
-    "ydf",
+    "tf_keras~=2.19",
+    "ydf>=0.11.0",
 ]
 
 
@@ -102,6 +102,7 @@ setuptools.setup(
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3 :: Only",
         "Topic :: Scientific/Engineering",
         "Topic :: Scientific/Engineering :: Mathematics",
