@@ -12,7 +12,7 @@ def deps(from_git_repo = True):
             strip_prefix = "yggdrasil-decision-forests-{version}".format(version = YDF_VERSION),
             sha256 = YDF_SHA,
             patch_args = ["-p1"],
-            patches = ["@ydf//yggdrasil_decision_forests:ydf.patch"],
+            patches = ["//third_party/yggdrasil_decision_forests:ydf.patch"],
         )
     else:
         # You can also clone the YDF repository manually.
