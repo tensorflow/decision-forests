@@ -228,7 +228,7 @@ shift | true
 if [ ${INSTALL_PYENV} == "INSTALL_PYENV" ]; then 
   if ! [ -x "$(command -v pyenv)" ]; then
     echo "Pyenv not found."
-    echo "Installing build deps, pyenv 2.3.7 and pyenv virtualenv 1.2.1"
+    echo "Installing build deps, pyenv 2.5.3 and pyenv virtualenv 1.2.4"
     # Install python dependencies.
     if ! is_macos; then
       sudo apt-get update
@@ -239,7 +239,7 @@ if [ ${INSTALL_PYENV} == "INSTALL_PYENV" ]; then
     fi
     git clone https://github.com/pyenv/pyenv.git
     (
-      cd pyenv && git checkout b3dad5887e1daef68a73360546082ad4eb4b82b8
+      cd pyenv && git checkout 5051a42b2ccb7e2ef82787f75a0c6d90294d2f6c
     )
     PYENV_ROOT="$(pwd)/pyenv"
     export PATH="$PYENV_ROOT/bin:$PATH"
@@ -247,7 +247,7 @@ if [ ${INSTALL_PYENV} == "INSTALL_PYENV" ]; then
     eval "$(pyenv init -)"
     git clone https://github.com/pyenv/pyenv-virtualenv.git $(pyenv root)/plugins/pyenv-virtualenv
     (
-      cd $(pyenv root)/plugins/pyenv-virtualenv && git checkout 13bc1877ef06ed038c65dcab4e901da6ea6c67ae
+      cd $(pyenv root)/plugins/pyenv-virtualenv && git checkout e9b88cc3660ab6719d700544d720a770702c46e9
     )
     eval "$(pyenv init --path)"
     eval "$(pyenv init -)"
@@ -265,23 +265,23 @@ elif [ ${ARG} == "ALL_VERSIONS" ]; then
   # Compile with all the version of python using pyenv.
   assemble_files
   eval "$(pyenv init -)"
-  e2e_pyenv 3.9.19
-  e2e_pyenv 3.10.14
-  e2e_pyenv 3.11.6
-  e2e_pyenv 3.12.0
+  e2e_pyenv 3.9.21
+  e2e_pyenv 3.10.16
+  e2e_pyenv 3.11.11
+  e2e_pyenv 3.12.8
 elif [ ${ARG} == "ALL_VERSIONS_ALREADY_ASSEMBLED" ]; then
   eval "$(pyenv init -)"
-  e2e_pyenv 3.9.19
-  e2e_pyenv 3.10.14
-  e2e_pyenv 3.11.6
-  e2e_pyenv 3.12.0
+  e2e_pyenv 3.9.21
+  e2e_pyenv 3.10.16
+  e2e_pyenv 3.11.11
+  e2e_pyenv 3.12.8
 elif [ ${ARG} == "ALL_VERSIONS_MAC_INTEL_CROSSCOMPILE" ]; then
   eval "$(pyenv init -)"
   assemble_files
-  e2e_pyenv 3.9.19
-  e2e_pyenv 3.10.14
-  e2e_pyenv 3.11.6
-  e2e_pyenv 3.12.0
+  e2e_pyenv 3.9.21
+  e2e_pyenv 3.10.16
+  e2e_pyenv 3.11.11
+  e2e_pyenv 3.12.8
 else
   # Compile with a specific version of python provided in the call arguments.
   assemble_files
