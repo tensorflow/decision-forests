@@ -90,7 +90,7 @@ def convert(
   # to split samples in nodes in the trees as input. But we want to pass the
   # full design matrix as an input to match the scikit-learn API, thus we
   # create another tf_keras.Model with the desired call signature.
-  template_input = tf_keras.Input(shape=(sklearn_model.n_features_in_,))
+  template_input = tf_keras.Input(shape=(sklearn_model.n_features_in_,))  # pytype: disable=attribute-error
   # Extracts the indices of the features that are used by the TFDF model.
   # The features have names with the format "feature_<index-of-feature>".
   feature_names = (
