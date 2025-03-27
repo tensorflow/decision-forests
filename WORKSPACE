@@ -20,9 +20,9 @@ http_archive(
 # absl used by tensorflow.
 http_archive(
     name = "org_tensorflow",
-    strip_prefix = "tensorflow-2.17.0",
-    sha256 = "9cc4d5773b8ee910079baaecb4086d0c28939f024dd74b33fc5e64779b6533dc",
-    urls = ["https://github.com/tensorflow/tensorflow/archive/v2.17.0.tar.gz"],
+    strip_prefix = "tensorflow-2.17.1",
+    sha256 = "2d3cfb48510f92f3a52fb05b820481c6f066a342a9f5296fe26d72c4ea757700",
+    urls = ["https://github.com/tensorflow/tensorflow/archive/v2.17.1.tar.gz"],
 )
 
 
