@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.10.1 - 2025-03-27
+
+### Fix
+
+-   Fix compatibility with TF 2.17.1.
+
 ## 1.10.0 - 2024-08-21
 
 ### Fix
