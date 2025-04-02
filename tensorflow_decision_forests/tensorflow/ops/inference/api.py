@@ -246,6 +246,7 @@ class Model(object):
       model_path: Text,
       tensor_model_path: Optional[Tensor] = None,
       verbose: Optional[bool] = True,
+      force_string_to_unicode_conversion: Optional[bool] = True,
   ):
     """Initialize the model.
 
@@ -259,6 +260,9 @@ class Model(object):
         from SavedModel assets.
       verbose: If true, prints information about the model and its integration
         in tensorflow.
+      force_string_to_unicode_conversion: If true, convert categorical strings
+        to unicode. This is the correct approach for YDF models and TF2, but may
+        fail in TF1 if there are non-ascii strings.
     """
 
     self._verbose: Optional[bool] = verbose
@@ -271,7 +275,10 @@ class Model(object):
     self.model_identifier = _create_model_identifier()
 
     self.input_builder = _InferenceArgsBuilder(verbose)
-    self.input_builder.build_from_model_path(model_path)
+    self.input_builder.build_from_model_path(
+        model_path,
+        force_string_to_unicode_conversion=force_string_to_unicode_conversion,
+    )
 
     # Model loading and initialization op.
     if tensor_model_path is None:
@@ -355,7 +362,11 @@ class ModelV2(AutoTrackable):
     if file_prefix is None:
       file_prefix = inspector_lib.detect_model_file_prefix(model_path)
     self._input_builder = _InferenceArgsBuilder(verbose)
-    self._input_builder.build_from_model_path(model_path, file_prefix)
+    self._input_builder.build_from_model_path(
+        model_path,
+        force_string_to_unicode_conversion=True,
+        file_prefix=file_prefix,
+    )
     self._compiled_model = _CompiledSimpleMLModelResource(
         _DiskModelLoader(
             model_path, output_types, file_prefix, allow_slow_inference
@@ -451,6 +462,7 @@ class _InferenceArgsBuilder(AutoTrackable):
     self._header: Optional[abstract_model_pb2.AbstractModel] = None
     self._data_spec: Optional[data_spec_pb2.DataSpecification] = None
     self._feature_name_to_idx = None
+    self._force_string_to_unicode_conversion = True
 
     # List of initialization ops.
     self._init_ops: List[tf.Operation] = None
@@ -460,7 +472,15 @@ class _InferenceArgsBuilder(AutoTrackable):
 
     super(_InferenceArgsBuilder, self).__init__()
 
-  def build_from_model_path(self, model_path: str, file_prefix: str = ""):
+  def build_from_model_path(
+      self,
+      model_path: str,
+      force_string_to_unicode_conversion: bool,
+      file_prefix: str = "",
+  ):
+    self._force_string_to_unicode_conversion = (
+        force_string_to_unicode_conversion
+    )
     # Load model meta-data.
     header = abstract_model_pb2.AbstractModel()
     header_path = os.path.join(model_path, file_prefix + "header.pb")
@@ -669,13 +689,23 @@ class _InferenceArgsBuilder(AutoTrackable):
         #
         # Note: The item with index "0" is the "out of vocabulary". It is
         # handled by the hashmap directly.
-        vocabulary = [
-            (key, item.index)
-            for key, item in dataspec_lib.categorical_vocab_iterator(
-                feature_spec.categorical
-            )
-            if item.index != 0
-        ]
+        #
+        # Note: For the estimator interface, we want the raw bytes, for
+        # Keras, we want unicode strings (not supported for TF1).
+        if self._force_string_to_unicode_conversion:
+          vocabulary = [
+              (key, item.index)
+              for key, item in dataspec_lib.categorical_vocab_iterator(
+                  feature_spec.categorical
+              )
+              if item.index != 0
+          ]
+        else:
+          vocabulary = [
+              (key, item.index)
+              for key, item in feature_spec.categorical.items.items()
+              if item.index != 0
+          ]
         # Missing value.
 
         # "" (the empty string) is a missing value if it is not a valid value.

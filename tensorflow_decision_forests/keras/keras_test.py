@@ -3106,6 +3106,14 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
     model.fit(ds)
     model_plotter.plot_model(model)
 
+  def test_unicode_categories(self):
+    df = pd.DataFrame({"f": np.array(["a", "😀"] * 10), "l": [0, 1] * 10})
+    ds = keras.pd_dataframe_to_tf_dataset(df, label="l")
+    model = keras.CartModel()
+    model.fit(ds)
+    evaluation = model.evaluate(ds, return_dict=True)
+    self.assertEqual(evaluation["loss"], 0.0)
+
 
 if __name__ == "__main__":
   tf.test.main()
