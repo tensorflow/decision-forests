@@ -36,7 +36,7 @@ py_library(
     deps = [
         ":condition",
         ":value",
-        # absl/logging dep,
+        "@pypi_absl_py//:pkg",  # /logging
         "@pypi_numpy//:pkg",
         "@pypi_six//:pkg",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
@@ -50,7 +50,7 @@ py_library(
     srcs = ["condition.py"],
     deps = [
         ":dataspec",
-        # absl/logging dep,
+        "@pypi_absl_py//:pkg",  # /logging
         "@pypi_numpy//:pkg",
         "@pypi_six//:pkg",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
@@ -97,8 +97,7 @@ py_test(
         ":node",
         ":tree",
         ":value",
-        # absl/logging dep,
-        # absl/testing:parameterized dep,
+        "@pypi_absl_py//:pkg",  # /logging
         "@release_or_nightly//:tensorflow_pkg",
     ],
 )
@@ -111,8 +110,7 @@ py_test(
         ":dataspec",
         ":node",
         ":value",
-        # absl/logging dep,
-        # absl/testing:parameterized dep,
+        "@pypi_absl_py//:pkg",  # /logging
         "@release_or_nightly//:tensorflow_pkg",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
         "@ydf//yggdrasil_decision_forests/model/decision_tree:decision_tree_py_proto",
@@ -125,8 +123,7 @@ py_test(
     deps = [
         ":condition",
         ":dataspec",
-        # absl/logging dep,
-        # absl/testing:parameterized dep,
+        "@pypi_absl_py//:pkg",  # /logging
         "@release_or_nightly//:tensorflow_pkg",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
         "@ydf//yggdrasil_decision_forests/model/decision_tree:decision_tree_py_proto",
@@ -138,7 +135,7 @@ py_test(
     srcs = ["dataspec_test.py"],
     deps = [
         ":dataspec",
-        # absl/testing:parameterized dep,
+        "@pypi_absl_py//:pkg",  # /testing:parameterized
         "@release_or_nightly//:tensorflow_pkg",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
     ],
@@ -149,8 +146,7 @@ py_test(
     srcs = ["value_test.py"],
     deps = [
         ":value",
-        # absl/logging dep,
-        # absl/testing:parameterized dep,
+        "@pypi_absl_py//:pkg",  # /logging
         "@release_or_nightly//:tensorflow_pkg",
         "@ydf//yggdrasil_decision_forests/model/decision_tree:decision_tree_py_proto",
     ],
@@ -162,8 +158,7 @@ py_test(
     deps = [
         ":dataspec",
         ":objective",
-        # absl/logging dep,
-        # absl/testing:parameterized dep,
+        "@pypi_absl_py//:pkg",  # /logging
         "@release_or_nightly//:tensorflow_pkg",
     ],
 )

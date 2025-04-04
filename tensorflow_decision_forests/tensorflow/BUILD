@@ -119,7 +119,7 @@ py_library(
     name = "tf_logging",
     srcs = ["tf_logging.py"],
     deps = [
-        # absl/logging dep,
+        "@pypi_absl_py//:pkg",  # /logging
         "@release_or_nightly//:tensorflow_pkg",
     ],
 )
@@ -153,7 +153,7 @@ py_test(
     data = ["@ydf//yggdrasil_decision_forests/test_data"],
     deps = [
         ":core",
-        # absl/logging dep,
+        "@pypi_absl_py//:pkg",  # /logging
         "@pypi_pandas//:pkg",
         "@release_or_nightly//:tensorflow_pkg",
         "@release_or_nightly//:tf_keras_pkg",

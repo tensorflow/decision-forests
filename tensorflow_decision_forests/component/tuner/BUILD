@@ -27,13 +27,11 @@ py_test(
     shard_count = 4,
     deps = [
         ":tuner",
+        "//tensorflow_decision_forests/keras",
         "@com_google_protobuf//:python_srcs",
-        # absl/flags dep,
-        # absl/logging dep,
-        # absl/testing:parameterized dep,
+        "@pypi_absl_py//:pkg",  # /flags
         "@pypi_pandas//:pkg",
         "@release_or_nightly//:tensorflow_pkg",
-        "//tensorflow_decision_forests/keras",
         "@ydf//yggdrasil_decision_forests/learner:abstract_learner_py_proto",
     ],
 )

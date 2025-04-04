@@ -147,7 +147,7 @@ py_test(
     srcs = ["op_test.py"],
     deps = [
         ":op_py",
-        # absl/logging dep,
+        "@pypi_absl_py//:pkg",  # /logging
         "@release_or_nightly//:tensorflow_pkg",
     ],
 )

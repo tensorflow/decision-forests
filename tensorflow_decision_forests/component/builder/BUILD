@@ -36,14 +36,12 @@ py_test(
     shard_count = 10,
     deps = [
         ":builder",
-        # absl/flags dep,
-        # absl/logging dep,
-        # absl/testing:parameterized dep,
-        "@pypi_numpy//:pkg",
-        "@pypi_pandas//:pkg",
-        "@release_or_nightly//:tensorflow_pkg",
         "//tensorflow_decision_forests/component/inspector",
         "//tensorflow_decision_forests/component/py_tree",
         "//tensorflow_decision_forests/keras",
+        "@pypi_absl_py//:pkg",  # /flags
+        "@pypi_numpy//:pkg",
+        "@pypi_pandas//:pkg",
+        "@release_or_nightly//:tensorflow_pkg",
     ],
 )

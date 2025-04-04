@@ -27,7 +27,7 @@ py_test(
     srcs = ["scikit_learn_model_converter_test.py"],
     deps = [
         ":scikit_learn_model_converter",
-        # absl/testing:parameterized dep,
+        "@pypi_absl_py//:pkg",  # /testing:parameterized
         "@pypi_numpy//:pkg",
         "@pypi_scikit_learn//:pkg",
         "@release_or_nightly//:tensorflow_pkg",

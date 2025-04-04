@@ -36,14 +36,12 @@ py_test(
     srcs = ["model_plotter_test.py"],
     deps = [
         ":model_plotter",
-        # absl/flags dep,
-        # absl/logging dep,
-        # absl/testing:parameterized dep,
-        "@release_or_nightly//:tensorflow_pkg",
         "//tensorflow_decision_forests/component/py_tree:condition",
         "//tensorflow_decision_forests/component/py_tree:dataspec",
         "//tensorflow_decision_forests/component/py_tree:node",
         "//tensorflow_decision_forests/component/py_tree:tree",
         "//tensorflow_decision_forests/component/py_tree:value",
+        "@pypi_absl_py//:pkg",  # /flags
+        "@release_or_nightly//:tensorflow_pkg",
     ],
 )

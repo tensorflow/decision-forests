@@ -18,7 +18,7 @@ py_library(
     srcs = ["api.py"],
     deps = [
         ":op_py",
-        # absl/logging dep,
+        "@pypi_absl_py//:pkg",  # /logging
         "@pypi_six//:pkg",
         "@release_or_nightly//:tensorflow_pkg",
         # TensorFlow /eager:context,
@@ -35,9 +35,9 @@ py_library(
     name = "test_utils",
     srcs = ["test_utils.py"],
     deps = [
-        # absl/logging dep,
-        "@release_or_nightly//:tensorflow_pkg",
         "//tensorflow_decision_forests/component/inspector:blob_sequence",
+        "@pypi_absl_py//:pkg",  # /logging
+        "@release_or_nightly//:tensorflow_pkg",
         "@ydf//yggdrasil_decision_forests/dataset:data_spec_py_proto",
         "@ydf//yggdrasil_decision_forests/model:abstract_model_py_proto",
         "@ydf//yggdrasil_decision_forests/model/decision_tree:decision_tree_py_proto",
@@ -157,9 +157,7 @@ py_test(
     deps = [
         ":api_py",
         ":test_utils",
-        # absl/flags dep,
-        # absl/logging dep,
-        # absl/testing:parameterized dep,
+        "@pypi_absl_py//:pkg",  # /flags
         "@release_or_nightly//:tensorflow_pkg",
     ],
 )
@@ -173,9 +171,7 @@ py_test(
     deps = [
         ":api_py",
         ":test_utils",
-        # absl/flags dep,
-        # absl/logging dep,
-        # absl/testing:parameterized dep,
+        "@pypi_absl_py//:pkg",  # /flags
         "@release_or_nightly//:tensorflow_pkg",
     ],
 )

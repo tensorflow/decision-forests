@@ -45,13 +45,11 @@ py_test(
     shard_count = 10,
     deps = [
         ":inspector",
-        # absl/flags dep,
-        # absl/logging dep,
-        # absl/testing:parameterized dep,
-        "@pypi_numpy//:pkg",
-        "@release_or_nightly//:tensorflow_pkg",
         "//tensorflow_decision_forests/component/py_tree",
         "//tensorflow_decision_forests/keras",
+        "@pypi_absl_py//:pkg",  # /flags
+        "@pypi_numpy//:pkg",
+        "@release_or_nightly//:tensorflow_pkg",
         "@ydf//yggdrasil_decision_forests/metric:metric_py_proto",
         "@ydf//yggdrasil_decision_forests/model/gradient_boosted_trees:gradient_boosted_trees_py_proto",
     ],
@@ -63,9 +61,7 @@ py_test(
     data = ["@ydf//yggdrasil_decision_forests/test_data"],
     deps = [
         ":blob_sequence",
-        # absl/flags dep,
-        # absl/logging dep,
-        # absl/testing:parameterized dep,
+        "@pypi_absl_py//:pkg",  # /flags
         "@release_or_nightly//:tensorflow_pkg",
         "@ydf//yggdrasil_decision_forests/model/decision_tree:decision_tree_py_proto",
     ],

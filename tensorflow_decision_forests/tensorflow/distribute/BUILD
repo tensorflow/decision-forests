@@ -13,10 +13,8 @@ py_binary(
     srcs = ["tensorflow_std_server.py"],
     main = "tensorflow_std_server.py",
     deps = [
-        # absl:app dep,
-        # absl/flags dep,
-        # absl/logging dep,
-        "@release_or_nightly//:tensorflow_pkg",
         "//tensorflow_decision_forests",
+        "@pypi_absl_py//:pkg",  # :app
+        "@release_or_nightly//:tensorflow_pkg",
     ],
 )

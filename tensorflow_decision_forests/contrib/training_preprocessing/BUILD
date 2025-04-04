@@ -26,10 +26,9 @@ py_test(
     srcs = ["training_preprocessing_test.py"],
     deps = [
         ":training_preprocessing",
-        # absl/logging dep,
-        # absl/testing:parameterized dep,
+        "//tensorflow_decision_forests",
+        "@pypi_absl_py//:pkg",  # /logging
         "@pypi_numpy//:pkg",
         "@release_or_nightly//:tensorflow_pkg",
-        "//tensorflow_decision_forests",
     ],
 )

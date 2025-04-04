@@ -139,17 +139,15 @@ py_test(
         ":core",
         ":keras",
         ":keras_internal",
+        "//tensorflow_decision_forests/component/inspector",
+        "//tensorflow_decision_forests/component/model_plotter",
+        "//tensorflow_decision_forests/tensorflow:core",
         "@com_google_protobuf//:python_srcs",
-        # absl/flags dep,
-        # absl/logging dep,
-        # absl/testing:parameterized dep,
+        "@pypi_absl_py//:pkg",  # /flags
         "@pypi_numpy//:pkg",
         "@pypi_pandas//:pkg",
         "@release_or_nightly//:tensorflow_pkg",
         "@release_or_nightly//:tf_keras_pkg",
-        "//tensorflow_decision_forests/component/inspector",
-        "//tensorflow_decision_forests/component/model_plotter",
-        "//tensorflow_decision_forests/tensorflow:core",
         "@ydf//yggdrasil_decision_forests/dataset:synthetic_dataset_py_proto",
         "@ydf//yggdrasil_decision_forests/learner:abstract_learner_py_proto",
         "@ydf//yggdrasil_decision_forests/learner/decision_tree:decision_tree_py_proto",
@@ -167,14 +165,12 @@ py_test(
     deps = [
         ":core",
         ":keras",
+        "//tensorflow_decision_forests",
         "@com_google_protobuf//:python_srcs",
-        # absl/flags dep,
-        # absl/logging dep,
-        # absl/testing:parameterized dep,
+        "@pypi_absl_py//:pkg",  # /flags
         "@pypi_numpy//:pkg",
         "@pypi_pandas//:pkg",
         "@release_or_nightly//:tensorflow_pkg",
-        "//tensorflow_decision_forests",
         "@release_or_nightly//:tf_keras_pkg",
     ],
 )
@@ -199,9 +195,7 @@ py_test(
     ],
     deps = [
         ":keras_internal",
-        # absl/flags dep,
-        # absl/logging dep,
-        # absl/testing:parameterized dep,
+        "@pypi_absl_py//:pkg",  # /flags
         "@pypi_numpy//:pkg",
         "@pypi_pandas//:pkg",
         "@pypi_portpicker//:pkg",
@@ -217,14 +211,12 @@ py_binary(
     srcs = ["test_runner.py"],
     data = ["@ydf//yggdrasil_decision_forests/test_data"],
     deps = [
-        # absl:app dep,
-        # absl/flags dep,
-        # absl/logging dep,
+        "//tensorflow_decision_forests/tensorflow/ops/inference:op_py",
+        "@pypi_absl_py//:pkg",  # :app
         "@pypi_numpy//:pkg",
         "@pypi_pandas//:pkg",
         "@release_or_nightly//:tensorflow_pkg",
         "@release_or_nightly//:tf_keras_pkg",
-        "//tensorflow_decision_forests/tensorflow/ops/inference:op_py",
     ],
 )
 
