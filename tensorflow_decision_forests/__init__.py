@@ -68,37 +68,37 @@ from tensorflow_decision_forests.component.inspector import inspector
 from tensorflow_decision_forests.component.model_plotter import model_plotter
 from tensorflow_decision_forests.component.tuner import tuner
 
-import os
-import sys
-import io
+if __name__ == "__main__":
 
+  import os
+  import sys
+  import io
 
-def _is_direct_output(stream=sys.stdout):
-  """Checks if output stream redirects to the shell/console directly."""
+  def _is_direct_output(stream=sys.stdout):
+    """Checks if output stream redirects to the shell/console directly."""
 
-  if stream.isatty():
-    return True
-  if isinstance(stream, io.TextIOWrapper):
-    return _is_direct_output(stream.buffer)
-  if isinstance(stream, io.BufferedWriter):
-    return _is_direct_output(stream.raw)
-  if isinstance(stream, io.FileIO):
-    return stream.fileno() in [1, 2]
-  return False
+    if stream.isatty():
+      return True
+    if isinstance(stream, io.TextIOWrapper):
+      return _is_direct_output(stream.buffer)
+    if isinstance(stream, io.BufferedWriter):
+      return _is_direct_output(stream.raw)
+    if isinstance(stream, io.FileIO):
+      return stream.fileno() in [1, 2]
+    return False
 
+  # Only print the welcome message if TFDF_DISABLE_WELCOME_MESSAGE is not set
+  # and if user has not already imported YDF.
+  if (
+      os.getenv("TFDF_DISABLE_WELCOME_MESSAGE") is None
+      and "ydf" not in sys.modules
+  ):
 
-# Only print the welcome message if TFDF_DISABLE_WELCOME_MESSAGE is not set and
-# if user has not already imported YDF.
-if (
-    os.getenv("TFDF_DISABLE_WELCOME_MESSAGE") is None
-    and "ydf" not in sys.modules
-):
+    if not _is_direct_output():  # Check if executed in a Notebook
 
-  if not _is_direct_output():  # Check if executed in a Notebook
+      import IPython
 
-    import IPython
-
-    IPython.display.display(IPython.display.HTML("""
+      IPython.display.display(IPython.display.HTML("""
 <p style="margin:0px;">🌲 Try <a href="https://ydf.readthedocs.io/en/latest/" target="_blank">YDF</a>, the successor of
     <a href="https://www.tensorflow.org/decision_forests" target="_blank">TensorFlow
         Decision Forests</a> using the same algorithms but with more features and faster
@@ -132,19 +132,19 @@ model = ydf.RandomForestLearner(label="l").train(ds)
 <p style="margin:0px;font-size: 9pt;">(Learn more in the <a
         href="https://ydf.readthedocs.io/en/latest/tutorial/migrating_to_ydf/" target="_blank">migration
         guide</a>)</p>
-"""))
+  """))
 
-  else:
-    import termcolor
-    print(
-        termcolor.colored("🌲 Try ", "green"),
-        termcolor.colored("https://ydf.readthedocs.io", "blue"),
-        termcolor.colored(
-            ", the successor of TensorFlow Decision Forests with more"
-            " features and faster training!",
-            "green",
-        ),
-        sep="",
-        file=sys.stderr,
-    )
-    pass
+    else:
+      import termcolor
+      print(
+          termcolor.colored("🌲 Try ", "green"),
+          termcolor.colored("https://ydf.readthedocs.io", "blue"),
+          termcolor.colored(
+              ", the successor of TensorFlow Decision Forests with more"
+              " features and faster training!",
+              "green",
+          ),
+          sep="",
+          file=sys.stderr,
+      )
+      pass
