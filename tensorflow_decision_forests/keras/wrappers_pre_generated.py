@@ -195,6 +195,11 @@ class CartModel(core.CoreModel):
       algorithm is inspired from section "5.1 Categorical Variables" of "Random
       Forest", 2001.
         Default: "CART".
+    categorical_set_split_greedy_maximum_mask_size: For categorical set splits
+      e.g. texts. Maximum number of attribute values on the positive side of the
+      split mask. Smaller values might improve training speed but lead to worse
+      models. Setting this parameter to 1 is equal to one-hot encoding the
+      attribute values. Set to -1 for no maximum (default). Default: -1.
     categorical_set_split_greedy_sampling: For categorical set splits e.g.
       texts. Probability for a categorical value to be a candidate for the
       positive set. The sampling is applied once per node (i.e. not at every
@@ -444,6 +449,7 @@ class CartModel(core.CoreModel):
       multitask: Optional[List[MultiTaskItem]] = None,
       allow_na_conditions: Optional[bool] = False,
       categorical_algorithm: Optional[str] = "CART",
+      categorical_set_split_greedy_maximum_mask_size: Optional[int] = -1,
       categorical_set_split_greedy_sampling: Optional[float] = 0.1,
       categorical_set_split_max_num_items: Optional[int] = -1,
       categorical_set_split_min_item_frequency: Optional[int] = 1,
@@ -488,6 +494,9 @@ class CartModel(core.CoreModel):
     learner_params = {
         "allow_na_conditions": allow_na_conditions,
         "categorical_algorithm": categorical_algorithm,
+        "categorical_set_split_greedy_maximum_mask_size": (
+            categorical_set_split_greedy_maximum_mask_size
+        ),
         "categorical_set_split_greedy_sampling": (
             categorical_set_split_greedy_sampling
         ),
@@ -1112,6 +1121,11 @@ class GradientBoostedTreesModel(core.CoreModel):
       algorithm is inspired from section "5.1 Categorical Variables" of "Random
       Forest", 2001.
         Default: "CART".
+    categorical_set_split_greedy_maximum_mask_size: For categorical set splits
+      e.g. texts. Maximum number of attribute values on the positive side of the
+      split mask. Smaller values might improve training speed but lead to worse
+      models. Setting this parameter to 1 is equal to one-hot encoding the
+      attribute values. Set to -1 for no maximum (default). Default: -1.
     categorical_set_split_greedy_sampling: For categorical set splits e.g.
       texts. Probability for a categorical value to be a candidate for the
       positive set. The sampling is applied once per node (i.e. not at every
@@ -1424,6 +1438,14 @@ class GradientBoostedTreesModel(core.CoreModel):
       \\"sampling_method\\" is implicitly set to \\"RANDOM\\". In other words,
       to enable random subsampling, you only need to set "\\"subsample\\".
       Default: 1.0.
+    total_max_num_nodes: Limit the total number of nodes in the model over all
+      trees. This limit is an upper bound that may not be reached exactly. If
+      the value is smaller than the number of nodes of a single tree according
+      to other hyperparameter, the learner may return an empty model. This
+      hyperparameter is useful for hyperparameter tuning models with very few
+      nodes for small model size and fast inference. For training individual
+      models, prefer adapting max_num_nodes / max_depth and num_trees. Set to -1
+      (default) for no limit. Default: -1.
     uplift_min_examples_in_treatment: For uplift models only. Minimum number of
       examples per treatment in a node. Default: 5.
     uplift_split_score: For uplift models only. Splitter score i.e. score
@@ -1479,6 +1501,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       allow_na_conditions: Optional[bool] = False,
       apply_link_function: Optional[bool] = True,
       categorical_algorithm: Optional[str] = "CART",
+      categorical_set_split_greedy_maximum_mask_size: Optional[int] = -1,
       categorical_set_split_greedy_sampling: Optional[float] = 0.1,
       categorical_set_split_max_num_items: Optional[int] = -1,
       categorical_set_split_min_item_frequency: Optional[int] = 1,
@@ -1536,6 +1559,7 @@ class GradientBoostedTreesModel(core.CoreModel):
       sparse_oblique_weights_power_of_two_min_exponent: Optional[int] = None,
       split_axis: Optional[str] = "AXIS_ALIGNED",
       subsample: Optional[float] = 1.0,
+      total_max_num_nodes: Optional[int] = -1,
       uplift_min_examples_in_treatment: Optional[int] = 5,
       uplift_split_score: Optional[str] = "KULLBACK_LEIBLER",
       use_hessian_gain: Optional[bool] = False,
@@ -1551,6 +1575,9 @@ class GradientBoostedTreesModel(core.CoreModel):
         "allow_na_conditions": allow_na_conditions,
         "apply_link_function": apply_link_function,
         "categorical_algorithm": categorical_algorithm,
+        "categorical_set_split_greedy_maximum_mask_size": (
+            categorical_set_split_greedy_maximum_mask_size
+        ),
         "categorical_set_split_greedy_sampling": (
             categorical_set_split_greedy_sampling
         ),
@@ -1638,6 +1665,7 @@ class GradientBoostedTreesModel(core.CoreModel):
         ),
         "split_axis": split_axis,
         "subsample": subsample,
+        "total_max_num_nodes": total_max_num_nodes,
         "uplift_min_examples_in_treatment": uplift_min_examples_in_treatment,
         "uplift_split_score": uplift_split_score,
         "use_hessian_gain": use_hessian_gain,
@@ -2362,6 +2390,11 @@ class RandomForestModel(core.CoreModel):
       algorithm is inspired from section "5.1 Categorical Variables" of "Random
       Forest", 2001.
         Default: "CART".
+    categorical_set_split_greedy_maximum_mask_size: For categorical set splits
+      e.g. texts. Maximum number of attribute values on the positive side of the
+      split mask. Smaller values might improve training speed but lead to worse
+      models. Setting this parameter to 1 is equal to one-hot encoding the
+      attribute values. Set to -1 for no maximum (default). Default: -1.
     categorical_set_split_greedy_sampling: For categorical set splits e.g.
       texts. Probability for a categorical value to be a candidate for the
       positive set. The sampling is applied once per node (i.e. not at every
@@ -2637,6 +2670,7 @@ class RandomForestModel(core.CoreModel):
       bootstrap_size_ratio: Optional[float] = 1.0,
       bootstrap_training_dataset: Optional[bool] = True,
       categorical_algorithm: Optional[str] = "CART",
+      categorical_set_split_greedy_maximum_mask_size: Optional[int] = -1,
       categorical_set_split_greedy_sampling: Optional[float] = 0.1,
       categorical_set_split_max_num_items: Optional[int] = -1,
       categorical_set_split_min_item_frequency: Optional[int] = 1,
@@ -2691,6 +2725,9 @@ class RandomForestModel(core.CoreModel):
         "bootstrap_size_ratio": bootstrap_size_ratio,
         "bootstrap_training_dataset": bootstrap_training_dataset,
         "categorical_algorithm": categorical_algorithm,
+        "categorical_set_split_greedy_maximum_mask_size": (
+            categorical_set_split_greedy_maximum_mask_size
+        ),
         "categorical_set_split_greedy_sampling": (
             categorical_set_split_greedy_sampling
         ),
