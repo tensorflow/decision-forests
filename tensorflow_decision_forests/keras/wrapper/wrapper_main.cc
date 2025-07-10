@@ -16,6 +16,8 @@
 // Outputs python source code defining python Keras class wrapper around
 // Yggdrasil Decision Forest learners.
 
+#include <iostream>
+
 #include "tensorflow_decision_forests/keras/wrapper/wrapper.h"
 
 int main(int argc, char* argv[]) {
