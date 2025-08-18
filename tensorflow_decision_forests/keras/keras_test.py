@@ -2116,6 +2116,8 @@ class TFDFTest(parameterized.TestCase, tf.test.TestCase):
 
       # TODO: Evaluate with the Uplift framework.
 
+  # TODO: b/2439527146 - Re-enable honest trees with uplift.
+  @unittest.skip("Honest uplift is currently broken.")
   def test_uplift_honest_sim_pte(self):
     # Path to dataset.
     dataset_directory = os.path.join(ydf_test_data_path(), "dataset")
