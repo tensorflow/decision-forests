@@ -31,12 +31,12 @@ with open("README.md", "r", encoding="utf-8") as fh:
 REQUIRED_PACKAGES = [
     "numpy",
     "pandas",
-    "tensorflow==2.19.0",
+    "tensorflow==2.20.0",
     "six",
     "absl_py",
     "wheel",
     "wurlitzer",
-    "tf_keras~=2.19",
+    "tf_keras~=2.20",
     "ydf>=0.11.0",
 ]
 
