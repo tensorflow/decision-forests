@@ -55,6 +55,10 @@ build --spawn_strategy=standalone
 build --strategy=Genrule=standalone
 build --action_env TF_NEED_CUDA="0"
 
+# Disable Hermetic CC toolchains
+build --@rules_ml_toolchain//common:enable_hermetic_cc=False
+build --repo_env USE_HERMETIC_CC_TOOLCHAIN=0
+
 # Host specifics options.
 build:macos --features=-supports_dynamic_linker
 # On Intel machines, AVX2 is available
