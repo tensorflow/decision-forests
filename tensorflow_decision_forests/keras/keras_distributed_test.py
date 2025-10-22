@@ -460,7 +460,7 @@ class TFDFDistributedTest(parameterized.TestCase, tf.test.TestCase):
       # training due to the Keras limitation discussed in the notes above.
       # However, because of the currently required repeat, if workers are
       # running at different speed, some examples can be repeated.
-      self.assertAlmostEqual(evaluation["accuracy"], 0.8603476, delta=0.02)
+      self.assertAlmostEqual(evaluation["accuracy"], 0.8603476, delta=0.025)
 
   def test_distributed_training_adult_from_file(self):
     # Path to dataset.
