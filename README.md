@@ -2,6 +2,12 @@
 <img src="documentation/image/logo.png"  />
 </p>
 
+> **Note:** We recommend users to migrate to **Yggdrasil Decision Forests**
+> (**YDF**). YDF trains the same models as TF-DF, but is faster and has more
+> functionality. See the
+> [migration guide](https://ydf.readthedocs.io/en/latest/tutorial/migrating_to_ydf/)
+> for more information.
+
 **TensorFlow Decision Forests** (**TF-DF**) is a library to train, run and
 interpret [decision forest](https://ydf.readthedocs.io/en/latest/intro_df.html)
 models (e.g., Random Forests, Gradient Boosted Trees) in TensorFlow. TF-DF
