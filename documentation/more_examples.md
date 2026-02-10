@@ -8,3 +8,5 @@ This page lists examples created by TF-DF users.
     (on github.com)
 -   [Classification with TensorFlow Decision Forests](https://keras.io/examples/structured_data/classification_with_tfdf/)
     (on keras.io)
+-   [Build, Train and Evaluate TF Gradient Boosted Decision Trees](https://www.kaggle.com/lowlypalace/build-train-and-evaluate-tf-gradient-boosted-dt)
+    (on kaggle.com)
